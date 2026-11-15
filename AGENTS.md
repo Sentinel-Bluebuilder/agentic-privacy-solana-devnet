@@ -16,9 +16,8 @@ Rules of the tool:
 - Secrets and RPC keys are never printed.
 - Replace every `<…>` (`<ADDRESS>`, `<node>`, `<version>`) with a real value before running a line.
 
-> Every `devnet-dvpn` command outside the "Shortcut" section exists in the released CLI.
-> The CLI reference of each app: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
-> What is proven on each OS, step by step: [`docs/PROOF.md`](docs/PROOF.md). Sections 1 to 6 were
+> Every `devnet-dvpn` command outside the "Shortcut" section exists in the released CLI (the CLI
+> reference of each app: "If something fails"). What is proven on each OS, step by step: [`docs/PROOF.md`](docs/PROOF.md). Sections 1 to 6 were
 > run end to end on a clean Ubuntu 24.04 with the public v0.3.0-rc2 package on 2026-11-15,
 > including the refund. On Windows over SSH (rc2, same day), sections 1 to 6 passed, including
 > the refund, with one workaround line for a known `daemon install` bug (see "Install: Windows").
@@ -294,9 +293,8 @@ Wait for both to arrive. Run this until `ownerLamports` is above 0 and `ownerTdv
 devnet-dvpn wallet show --json
 ```
 
-Do not go on to section 4 with an empty wallet: `device setup` is a transaction and needs the SOL.
-Where the SOL goes: `device setup` moves 0.05 SOL to the device for its fees, and each open
-per-GB deposit holds about 0.004 SOL until it is settled.
+Minimum: about 0.06 SOL (`device setup` moves 0.05 to the device) and tDVPN = the deposit of the
+node you pick (a per-GB node on devnet: about 0.002). Each open per-GB deposit holds ~0.004 SOL.
 
 If your operator says a faucet refused, or nothing arrives: Appendix B.
 
@@ -311,17 +309,17 @@ devnet-dvpn daemon doctor --json            # a list of checks: none may have "l
 devnet-dvpn status --json                   # wallet, device, service: all set
 ```
 
-`doctor` levels are `ok`, `skip`, `warn`, `fail`; only `fail` stops you.
-
-The order matters: the service does not start before the device has its spending permission.
-`daemon install` needs administrator / root: see "Before you start". Windows and macOS each have
-one more note on it in their install section.
+`doctor` levels are `ok`, `skip`, `warn`, `fail`; only `fail` stops you. The order matters: the
+service does not start before the device has its spending permission.
+- `device plan`'s "spend up to 50 tDVPN" is a cap the device may spend from your wallet, not a charge.
+- `"service":"no-service"` in the `device setup` output: the service is not installed yet; normal here.
 
 ## 5. Connect
 
 ```sh
 devnet-dvpn quality ip --json                            # BEFORE: note "direct.ip", your own IP
-devnet-dvpn nodes list --online --json                   # every server, checked live
+devnet-dvpn daemon drivers                               # the protocol you pick must be ready
+devnet-dvpn nodes list --online --protocol wireguard --sort price --json
 devnet-dvpn cost <node> --basis per_gb --units 1 --json  # exact deposit before you pay
 devnet-dvpn connect <node> --basis per_gb --units 1 --yes --json
 devnet-dvpn quality ip --json                            # AFTER: prove the tunnel (see below)
@@ -335,8 +333,8 @@ and `"50000000"` is 50 tDVPN. On devnet many nodes ask about 50 tDVPN per GB, an
 request gives 100: sort by price.
 
 Which protocol: for proof that the whole machine goes through the node, pick a WireGuard,
-AmneziaWG, OpenVPN or Hysteria2 node. A tool that `daemon drivers` lists as missing matters only
-if you pick a node of that protocol.
+AmneziaWG, OpenVPN or Hysteria2 node. If `daemon drivers` asks for `repair-drivers` and only
+AmneziaWG is missing, ignore it unless you pick an AmneziaWG node.
 
 How to read the proof. `quality ip --json` prints `{ "direct": …, "viaSocks": … }` (`source` is
 the Cloudflare check address that answered):
@@ -363,13 +361,14 @@ devnet-dvpn disconnect
 
 ```sh
 devnet-dvpn disconnect
-devnet-dvpn settle run --yes        # start closing the deposit
-devnet-dvpn settle list             # shows when each deposit can be refunded (about 2 hours)
-devnet-dvpn settle run --yes        # run again after that time to finish
+devnet-dvpn settle run --yes        # stage 1 of 2: start closing the deposit
+devnet-dvpn settle list             # the ready time (about 2 h for per GB)
+devnet-dvpn settle run --yes        # stage 2, after that time
 devnet-dvpn settle withdraw --yes   # move refunds back to the wallet
 ```
 
-You do not have to stay online for the two hours: come back later and run the last two lines.
+You need not stay online for the two hours. In `settle list`, `refundable` below the deposit is
+normal: the part used for traffic and fees is not refunded.
 
 `disconnect` says "the app refunds the unused part automatically": that is the desktop app with
 its window open. From the command line, run the lines above; the wait is what `settle list` shows.
