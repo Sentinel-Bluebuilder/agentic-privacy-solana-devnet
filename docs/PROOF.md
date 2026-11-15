@@ -32,6 +32,7 @@ A fresh-machine test run on **v0.3.0-rc2**, 2026-11-15: a clean Ubuntu 24.04 clo
 | A fresh AI agent with only this page (`AGENTS.md`), over SSH, with a funded key file given to it | **proven** on rc2 (2026-11-15) | clean Ubuntu 24.04: install → connect over WireGuard → exit IP checked by an outside service → disconnect → refund started, in 6.5 minutes, nothing failed. Its feedback is folded into the page |
 | Shortcut: `agent status`, `agent up`, `agent down` | **proven** with a development build (not in rc2) | run live on Linux 2026-11-15, a development build of the `agent` commands on the released rc2 runtime: status, preview, connect with exit IP = node, reuse without paying, disconnect, status after. The first run's one failure (the `agent down` preview counted 0 deposits while connected) was fixed and the re-run passed |
 | Per hour with the `agent` commands (`agent up --basis per_hour`, `agent down --yes`) | **proven** (2026-11-15) | a development build of the `agent` commands on the released rc2 runtime: exit IP = node, the `agent down` preview counted the live per-hour deposit, `agent down --yes` closed it at once and the unused part came back to the wallet |
+| V2Ray on rc2: proxy only | **seen** on rc2 (2026-11-16) | Linux has no whole-computer setting: `direct.ip` stayed the machine's own and `viaSocks.ip` was the node's |
 | Kill switch with no session (rc2 runtime, 2026-11-15) | observed | setting `persist` did not block the internet; `restore-network`, `set on` (the same setting as `persist`), a service restart and `set off` all left it direct. As designed: with no session, no mode blocks (read from the daemon's source, not checked against rc2's exact build). The blocked case (a session that dropped under the kill switch) was not run on Linux |
 | Per hour, plans, split tunnelling, kill switch, drivers | partly | proven on earlier builds; kill switch across a reboot proven on rc2 |
 
@@ -53,6 +54,7 @@ cover IPv6. Neither is in the main agent path.
 | 4. `daemon install` | **partly**: rc2 bug, with a proven workaround | on a machine not joined to a domain it fails: "There is no such global user or group: WORKGROUP\…". Over SSH, Windows sets `USERDOMAIN` to `WORKGROUP` there. With `$env:USERDOMAIN = $env:COMPUTERNAME` first, in the same shell, it exits 0 (`"relogin": false`) and the service runs. Reported; the fix is not released |
 | 4. As a standard (non-admin) user | limit | install and `daemon install` each need one UAC prompt, which an agent cannot answer |
 | 5. `connect` (WireGuard, per GB), `quality ip` | **proven** on rc2 (2026-11-15) | in a new SSH session after the install: the public IP changed to the node's while connected and came back after `disconnect`. A node asking 50 tDVPN per GB was refused for a wallet holding 20 ("Not enough tDVPN"): check `cost` first |
+| 5. V2Ray on a new rc2 install: whole computer | **seen** on rc2 (2026-11-16) | `"wholeDevice": true` by default: `direct.ip` was the node's during the session and the machine's own again after `disconnect` |
 | 5. All six protocols, per GB and per hour; exit IP = node | proven (earlier builds) | x64 and ARM64. v0.3.0-rc2 has no ARM64 build, so on rc2 Windows is x64 only |
 | 5. Plan: `plans subscribe` | proven (earlier builds) | connecting on a plan ticket has not been run on Windows (proven on Linux; it is a chain-side path) |
 | Split tunnelling (apps and addresses), kill switch (on, persist, service killed, reboot), allow LAN | proven (earlier builds) | kill switch across a reboot also proven on rc2-era code |
@@ -80,7 +82,8 @@ All macOS runs are on the **Intel (x64)** build.
 | 4. `daemon doctor` | partly | no failures, but as a normal user some rows say "warn" by design |
 | 5. `connect` per GB, exit IP = node | proven (rc.1, and rc2 as an upgrade, 2026-11-14) | WireGuard |
 | 5. All six protocols per GB | proven (earlier build) | |
-| 5. V2Ray / Xray SOCKS proxy | proven (earlier build) | only traffic sent to the proxy exits at the node |
+| 5. V2Ray on a new rc2 install: whole computer | **seen** on rc2 (2026-11-16) | `"wholeDevice": true` by default: `direct.ip` and `viaSocks.ip` both the node's; no system proxy. `daemon set --whole-device false --yes` gives the proxy-only mode |
+| 5. V2Ray / Xray SOCKS proxy (whole computer off) | proven (earlier build) | only traffic sent to the proxy exits at the node |
 | 5. `quality ip` showing the SOCKS exit IP | partly | in the shared code; no macOS log of that line |
 | 6. `disconnect`, `settle run`, `settle list`, `settle withdraw` | proven (rc.1 and earlier) | nothing left behind after disconnect |
 | Per hour, plans, split by address and by app, whole device, kill switch on and persist (across reboots on rc2), allow LAN | proven (earlier builds; persist on rc2) | |

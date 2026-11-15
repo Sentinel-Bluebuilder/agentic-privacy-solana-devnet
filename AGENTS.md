@@ -37,7 +37,7 @@ Ten lines per OS. The sections below explain each line; read them the first time
 6. `devnet-dvpn daemon install --yes` (passwordless `sudo`, or as root)
 7. `devnet-dvpn quality ip --json`, then `devnet-dvpn nodes list --online --json`
 8. `devnet-dvpn connect <node> --basis per_gb --units 1 --yes --json`
-9. `devnet-dvpn quality ip --json` (`direct.ip` changed; V2Ray / Xray: `viaSocks.ip`)
+9. `devnet-dvpn quality ip --json` (`direct.ip` changed; V2Ray / Xray on Linux: `viaSocks.ip`)
 10. `devnet-dvpn disconnect`, `devnet-dvpn settle run --yes`; about 2 hours later `devnet-dvpn settle run --yes`, `devnet-dvpn settle withdraw --yes`
 
 **Windows** (an elevated PowerShell)
@@ -340,9 +340,11 @@ How to read the proof. `quality ip --json` prints `{ "direct": …, "viaSocks": 
 the Cloudflare check address that answered):
 - WireGuard, AmneziaWG, OpenVPN, Hysteria2 route the whole machine: you are connected when
   `direct.ip` is now different from the BEFORE value.
-- V2Ray and Xray give a local SOCKS proxy instead: `direct.ip` stays your own, and
-  `viaSocks.ip` is the node's. Only what you send to that proxy uses the node
-  (`devnet-dvpn proxy status` shows its address).
+- V2Ray and Xray, Linux: only what you send to the local SOCKS proxy uses the node (`proxy
+  status` shows its address): `direct.ip` stays your own; the proof is `viaSocks.ip`.
+- V2Ray and Xray, a new Windows or macOS install: the whole computer goes through the node
+  (`"wholeDevice": true` in `daemon settings --json`), so `direct.ip` changes too. Proxy-only:
+  `daemon set --whole-device false --yes`. (Seen on both, rc2.)
 
 Driving this machine over SSH: read "Over SSH" below before you connect.
 
@@ -417,7 +419,7 @@ devnet-dvpn nodes list --online --sort price --json
 ```sh
 devnet-dvpn split status
 devnet-dvpn daemon set --split-mode exclude --split-routes 10.0.0.0/8 --yes
-devnet-dvpn proxy status            # V2Ray / Xray sessions give a local SOCKS proxy: only what you send to it uses the node
+devnet-dvpn proxy status            # V2Ray / Xray: the local SOCKS proxy (whole computer by default on Windows / macOS)
 ```
 
 **Kill switch** — block the internet whenever the tunnel is not up.
@@ -450,11 +452,9 @@ Per-OS details of split tunnelling and the kill switch: [`docs/agent-safety.md`]
 
 ## Over SSH
 
-If you drive the machine over SSH: on Linux a full-tunnel connect does not cut your session
-(proven with WireGuard: replies to connections that came in on the machine's own address still
-leave directly; what the machine opens itself goes through the node). Windows: shown with
-WireGuard over SSH from the internet (2026-10-20, an earlier build); other protocols not shown.
-macOS: not yet shown. Where it is not shown, keep a second way in.
+Over SSH, a full-tunnel connect did not cut the session with WireGuard on Linux (replies to
+connections that came in still leave directly) and on Windows (rc2). Not shown: other protocols,
+macOS, and a whole-computer V2Ray / Xray session on Windows or macOS. There, keep a second way in.
 
 **If you control this machine over the network (SSH), read this first.** The kill switch blocks
 everything that is not the tunnel, and that can include your own connection to the machine. A

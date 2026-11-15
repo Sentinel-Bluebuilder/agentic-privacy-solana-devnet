@@ -262,3 +262,9 @@ administrator step or are rare. Run them with the CLI, as `AGENTS.md` describes.
   `yes`. It needs `devnet-dvpn` findable as in section 2. `--bundle <devnet-dvpn.cjs>` adds a pass
   against a CLI built from source (the `out/cli/devnet-dvpn.cjs` of a build; the copy inside an
   installed app is packed in `app.asar` and plain Node cannot read it).
+- Live check with one paid session (v0.3.0-rc.3 or newer, after sections 1 to 4 of `AGENTS.md`):
+  `DVPN_KEYFILE=<key> node mcp/live-check.mjs --out <dir> --paid --yes` adds `vpn_up`
+  (`yes: true`, WireGuard, per GB, 1 unit), `vpn_agent_status` (connected), `vpn_down`
+  (`yes: true`) and `vpn_agent_status` (not connected). It spends one deposit (about 0.002 tDVPN
+  per GB on devnet; the unused part comes back after the two-hour close). Without both `--paid`
+  and `--yes` it spends nothing. `--protocol <name>` and `--basis per_hour` change the session.

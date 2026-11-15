@@ -399,3 +399,50 @@ test('vpn_up refuses max_price without basis (it is per unit of a basis that def
   assert.match(r.content[0].text, /basis/);
   assert.equal(s.calls.length, 0);
 });
+// ─── live-check: when the paid session must be closed ───
+// Imported, live-check.mjs runs nothing (it starts only as the entry point).
+test('live-check runs vpn_down after any paid vpn_up that is not a clean refusal', async () => {
+  const { upCleanlyRefused, checkAfterUp, mustRunDown } = await import('./live-check.mjs');
+  const ans = (exitCode, result) => ({ isError: exitCode !== 0, structuredContent: { exitCode, result } });
+  const connected = ans(0, { connected: true, node: NODE });
+  const notConnected = ans(0, { connected: false });
+
+  // No answer at all (timeout, transport error): it may have connected and paid → always down.
+  assert.equal(checkAfterUp(null), true);
+  assert.equal(mustRunDown(null, notConnected), true);
+  assert.equal(mustRunDown(null, null), true);
+
+  // Connected (exit 0 with a session) → down, whatever the status says.
+  const ok = ans(0, { ok: true, session: 's1', node: NODE });
+  assert.equal(upCleanlyRefused(ok), false);
+  assert.equal(mustRunDown(ok, notConnected), true);
+
+  // A failure that still carries a session → down.
+  assert.equal(mustRunDown(ans(1, { ok: false, code: 'node-error', session: 's2' }), notConnected), true);
+
+  // A failure without a session is a clean refusal → no status read, no down.
+  const refused = ans(1, { ok: false, code: 'not-enough-tdvpn', action: 'fund' });
+  assert.equal(upCleanlyRefused(refused), true);
+  assert.equal(checkAfterUp(refused), false);
+  assert.equal(mustRunDown(refused, connected), false);
+
+  // The rc2 fallback (the server's answer to "unknown command: agent": exit code 3) is a clean refusal.
+  const rc2 = await callTool('vpn_up', { yes: true }, {
+    env: { DEVNET_DVPN_BIN: fakeInstall('linux').bin }, platform: 'linux',
+    spawnFn: fakeSpawn({ stderr: 'unknown command: agent\n', code: 3 }).fn,
+  });
+  assert.equal(rc2.structuredContent.exitCode, 3);
+  assert.equal(upCleanlyRefused(rc2), true);
+
+  // An answer with no exit code (an MCP tool error, a server timeout) is not a clean refusal:
+  // the status is read, and down runs unless the status says not connected.
+  const toolError = { isError: true, content: [{ type: 'text', text: 'internal error' }] };
+  const timedOut = { isError: true, structuredContent: { exitCode: null, timedOut: true } };
+  for (const up of [toolError, timedOut]) {
+    assert.equal(upCleanlyRefused(up), false);
+    assert.equal(checkAfterUp(up), true);
+    assert.equal(mustRunDown(up, connected), true);
+    assert.equal(mustRunDown(up, null), true);
+    assert.equal(mustRunDown(up, notConnected), false);
+  }
+});
