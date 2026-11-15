@@ -431,7 +431,7 @@ devnet-dvpn daemon set --allow-lan true --yes
 ```
 
 In this app the kill switch `on` and `persist` are the same setting. After `disconnect` / `agent
-down`, check `devnet-dvpn quality ip`. If it shows no address, the kill switch is still blocking —
+down`, check `devnet-dvpn quality ip` (`status` can say not connected while it blocks). If it shows no address, the kill switch is still blocking —
 this happens when the session had already dropped before you disconnected. `devnet-dvpn daemon
 restore-network` lifts the block for now; it can come back at the next dropped session or service
 restart. `devnet-dvpn daemon set --kill-switch off --yes` stops it coming back.

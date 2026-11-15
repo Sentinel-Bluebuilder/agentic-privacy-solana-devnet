@@ -32,6 +32,10 @@ root and **restarts the VPN service**. Change settings while disconnected.
    address, the kill switch is still blocking — this happens when the session had already
    dropped before you disconnected. Run rule 3. Also check `devnet-dvpn status --json` shows no
    session. On Android, disconnect releases the block.
+5. **`status` can say "Not connected" while the kill switch still blocks.** About a minute after
+   a tunnel is lost, `status` changes from "Reconnecting — internet blocked to protect you" to
+   "Not connected", with no hint that the block is still on (seen on Windows, v0.3.0-rc2). Never
+   take "Not connected" to mean you are back on your own connection: `quality ip` is the test.
 
 ## Changing server with the kill switch on
 
