@@ -29,8 +29,10 @@ A fresh-machine test run on **v0.3.0-rc2**, 2026-11-15: a clean Ubuntu 24.04 clo
 | 5. SSH over a full tunnel | **proven** on rc2 (fresh-machine run, WireGuard) | the SSH session that drove the run survived the connect |
 | 6. `disconnect`, `settle run` | **proven** on rc2 (fresh-machine run) | IP back to direct; the deposit moved to "closing" |
 | 6. Final refund (`settle run` after 2 h, `settle withdraw`) | **proven** on rc2 (fresh-machine run) | after the two-hour close, `settle run --yes` and `settle withdraw --yes` both exited 0: the refund finished |
+| A fresh AI agent with only this page (`AGENTS.md`), over SSH, with a funded key file given to it | **proven** on rc2 (2026-11-15) | clean Ubuntu 24.04: install → connect over WireGuard → exit IP checked by an outside service → disconnect → refund started, in 6.5 minutes, nothing failed. Its feedback is folded into the page |
 | Shortcut: `agent status`, `agent up`, `agent down` | **proven** with a development build (not in rc2) | run live on Linux 2026-11-15, a development build of the `agent` commands on the released rc2 runtime: status, preview, connect with exit IP = node, reuse without paying, disconnect, status after. The first run's one failure (the `agent down` preview counted 0 deposits while connected) was fixed and the re-run passed |
 | Per hour with the `agent` commands (`agent up --basis per_hour`, `agent down --yes`) | **proven** (2026-11-15) | a development build of the `agent` commands on the released rc2 runtime: exit IP = node, the `agent down` preview counted the live per-hour deposit, `agent down --yes` closed it at once and the unused part came back to the wallet |
+| Kill switch with no session (rc2 runtime, 2026-11-15) | observed | setting `persist` did not block the internet; `restore-network`, `set on` (the same setting as `persist`), a service restart and `set off` all left it direct. As designed: with no session, no mode blocks (read from the daemon's source, not checked against rc2's exact build). The blocked case (a session that dropped under the kill switch) was not run on Linux |
 | Per hour, plans, split tunnelling, kill switch, drivers | partly | proven on earlier builds; kill switch across a reboot proven on rc2 |
 
 The install line on the Linux release page was corrected on 2026-11-15 to start with
@@ -55,7 +57,7 @@ cover IPv6. Neither is in the main agent path.
 | 5. Plan: `plans subscribe` | proven (earlier builds) | connecting on a plan ticket has not been run on Windows (proven on Linux; it is a chain-side path) |
 | Split tunnelling (apps and addresses), kill switch (on, persist, service killed, reboot), allow LAN | proven (earlier builds) | kill switch across a reboot also proven on rc2-era code |
 | 6. `disconnect`, `settle run` | **proven** on rc2 (2026-11-15) | the deposit moved to closing |
-| 6. Final refund (`settle run` after 2 h, `settle withdraw`) | not yet | that run's deposit is in its two-hour close; proven on earlier builds |
+| 6. Final refund (`settle run` after 2 h, `settle withdraw`) | **proven** on rc2 (2026-11-15) | after the two-hour close, `settle run --yes` closed the deposit and the unused deposit came back to the wallet in full; `settle withdraw --yes` then had nothing left to move ("Nothing to withdraw" is a normal answer). Run from another machine holding the wallet's key file, with `settle run --device <device> --yes`: closing a deposit is signed by the wallet owner, so it worked after the device's permission had been removed, with no new device setup |
 | 5. SSH over a full tunnel | **proven** on rc2 (2026-11-15, WireGuard) | the SSH session survived the connect; other protocols not run |
 | Shortcut: `agent` commands | not run | no Windows result yet |
 
@@ -106,7 +108,7 @@ keeps the wallet and settings. That shows the commands work, not that an agent c
 
 ## Not covered anywhere yet
 
-- A fresh AI agent with only `AGENTS.md` on Windows or macOS (on Linux a script followed the page).
+- A fresh AI agent with only `AGENTS.md` on Windows or macOS (on Linux one did, see above).
 - The kill-switch recovery after a session that had already dropped (`quality ip` shows no
   address → `daemon restore-network`, then `daemon set --kill-switch off --yes`): proven on
   Windows; not run on Linux or macOS.

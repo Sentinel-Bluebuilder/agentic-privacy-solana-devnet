@@ -48,6 +48,8 @@ itself.
   wallet can send tDVPN instead: `devnet-dvpn wallet send --to <ADDRESS> --tdvpn 100 --yes`.
 - The Solana faucet is often busy. Try again later. If the agent's machine has the Solana command
   line, the agent may get the SOL itself.
+- Taking funds back from an agent's wallet later: sending all of its SOL is refused ("This would
+  leave an account below Solana's minimum balance … Send a little less"). Leave about 0.001 SOL.
 
 ## 2. The one administrator moment
 

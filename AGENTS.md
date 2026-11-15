@@ -20,9 +20,8 @@ Rules of the tool:
 > The CLI reference of each app: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
 > What is proven on each OS, step by step: [`docs/PROOF.md`](docs/PROOF.md). Sections 1 to 6 were
 > run end to end on a clean Ubuntu 24.04 with the public v0.3.0-rc2 package on 2026-11-15,
-> including the refund. On Windows over SSH (rc2, same day), sections 1 to 6 up to the start of
-> the refund passed, with one workaround line for a known `daemon install` bug (see "Install:
-> Windows"); the final refund step is still in its two-hour close.
+> including the refund. On Windows over SSH (rc2, same day), sections 1 to 6 passed, including
+> the refund, with one workaround line for a known `daemon install` bug (see "Install: Windows").
 
 ---
 
@@ -31,7 +30,7 @@ Rules of the tool:
 Ten lines per OS. The sections below explain each line; read them the first time.
 
 **Linux**
-1. `sudo apt-get update && sudo apt install ./devnet-dvpn_<version>_amd64.deb`
+1. The install block in "Install: Linux" (curl, `sha256sum -c`, `apt-get install -y`)
 2. `devnet-dvpn version --json` (must say network devnet)
 3. `export DVPN_KEYFILE="$PWD/agent-key.json"` then `devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json`
 4. Send your operator the message in section 3 with your address; run `devnet-dvpn wallet show --json` until both balances are above 0
@@ -89,11 +88,20 @@ the section for your OS.
 
 Linux (deb, rpm, Arch, AppImage; x64 + arm64): <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases>
 
+Debian / Ubuntu, x64:
+
 ```sh
-sudo apt-get update && sudo apt install ./devnet-dvpn_<version>_amd64.deb
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc2
+F=devnet-dvpn_0.3.0-rc.2_amd64.deb
+curl -fsSLO "$U/$F"
+curl -fsSLO "$U/SHA256SUMS"
+grep " $F\$" SHA256SUMS | sha256sum -c -             # must print: <file name>: OK
+sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "./$F"
 ```
 
-Without the update a fresh machine fails with "libsecret-tools … not installable".
+Without the update a fresh machine fails with "libsecret-tools … not installable". Without `-y`
+the install waits for an answer you cannot give over a non-interactive SSH session. For another
+package, take its exact file name from `SHA256SUMS` (it lists every file of the release).
 
 Other Linux packages: `sudo dnf install ./devnet-dvpn-<version>.x86_64.rpm` ·
 `sudo pacman -U devnet-dvpn-<version>-x64.pkg.tar.zst` · arm64: `_arm64.deb` / `.aarch64.rpm`.
@@ -103,10 +111,9 @@ What is proven on Linux: [`docs/PROOF.md`](docs/PROOF.md#linux).
 ### Install: Windows
 
 Windows (x64 only; there is no ARM64 build of v0.3.0-rc2 or newer yet):
-<https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases>. Silent install
-from an elevated PowerShell.
+<https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases>.
 
-Windows install, in an **elevated** PowerShell (an elevated terminal, or SSH as an
+Silent install, in an **elevated** PowerShell (an elevated terminal, or SSH as an
 administrator). The installer is for the whole machine: from a normal shell it raises a UAC
 prompt, and as a standard user over SSH it fails.
 
@@ -204,7 +211,7 @@ Later on macOS:
 - Shortcut commands: until `daemon install` has run, `next` names the full app path in quotes;
   run it as printed.
 
-What is proven on macOS (every install line above on an Intel Mac; Apple silicon never run): [`docs/PROOF.md`](docs/PROOF.md#macos).
+What is proven on macOS: [`docs/PROOF.md`](docs/PROOF.md#macos).
 
 ### Then, on every OS
 
@@ -221,6 +228,9 @@ devnet-dvpn wallet show --json              # address and balances, any time
 ```
 
 Windows: the PowerShell form is in "Install: Windows".
+
+Already have a key file (your operator gave you a funded one)? Set `DVPN_KEYFILE` to its full
+path, skip `wallet create`, check it with `wallet show --json`, and go to section 4.
 
 Use the full path as shown: a relative path stops working when you change directory. Set
 `DVPN_KEYFILE` again in every new shell. The key file is your money. Keep it private; never print
@@ -319,9 +329,17 @@ devnet-dvpn quality ip --json                            # AFTER: prove the tunn
 
 `<node>` is an address from `nodes list`. A node can cost more than a new wallet holds: `connect`
 then exits 1 with `Not enough tDVPN: this deposit needs 50.` (code `preflight`). Pick a cheap one
-with `nodes list --online --sort price --json`, or check `cost <node>` first.
+with `nodes list --online --sort price --json`, or check `cost <node>` first. Prices in
+`nodes list --json` are in base units with 6 decimals, like `ownerTdvpn`: `"2000"` is 0.002 tDVPN
+and `"50000000"` is 50 tDVPN. On devnet many nodes ask about 50 tDVPN per GB, and one faucet
+request gives 100: sort by price.
 
-How to read the proof. `quality ip --json` prints `{ "direct": …, "viaSocks": … }`:
+Which protocol: for proof that the whole machine goes through the node, pick a WireGuard,
+AmneziaWG, OpenVPN or Hysteria2 node. A tool that `daemon drivers` lists as missing matters only
+if you pick a node of that protocol.
+
+How to read the proof. `quality ip --json` prints `{ "direct": …, "viaSocks": … }` (`source` is
+the Cloudflare check address that answered):
 - WireGuard, AmneziaWG, OpenVPN, Hysteria2 route the whole machine: you are connected when
   `direct.ip` is now different from the BEFORE value.
 - V2Ray and Xray give a local SOCKS proxy instead: `direct.ip` stays your own, and
@@ -352,6 +370,9 @@ devnet-dvpn settle withdraw --yes   # move refunds back to the wallet
 ```
 
 You do not have to stay online for the two hours: come back later and run the last two lines.
+
+`disconnect` says "the app refunds the unused part automatically": that is the desktop app with
+its window open. From the command line, run the lines above; the wait is what `settle list` shows.
 
 That is the whole flow.
 
@@ -446,8 +467,6 @@ you have another way in. This has happened: a Windows cloud machine with the kil
 
 ## If you lose the network
 
-If you ever lose the network:
-
 ```sh
 devnet-dvpn daemon restore-network
 ```
@@ -534,13 +553,11 @@ With no wallet it prints `{"wallet":null}`. An error from any command prints
 
 ## Appendix B: faucet limits
 
-Limits, so you can tell your operator what is happening:
-- Each faucet allows **2 requests every 8 hours**. Once signed in, the Sentinel faucet shows
-  "N / 2 remaining" and, after a request, the time of the next one; at zero its button reads
-  "Claim limit reached". People on the same network share one allowance.
-- The Sentinel faucet also has a daily total for everyone. If it says the limit is reached and
-  the 8 hours have passed, waiting will not help: ask your operator to send tDVPN from a wallet
-  that has some, with `devnet-dvpn wallet send --to <ADDRESS> --tdvpn 100 --yes`.
+- Each faucet allows **2 requests every 8 hours** (the Sentinel faucet shows "N / 2 remaining";
+  at zero its button reads "Claim limit reached"). People on one network share an allowance.
+- The Sentinel faucet also has a daily total for everyone. If the limit is reached and 8 hours
+  have passed, waiting will not help: ask your operator to send tDVPN from a wallet that has
+  some: `devnet-dvpn wallet send --to <ADDRESS> --tdvpn 100 --yes`.
 - One claim is 100 tDVPN: afterwards `ownerTdvpn` reads `"100000000"`.
 
 ## Appendix C: file names

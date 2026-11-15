@@ -13,9 +13,10 @@ one admin prompt) → [`docs/OPERATOR.md`](docs/OPERATOR.md) · an MCP client �
 
 > **Cost:** nothing real. Devnet only: SOL and tDVPN come free from two public faucets and have
 > no value. Do not use a wallet that holds real funds.
+>
 > **Proven (2026-11-15):** the whole flow on Linux with the public v0.3.0-rc2, refund included;
-> on Windows over SSH with rc2, install through connect, disconnect and the start of the refund,
-> with one workaround line for a known install bug; the macOS install lines on an Intel Mac.
+> on Windows over SSH with rc2, install through connect, disconnect and the refund, with one
+> workaround line for a known install bug; the macOS install lines on an Intel Mac.
 > Per OS and step:
 > [`docs/PROOF.md`](docs/PROOF.md).
 
@@ -54,7 +55,11 @@ with the CLI first (sections 1 to 4 of `AGENTS.md`). Get it with
   which release and when, and what is not.
 - A fresh-machine test run on Linux (Ubuntu 24.04, public v0.3.0-rc2 package, 2026-11-15): install,
   key, connect over WireGuard (exit IP changed, then back), disconnect and the refund (after its
-  two-hour close) all passed.
+  two-hour close) all passed. A fresh AI agent given only `AGENTS.md` and a funded key then went
+  from install to a proven tunnel and back on the same OS in 6.5 minutes.
+- Windows over SSH (Windows 11 x64, v0.3.0-rc2, 2026-11-15): install, key, connect over
+  WireGuard (exit IP changed, then back), disconnect and the refund passed, with the one
+  workaround line in `AGENTS.md`. Details: [`docs/PROOF.md`](docs/PROOF.md#windows).
 - Test method and results for every Sentinel dVPN client:
   <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-testing-tools>.
 
@@ -65,8 +70,7 @@ with the CLI first (sections 1 to 4 of `AGENTS.md`). Get it with
 - **Apple silicon:** the macOS steps are proven on the Intel build; the Apple silicon build has
   not been run.
 - **Windows:** on a machine not joined to a domain, v0.3.0-rc2's `daemon install` needs one
-  workaround line first (in `AGENTS.md`); the final refund step of the Windows run is still in its
-  two-hour close. There is no ARM64 build of v0.3.0-rc2.
+  workaround line first (in `AGENTS.md`). There is no ARM64 build of v0.3.0-rc2.
 - **`agent up / down / status`** (the short path) are not in v0.3.0-rc2; they ship with the next
   release. On rc2, use the step-by-step flow in `AGENTS.md`.
 - **MCP:** unit tests pass and a live check against real devnet nodes passed on Linux; a paid
