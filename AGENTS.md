@@ -312,8 +312,8 @@ devnet-dvpn status --json                   # wallet, device, service: all set
 service does not start before the device has its spending permission.
 - Spending limit: a new device may spend up to 50 tDVPN from your wallet.
   If a connect says your spending approval is lower than this deposit: `devnet-dvpn device setup
-  --allowance N --yes`, N at least the deposit. See it: `devnet-dvpn device show --json`
-  (`grant.allowance`, base units).
+  --allowance N --yes`, N = `grant.allowance` of `devnet-dvpn device show --json` (base units, /1e6)
+  plus the deposit.
 - `"service":"no-service"` in the `device setup` output: the service is not installed yet; normal here.
 
 ## 5. Connect
