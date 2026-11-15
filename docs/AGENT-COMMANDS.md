@@ -154,6 +154,7 @@ starts its 2-hour close. Exit 0:
 | `daemon-unavailable`, `daemon-restarting` | `<cli> daemon doctor` |
 | `test-running` | `<cli> test stop, then <cli> agent up --yes` (a server test holds the VPN service) |
 | `rpc-busy` | `<cli> agent up --yes again in a minute (the network was busy)` |
+| `price-changed`, `deposit-unusable`, `deposits-unread` | `<cli> agent up --yes again (nothing was paid; it reads the price fresh)`. Nothing was paid in each case. `price-changed`: the server's price rose above the deposit `agent up` showed. `deposit-unusable`: your open deposit with this server started closing, so it cannot be used, and a new one is never paid without being shown. `deposits-unread`: your open deposits could not be read, so no second deposit was opened beside one you may have. `--max-price` still caps the next try. |
 | every other code | `<cli> agent status` |
 
 Elevation: on Windows `agent up` can itself need one elevated step (the service pipe granting this

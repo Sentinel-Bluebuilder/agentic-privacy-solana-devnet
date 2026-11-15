@@ -310,7 +310,10 @@ devnet-dvpn status --json                   # wallet, device, service: all set
 
 `doctor` levels are `ok`, `skip`, `warn`, `fail`; only `fail` stops you. The order matters: the
 service does not start before the device has its spending permission.
-- `device plan`'s "spend up to 50 tDVPN" is a cap the device may spend from your wallet, not a charge.
+- Spending limit: a new device may spend up to 50 tDVPN from your wallet.
+  If a connect says your spending approval is lower than this deposit: `devnet-dvpn device setup
+  --allowance N --yes`, N at least the deposit. See it: `devnet-dvpn device show --json`
+  (`grant.allowance`, base units).
 - `"service":"no-service"` in the `device setup` output: the service is not installed yet; normal here.
 
 ## 5. Connect
@@ -327,8 +330,7 @@ devnet-dvpn quality ip --json                            # AFTER: prove the tunn
 `<node>` is an address from `nodes list`. A node can cost more than a new wallet holds: `connect`
 then exits 1 with `Not enough tDVPN: this deposit needs 50.` (code `preflight`). Pick a cheap one
 with `nodes list --online --sort price --json`, or check `cost <node>` first. Prices in
-`nodes list --json` are in base units with 6 decimals, like `ownerTdvpn`: `"2000"` is 0.002 tDVPN
-and `"50000000"` is 50 tDVPN. On devnet many nodes ask about 50 tDVPN per GB, and one faucet
+`nodes list --json` have 6 decimals: `"2000"` = 0.002 tDVPN. On devnet many nodes ask about 50 tDVPN per GB, and one faucet
 request gives 100: sort by price.
 
 Which protocol: for proof that the whole machine goes through the node, pick a WireGuard,

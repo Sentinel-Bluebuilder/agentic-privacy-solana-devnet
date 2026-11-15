@@ -333,7 +333,7 @@ test('stdio: one line in, one line out, parse errors answered', async () => {
 const AGENT_CODES = [
   'no-wallet', 'no-device', 'no-subscription', 'no-nodes', 'not-funded', 'connect-failed', 'settle-failed',
   'daemon-missing', 'daemon-relogin', 'protocol-missing', 'device-permission', 'daemon-unavailable', 'daemon-restarting',
-  'test-running', 'rpc-busy',
+  'test-running', 'rpc-busy', 'price-changed', 'deposit-unusable', 'deposits-unread',
   'not-confirmed', 'plan-limit', 'busy', 'unsupported', 'network-mismatch',
   'session-active', 'node-gone', 'node-stale', 'node-offline', 'protocol-blocked', 'driver-missing', 'basis-unavailable',
   'not-enough-tdvpn', 'spending-limit', 'device-sol', 'preflight', 'kill-switch-held', 'switch-reconnecting', 'switch-offline',

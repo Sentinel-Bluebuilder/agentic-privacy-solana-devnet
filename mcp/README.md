@@ -209,6 +209,7 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `daemon-unavailable`, `daemon-restarting` | up | `daemon doctor` |
 | `test-running` | up | `test stop`, then `agent up --yes` |
 | `rpc-busy` | up | `agent up --yes` again in a minute |
+| `price-changed`, `deposit-unusable`, `deposits-unread` | up | `agent up --yes` again: nothing was paid, and it reads the price fresh (`max_price` still caps it). The server's price rose above the deposit shown / your open deposit with it started closing / your open deposits could not be read |
 | `not-confirmed`, `plan-limit`, `busy`, `unsupported`, `network-mismatch` | up | → status: refused before anything started |
 | `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `kill-switch-held`, `switch-reconnecting`, `switch-offline` | up | → status: the check before paying failed; nothing paid |
 | `cancelled` | up | → status: stopped |
