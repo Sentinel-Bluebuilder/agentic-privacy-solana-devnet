@@ -126,8 +126,7 @@ $h = ((Select-String -Path .\SHA256SUMS -SimpleMatch " $f").Line -split '\s+')[0
 $p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode      # 0 = installed; 3 = wrong CPU
 ```
 
-Use `Start-Process -Wait` as shown: run directly, the installer returns at once and you cannot
-tell when it finished or whether it failed.
+Use `Start-Process -Wait`: run directly, the installer returns at once, before it has finished.
 
 Windows only: the installer adds `devnet-dvpn` to the PATH of NEW terminals. In the shell that
 ran the installer, add it yourself, then every line on this page works as written:
@@ -419,6 +418,7 @@ devnet-dvpn nodes list --online --sort price --json
 ```sh
 devnet-dvpn split status
 devnet-dvpn daemon set --split-mode exclude --split-routes 10.0.0.0/8 --yes
+devnet-dvpn daemon set --split-mode off --split-routes none --yes   # undo: both, or the routes stay (Windows / macOS apps: --split-apps none)
 devnet-dvpn proxy status            # V2Ray / Xray: the local SOCKS proxy (whole computer by default on Windows / macOS)
 ```
 

@@ -82,6 +82,13 @@ make a key file: their `wallet create` has no `--keyfile`. Columns below = the s
 
 Read back with `devnet-dvpn daemon settings`; what split does right now with `devnet-dvpn split status`.
 
+**To undo split tunnelling, clear the list too:**
+`devnet-dvpn daemon set --split-mode off --split-routes none --split-apps none --yes`.
+`--split-mode off` on its own KEEPS the saved route and app lists, and `--split-routes ""`
+answers ok but keeps them too: only `none` clears a list. Then check `daemon settings`
+shows no split routes or apps (finding M11, v0.3.0-rc2). On Linux leave out `--split-apps`,
+which Linux refuses.
+
 ## Windows
 
 | what | do this | proven |
