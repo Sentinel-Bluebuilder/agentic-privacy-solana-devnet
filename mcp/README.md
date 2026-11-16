@@ -123,20 +123,20 @@ base units, and times (`readyAt`) are Unix seconds.
 `devnet-dvpn agent up […] [--yes] --json`. It picks the best matching online node, pays the
 deposit (or uses the plan) and connects.
 
-- `protocol`: `any` or one of the six. `country`: two letters. `node`: one exact server.
+- `protocol`: `any` or one of the six. `country`: two letters. `node`: one exact node.
   `plan`: a subscription you hold. `units`: 1–1000, default from settings.
 - `basis` defaults to the **saved setting**, not always `per_gb`. `max_price` is tDVPN per unit
   of the basis, so the server refuses `max_price` without `basis`.
-- On its own it reads the session, servers, wallet and plans, and creates the device key if
-  there is none (local, no transaction). The deposit, the spending approval, the connect and a
+- On its own it reads the session, nodes, wallet and plans, and creates the device key if
+  there is none (local, no transaction). The deposit, the spending limit, the connect and a
   switch need `yes: true`.
 
 | answer | fields |
 |---|---|
 | connected (exit 0) | `session`, `node`, `protocol` (the one really used), `country`, `exitIp`, `directIp`, `socks` (`socks5h://host:port` or `null`), `channel`, `deposit`, `next` |
 | `deposit` | `{basis, units, tdvpn, baseUnits}` (`tdvpn` = the most it can hold; the unused part is refunded); `{plan, tdvpn: "0"}` with a plan; `null` when `reused` |
-| already connected to a match | the same, with `reused: true`; nothing paid, no `yes` needed. A match: `node` is the live server, or, with no `node`, `protocol` and `country` (each only if given) equal the live ones. `basis`, `units`, `plan` and `max_price` are not compared while a session is live |
-| connected elsewhere | it switches: leaves the live server and connects to the new one (with the kill switch on, the block stays up in between); never picks the live server |
+| already connected to a match | the same, with `reused: true`; nothing paid, no `yes` needed. A match: `node` is the live node, or, with no `node`, `protocol` and `country` (each only if given) equal the live ones. `basis`, `units`, `plan` and `max_price` are not compared while a session is live |
+| connected elsewhere | it switches: leaves the live node and connects to the new one (with the kill switch on, the block stays up in between); never picks the live server |
 | preview (exit 2, no `yes`) | `needsConfirm: true`, `what` (the sentence it would do), `node`, `deposit`, `switchFrom` (`null` = not connected) |
 
 **`vpn_down {yes?}`** runs `devnet-dvpn agent down [--yes] --json`. With `yes: true` it

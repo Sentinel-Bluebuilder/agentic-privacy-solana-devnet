@@ -61,7 +61,7 @@ export const TOOLS = [
   },
   {
     name: 'vpn_nodes',
-    description: 'Online servers, checked live, with protocol, country and prices. Runs: devnet-dvpn nodes list --online --json',
+    description: 'Online nodes, checked live, with protocol, country and prices. Runs: devnet-dvpn nodes list --online --json',
     inputSchema: {
       type: 'object',
       properties: {
@@ -139,7 +139,7 @@ export const TOOLS = [
         node: address('exact node address (otherwise the best match is picked)'),
         basis: { type: 'string', enum: ['per_gb', 'per_hour'], description: 'pay per GB or per hour; default: the saved setting (not always per_gb)' },
         units: { type: 'integer', minimum: 1, maximum: 1000, description: 'GB (per_gb) or hours (per_hour) the deposit covers; default from settings' },
-        plan: address('subscription address you hold: connect on the plan (no deposit, its live servers only)'),
+        plan: address('subscription address you hold: connect on the plan (no deposit, its live nodes only)'),
         max_price: { type: 'string', pattern: TDVPN_AMOUNT.source, description: 'highest price per unit of `basis` in tDVPN, e.g. "0.5"; needs `basis` too' },
         yes: YES,
       },

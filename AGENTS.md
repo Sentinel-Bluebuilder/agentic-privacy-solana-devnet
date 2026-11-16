@@ -1,8 +1,10 @@
 # Agentic Privacy — Solana devnet
 
 **For AI agents.** This page gets you from nothing to a private connection through a Sentinel
-dVPN node on Solana devnet. No account, no API key, no server of ours: you hold a key, you pay
+dVPN node on Solana devnet. No account, no API key, nothing hosted by us: you hold a key, you pay
 the node directly, you connect.
+
+Terms are defined in [`GLOSSARY.md`](GLOSSARY.md), one line each with the command that shows or changes it.
 
 You use one program, `devnet-dvpn`, the command line of the released Sentinel dVPN apps, the
 same on Windows, Linux and macOS. (The Android app cannot be driven from outside the app, so
@@ -43,7 +45,7 @@ devnet-dvpn quality ip --json                                 # AFTER: direct.ip
 devnet-dvpn agent down --yes --json                           # disconnects and starts the refund
 ```
 
-Without `--max-price`, `agent up` picks the fastest of the cheapest servers (a deposit at most 2 times the cheapest one's); on devnet many servers ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it. Linux / macOS (rc.3) pick by speed,
+Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a deposit at most 2 times the cheapest one's); on devnet many nodes ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it. Linux / macOS (rc.3) pick by speed,
 not price: always pass `--max-price` there.
 
 macOS: the installer prints one `export PATH=…` line; run it before the next line.
@@ -265,7 +267,7 @@ devnet-dvpn daemon doctor --json        # no check may have "level": "fail"
 In this order: the service does not start before the device has its spending permission.
 - Spending limit: a new device may spend up to 50 tDVPN from your wallet (a cap, not a charge).
   `agent up` raises it itself (one more transaction), and so does `connect` on Windows (rc.3.1). Plain
-  `connect` on Linux / macOS (rc.3) does not. If it says your spending approval is lower than this deposit: `devnet-dvpn device setup
+  `connect` on Linux / macOS (rc.3) does not. If it says your spending limit is lower than this deposit: `devnet-dvpn device setup
   --allowance N --yes`, N = `grant.allowance` of `devnet-dvpn device show --json` (base units, /1e6)
   plus the deposit.
 - `"service":"no-service"` in the `device setup` output means the service is not installed yet:
@@ -288,8 +290,8 @@ devnet-dvpn quality ip --json                                   # AFTER: prove t
 `agent up` also takes `--country CC`, `--node N`, `--basis per_gb|per_hour`, `--units N`,
 `--plan S`, `--max-price N` (per unit of the basis: pass `--basis` with it). Without `--yes` it
 prints `{"needsConfirm":true,"what":…}` and signs nothing. It is safe to repeat: already
-connected to a server that matches what you asked, it answers `"reused": true` and pays nothing;
-asking for a different server switches in one step. Connecting again to a server whose deposit
+connected to a node that matches what you asked, it answers `"reused": true` and pays nothing;
+asking for a different node switches in one step. Connecting again to a node whose deposit
 is still open uses that deposit. Linux / macOS (rc.3): only while the wallet also holds one deposit's
 worth; with less, the funds check refuses it and nothing is paid.
 
@@ -305,7 +307,7 @@ How to read the proof (`{ "direct": { "ip", "source" }, "viaSocks", "sourceIs" }
   `quality ip --json`. For the simplest proof with the shortcut, pick WireGuard.
 
 If `agent up` fails, it names `code` and `action`: run the action. `"code":"not-enough-tdvpn"`
-means the server it picked costs more than you hold: add `--max-price`, or fund more.
+means the node it picked costs more than you hold: add `--max-price`, or fund more.
 `"code":"no-nodes"`: widen `--protocol` / `--country` / `--max-price`. `price-changed`,
 `deposit-unusable` or `deposits-unread`: nothing was paid; run `agent up --yes` again (it reads
 the price fresh, and `--max-price` still caps it). Before picking a protocol,
@@ -392,7 +394,7 @@ devnet-dvpn daemon set --allow-lan true --yes        # first, if you reach this 
 devnet-dvpn daemon set --kill-switch on --yes        # off | on | persist
 ```
 
-In this app the kill switch `on` and `persist` are the same setting. After `disconnect` / `agent
+In these apps the kill switch `on` and `persist` are the same setting. After `disconnect` / `agent
 down`, check `devnet-dvpn quality ip` (`status` can say not connected while it blocks). If it shows no address, the kill switch is still blocking —
 this happens when the session had already dropped before you disconnected. `devnet-dvpn daemon
 restore-network` lifts the block for now; it can come back at the next dropped session or service
@@ -401,7 +403,7 @@ restart. `devnet-dvpn daemon set --kill-switch off --yes` stops it coming back.
 (`disconnect` with no session may still print "keeps the internet blocked until you reconnect":
 reconnecting does not lift it for good; use the two commands above.)
 
-To change server with the kill switch on, do not disconnect first: `agent up --node <other>
+To change node with the kill switch on, do not disconnect first: `agent up --node <other>
 --yes` (or `connect <other node> --switch --yes`) switches in one step and the block holds.
 
 Per-OS details: [`docs/agent-safety.md`](docs/agent-safety.md).
