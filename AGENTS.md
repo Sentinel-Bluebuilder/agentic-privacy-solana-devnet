@@ -431,6 +431,8 @@ Windows (rc.3.1): `agent status` says `"blocked": true` (no session, the interne
 reconnects with protection on, or `devnet-dvpn daemon restore-network` goes direct (protection off until
 the next connect).
 
+The node stopped serving mid-session or refused after the deposit: `devnet-dvpn agent down --yes` closes the deposit (the unused part is refunded after the wait it prints), and `devnet-dvpn agent up --yes` opens a new one with another node. For a few seconds after a node stops, `agent status` can still say `connected` with your own address as `exitIp`: if `exitIp` equals your direct address, you are not tunnelled.
+
 Every command: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
 MCP clients, after sections 1 to 4: [`mcp/README.md`](mcp/README.md).
 
