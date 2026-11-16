@@ -39,7 +39,7 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **drivers** (`repair-drivers`) — the protocol tools the service needs on this computer. Shows: `daemon drivers`. Changes: `daemon repair-drivers --yes`.
 - **relogin** — the service does not accept this account yet in a normal shell: start a new sign-in or SSH session. Shows: `daemon install --json` (`"relogin": true`).
 - **RPC** — the Solana connection the service uses. Shows: `daemon settings --json`. Changes: `daemon set --rpc <https url> --yes`.
-- **kill switch** (`persist`, `on`, `off`, `blocked`, `blockedBefore`) — blocks the internet whenever the tunnel is not up. `persist` and `on` are the same setting in this app. `blocked` = no session and the internet is blocked. Shows: `daemon settings --json`, `quality ip`, `agent status --json` (`blocked`). Changes: `daemon set --kill-switch on|off --yes`, `daemon restore-network`.
+- **kill switch** (`persist`, `on`, `off`, `blocked`, `blockedBefore`) — blocks the internet whenever the tunnel is not up. `persist` and `on` are the same setting in these apps. `blocked` = no session and the internet is blocked. Shows: `daemon settings --json`, `quality ip`, `agent status --json` (`blocked`). Changes: `daemon set --kill-switch on|off --yes`, `daemon restore-network`.
 - **split tunnelling** — sends some addresses or apps around the tunnel. Shows: `split status`. Changes: `daemon set --split-mode exclude --split-routes <list> --yes`.
 - **whole device** (`wholeDevice`) — the whole computer goes through the node, not only apps that use the proxy. Shows: `agent status --json` (`wholeDevice`), `daemon settings --json`. Changes: `daemon set --whole-device false --yes`.
 
@@ -72,3 +72,18 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **ready** — in `wallet show --json`: `true` when this wallet is set up to connect. Shows: `wallet show --json`.
 - **version, tag, file, path** — the installer's answer: the app version it installed, the release tag, the file it used and the program's path. Shows: the last line of `install.sh` or `install.ps1`.
 - **SHA256SUMS** — the list of checksums in a release; the installer compares the file to it. Shows: the release page.
+
+## Next release (the published apps do not have these yet)
+
+Terms from the next release of the apps. Until it is published, the answers of the published apps do not carry them.
+
+- **money** — next release: every failed answer says whether money moved, in one sentence: "Nothing was paid." / "A deposit may be open: `agent down --yes` closes it." / "It is not known whether a deposit was opened: `agent status` lists it." Shows: any failed `--json` answer (`money`); the table "Did money move?" in `docs/AGENT-COMMANDS.md`.
+- **held** — next release: the `agent status` field that replaces `refundable` there: the tDVPN held for your wallet inside the program (the same number as `userBalance`). In the published apps `agent status` still calls it `refundable` (see **refundable**). Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
+- **note** — next release: one sentence on what the live session means (whole computer through the node, or only the proxy) and the command to stop it. Shows: `agent up --json` (`note`).
+- **replaced** (`replacedNote`) — next release: the live session was not tunnelled (its exit address is this computer's own), so `agent up` did not reuse it and switched to another node; `replaced` names the old node and `replacedNote` says so in a sentence. Shows: `agent up --json`.
+- **skipped** (`skippedNote`) — next release: a node `agent up` leaves out because it stopped serving or refused after a deposit, for a short time; `skipped` names it and `skippedNote` says so. Shows: `agent up` (with or without `--yes`).
+- **nodeStopped** — next release: with code `server-stopped`: the node, the session and the reason. Shows: `agent status --json`.
+- **alsoNext** — next release: the second way out of a stopped or refusing node: `agent down --yes` (`next` is `agent up --yes`). Shows: `agent status --json`.
+- **deposits** — next release: the wallet's open or closing deposits (`channel`, `node`, `status`, `refundable`, `readyAt`); present only when it has any. Shows: `agent status --json` (`deposits`).
+- **server-stopped** — next release: code of `agent status` when the node stopped serving: your traffic is not going through it, the deposit is safe. Run `agent up --yes` (another node) or `agent down --yes` (closes the deposit, refunds the unused part).
+- **node-refused** — next release: code when a node refused after you paid it. The deposit is open: `agent down --yes` closes it, `agent status` lists it in `deposits`; `agent up` is not offered, because it would open a second deposit.
