@@ -75,8 +75,8 @@ If you run in a sandbox where you cannot become administrator / root, you cannot
 service. Stop here and tell your operator.
 
 **Install release `v0.3.0-rc2` (a pre-release) or newer, not the one GitHub marks "latest".**
-The older stable releases (Windows v0.2.1, Linux v0.1.21, macOS v0.1.3) cannot make a key file
-with `wallet create --keyfile`, so section 2 does not work on them.
+Older stable releases (Windows v0.2.1, Linux v0.1.21, macOS v0.1.3) cannot make a key file, so
+section 2 fails on them.
 
 ## 1. Install (once; needs administrator / root)
 
@@ -227,11 +227,13 @@ devnet-dvpn wallet show --json              # address and balances, any time
 
 Windows: the PowerShell form is in "Install: Windows".
 
-Already have a key file (your operator gave you a funded one)? Set `DVPN_KEYFILE` to its full
-path, skip `wallet create`, check it with `wallet show --json`, and go to section 4.
+Already have a key file (your operator's, or one you used before)? Set `DVPN_KEYFILE` to its full
+path, skip `wallet create`, check it with `wallet show --json`, and go to section 4. If it says
+`"wallet":null` but you had a wallet: find the key file and `wallet import <file>`; never
+`wallet create` (a new wallet can't see the old refunds).
 
-Use the full path as shown: a relative path stops working when you change directory. Set
-`DVPN_KEYFILE` again in every new shell. The key file is your money. Keep it private; never print
+Use a full path (a relative one breaks when you change directory); set `DVPN_KEYFILE` again in
+every new shell. The key file is your money. Keep it private; never print
 it, never commit it.
 
 What `wallet show --json` prints: Appendix A.
@@ -547,10 +549,8 @@ What `wallet show --json` prints (there is no `ok` field on this one):
 With no wallet it prints `{"wallet":null}`. An error from any command prints
 `{"ok":false,"error":…,"code":…,"action":…}`; `action` is what to do next.
 
-`agent status --json` names its fields differently from `wallet show`: `address`, `sol`,
-`tdvpn`, `refundable`, as decimal strings (not `owner` / `ownerLamports` / `ownerTdvpn`). Its
-`refundable` is the wallet's balance held in the program (what `settle withdraw` moves); the
-`refundable` of `agent down` is different: the deposits still to come back.
+`agent status --json` uses `address`, `sol`, `tdvpn`, `refundable` (decimal strings). Its `refundable`:
+the balance `settle withdraw` moves; `agent down`'s: the deposits still to come back.
 
 ## Appendix B: faucet limits
 

@@ -25,7 +25,7 @@ A fresh-machine test run on **v0.3.0-rc2**, 2026-11-15: a clean Ubuntu 24.04 clo
 | 3. Funding | not a product step | the operator sent 0.15 SOL and 20 tDVPN, which was enough |
 | 4. `daemon init` → `device setup` → `daemon install` → `daemon doctor` | **proven** on rc2 (fresh-machine run) | with passwordless `sudo` no prompt appears; doctor showed no failure |
 | 5. `nodes list`, `cost`, `connect` (WireGuard, per GB), `quality ip` | **proven** on rc2 (fresh-machine run) | the public IP changed to the node's while connected and came back after |
-| 5. The other five protocols | partly | proven on earlier builds, all six (traffic exits at the node, nothing left after) |
+| 5. The other five protocols | **proven** on rc2 | rows below; also on earlier builds (traffic exits at the node, nothing left after) |
 | 5. SSH over a full tunnel | **proven** on rc2 (fresh-machine run, WireGuard) | the SSH session that drove the run survived the connect |
 | 6. `disconnect`, `settle run` | **proven** on rc2 (fresh-machine run) | IP back to direct; the deposit moved to "closing" |
 | 6. Final refund (`settle run` after 2 h, `settle withdraw`) | **proven** on rc2 (fresh-machine run) | after the two-hour close, `settle run --yes` and `settle withdraw --yes` both exited 0: the refund finished |
@@ -34,6 +34,11 @@ A fresh-machine test run on **v0.3.0-rc2**, 2026-11-15: a clean Ubuntu 24.04 clo
 | Per hour with the `agent` commands (`agent up --basis per_hour`, `agent down --yes`) | **proven** (2026-11-15) | a development build of the `agent` commands on the released rc2 runtime: exit IP = node, the `agent down` preview counted the live per-hour deposit, `agent down --yes` closed it at once and the unused part came back to the wallet |
 | V2Ray on rc2: proxy only | **seen** on rc2 (2026-11-16) | Linux has no whole-computer setting: `direct.ip` stayed the machine's own and `viaSocks.ip` was the node's |
 | Kill switch with no session (rc2 runtime, 2026-11-15) | observed | setting `persist` did not block the internet; `restore-network`, `set on` (the same setting as `persist`), a service restart and `set off` all left it direct. As designed: with no session, no mode blocks (read from the daemon's source, not checked against rc2's exact build). The blocked case (a session that dropped under the kill switch) was not run on Linux |
+| 5. WireGuard, OpenVPN, V2Ray | **proven** on rc2 (2026-11-16) | own IP before; the node's IP after; back to direct after `disconnect`; session and deposit on chain for each |
+| Failure paths: no `--yes`, bad flags, too-dear node, missing key file | **proven** on rc2 | exit 2 / 3 / 1 (`preflight`) / 1 (`no-wallet`) as documented; nothing spent |
+| Split tunnel (exclude one address) + SOCKS only | **proven** on rc2 | excluded address went direct, everything else via the node; SOCKS carried only what was sent to it |
+| 5. AmneziaWG, Xray, Hysteria2 | **proven** on rc2 (2026-11-15) | AmneziaWG was missing on the new install: `daemon repair-drivers --yes` added it (about 1.5 minutes). After `device setup --allowance N --yes` raised the limit: AmneziaWG and Hysteria2 gave the node's IP; Xray gave a local SOCKS proxy whose exit was the node, while plain traffic stayed direct; back to direct after each `disconnect`. With these, all six protocols on Linux rc2 |
+| Deposit above the spending limit | **known gap** on rc2 | as on Windows: `connect` refuses before paying (`preflight`), nothing signed. A limit exactly equal to the deposit is accepted and used up by it; the next deposit is refused again, with no next step |
 | Per hour, plans, split tunnelling, kill switch, drivers | partly | proven on earlier builds; kill switch across a reboot proven on rc2 |
 
 The install line on the Linux release page was corrected on 2026-11-15 to start with
@@ -61,6 +66,13 @@ cover IPv6. Neither is in the main agent path.
 | 6. `disconnect`, `settle run` | **proven** on rc2 (2026-11-15) | the deposit moved to closing |
 | 6. Final refund (`settle run` after 2 h, `settle withdraw`) | **proven** on rc2 (2026-11-15) | after the two-hour close, `settle run --yes` closed the deposit and the unused deposit came back to the wallet in full; `settle withdraw --yes` then had nothing left to move ("Nothing to withdraw" is a normal answer). Run from another machine holding the wallet's key file, with `settle run --device <device> --yes`: closing a deposit is signed by the wallet owner, so it worked after the device's permission had been removed, with no new device setup |
 | 5. SSH over a full tunnel | **proven** on rc2 (2026-11-15, WireGuard) | the SSH session survived the connect; other protocols not run |
+| 5. All six protocols | **proven** on rc2 (2026-11-15) | WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2: the node's IP during each session, the machine's own after, the SSH session stayed up, each deposit settled |
+| Kill switch with a live session | **proven** on rc2 (2026-11-15) | tunnel cut on purpose: no sample showed the machine's own IP until `daemon restore-network`; direct within seconds of it; stayed direct after `--kill-switch off` and a service restart |
+| Kill switch after the session dropped | **seen** on rc2 | `status` said not connected while the block was still on; `quality ip` showed no address (the page says so) |
+| Split tunnel + SOCKS only | **proven** on rc2 | excluded address direct, everything else via the node; with whole computer off, SOCKS = node, plain traffic = own IP; proxy off after `disconnect` |
+| Failure paths: no `--yes`, bad basis, no node, too-dear node, no wallet, unfunded | **proven** on rc2 | documented codes; nothing spent |
+| A connect with the service stopped | **seen** on rc2 | not a refusal: the CLI starts the service and connects |
+| Deposit above the spending limit | **known gap** on rc2 | `connect` refuses before paying (`preflight`, "spending approval is lower than this deposit"); it does not raise the limit itself. `device setup --allowance N --yes` raised it (one transaction, plus a small SOL top-up for the device); a refund does not give the approval back |
 | Shortcut: `agent` commands | not run | no Windows result yet |
 
 Known limit on rc2: updating from 0.2.1 by running the installer from PowerShell 7 can leave the
@@ -81,11 +93,16 @@ All macOS runs are on the **Intel (x64)** build.
 | 4. `daemon init` → `device setup` → `daemon install` with no prompt | proven (rc.1) | needs passwordless `sudo`; otherwise macOS shows a password dialog that only a person at the screen can answer |
 | 4. `daemon doctor` | partly | no failures, but as a normal user some rows say "warn" by design |
 | 5. `connect` per GB, exit IP = node | proven (rc.1, and rc2 as an upgrade, 2026-11-14) | WireGuard |
-| 5. All six protocols per GB | proven (earlier build) | |
+| 5. All six protocols per GB | **proven** on rc2 | rows below; also on an earlier build |
 | 5. V2Ray on a new rc2 install: whole computer | **seen** on rc2 (2026-11-16) | `"wholeDevice": true` by default: `direct.ip` and `viaSocks.ip` both the node's; no system proxy. `daemon set --whole-device false --yes` gives the proxy-only mode |
 | 5. V2Ray / Xray SOCKS proxy (whole computer off) | proven (earlier build) | only traffic sent to the proxy exits at the node |
 | 5. `quality ip` showing the SOCKS exit IP | partly | in the shared code; no macOS log of that line |
 | 6. `disconnect`, `settle run`, `settle list`, `settle withdraw` | proven (rc.1 and earlier) | nothing left behind after disconnect |
+| 5. WireGuard, OpenVPN | **proven** on rc2 (2026-11-15) | the node's IP during the session, own IP after |
+| 5. AmneziaWG, Xray, Hysteria2 | **proven** on rc2 (2026-11-15) | after `device setup --allowance N --yes` raised the limit (one transaction, plus a small SOL top-up for the device): the node's IP during each session, own IP after; Xray also gave a local SOCKS proxy, and with whole computer on, plain traffic used the node too |
+| Split tunnel (exclude one address) | **proven** on rc2, with a gap | passed. First try failed: after a `daemon set` run with `sudo`, the user's own `daemon set` hits "permission denied" on its settings file, with no code or next step |
+| Deposit above the spending limit | **known gap** on rc2 | as on Windows: `connect` refuses before paying (`preflight`), nothing signed, limit and SOL unchanged |
+| Deposits of this computer's device | **known gap** on rc2 | `settle list --device <this computer's device>` refuses ("leave out --device"), so that check works only after a revoke |
 | Per hour, plans, split by address and by app, whole device, kill switch on and persist (across reboots on rc2), allow LAN | proven (earlier builds; persist on rc2) | |
 
 Not proven: the **Apple silicon** build (built and signed, never run). Steps 3 to 6 on rc2 from
@@ -116,4 +133,9 @@ keeps the wallet and settings. That shows the commands work, not that an agent c
   address → `daemon restore-network`, then `daemon set --kill-switch off --yes`): proven on
   Windows; not run on Linux or macOS.
 - The `agent up / down / status` commands in a public release: they are not in v0.3.0-rc2 (run from a development build only, see Linux).
+- Known gaps on rc2: a plain `connect` above the spending
+  limit refuses and does not raise it (`agent up`, not in rc2, does); after a `sudo daemon set` on macOS, the
+  user's own `daemon set` can hit "permission denied"; `settle list --device` refuses this
+  computer's own device; on Linux, macOS and Android rc2, turning off automatic device permission does
+  not stick, and neither does a revoke's write.
 - The MCP server making a paid connection: its unit tests pass and a live check against real devnet nodes passed on Linux (2026-11-15, read-only tools and previews only).
