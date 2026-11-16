@@ -11,6 +11,7 @@
 //
 //   node mcp/live-check.mjs --out <dir> [--bundle <devnet-dvpn.cjs>]
 //   node mcp/live-check.mjs --out <dir> --paid --yes [--protocol wireguard] [--basis per_gb|per_hour]
+//          [--max-price <tDVPN>]   highest price per unit of basis (vpn_up max_price); e.g. 0.01 keeps a quick pick off 50/GB nodes
 //
 // Needs: Node 22, devnet-dvpn installed and set up (AGENTS.md sections 1-4: funded wallet, device,
 // service), DVPN_KEYFILE set in the environment. The paid session costs one deposit (per GB: about
@@ -65,6 +66,7 @@ let outDir;
 let PAID = false;
 let paidProtocol = 'wireguard';
 let paidBasis = 'per_gb';
+let paidMaxPrice; // --max-price: tDVPN per unit of basis, passed to vpn_up as max_price (unset = the CLI's own pick)
 let passes = [];
 
 // ─── one MCP client over stdio ───
@@ -194,7 +196,7 @@ const runPass = async (pass, env) => {
 
   // ─── the one paid session (last pass only, --paid --yes only) ───
   if (PAID && pass === passes[passes.length - 1][0]) {
-    const up = await call('vpn_up', { protocol: paidProtocol, basis: paidBasis, units: 1, yes: true }, PAID_EXPECT.up, 'paid/vpn_up', true);
+    const up = await call('vpn_up', { protocol: paidProtocol, basis: paidBasis, units: 1, ...(paidMaxPrice ? { max_price: paidMaxPrice } : {}), yes: true }, PAID_EXPECT.up, 'paid/vpn_up', true);
     if (checkAfterUp(up)) {
       const connectedUp = up != null && sc(up)?.exitCode === 0;
       const status = await call('vpn_agent_status', {}, connectedUp ? PAID_EXPECT.statusUp : PAID_EXPECT.statusRead, 'paid/vpn_agent_status(after up)');
@@ -219,8 +221,13 @@ const main = async () => {
   PAID = argv.includes('--paid');
   paidProtocol = opt('protocol') ?? 'wireguard';
   paidBasis = opt('basis') ?? 'per_gb';
+  paidMaxPrice = opt('max-price');
+  if (paidMaxPrice !== undefined && !/^\d+(\.\d{1,6})?$/.test(paidMaxPrice)) {
+    process.stderr.write(`--max-price must be a tDVPN amount like 0.01, not ${paidMaxPrice}\n`);
+    process.exit(2);
+  }
   if (!outDir || argv.includes('--help')) {
-    process.stderr.write('usage: node mcp/live-check.mjs --out <dir> [--bundle <devnet-dvpn.cjs>] [--paid --yes [--protocol P] [--basis per_gb|per_hour]]\n');
+    process.stderr.write('usage: node mcp/live-check.mjs --out <dir> [--bundle <devnet-dvpn.cjs>] [--paid --yes [--protocol P] [--basis per_gb|per_hour] [--max-price <tDVPN>]]\n');
     process.exit(2);
   }
   if (PAID && !argv.includes('--yes')) {
@@ -246,7 +253,7 @@ const main = async () => {
   const all = [];
   for (const [pass, env] of passes) all.push(...await runPass(pass, env));
   const failed = all.filter((r) => !r.ok).map((r) => `${r.pass}/${r.step}`);
-  const summary = { at: new Date().toISOString(), node: process.version, passes: passes.map(([p]) => p), paid: PAID ? { protocol: paidProtocol, basis: paidBasis, units: 1 } : false, calls: all.length, failed, ok: failed.length === 0 };
+  const summary = { at: new Date().toISOString(), node: process.version, passes: passes.map(([p]) => p), paid: PAID ? { protocol: paidProtocol, basis: paidBasis, units: 1, maxPrice: paidMaxPrice ?? null } : false, calls: all.length, failed, ok: failed.length === 0 };
   writeFileSync(join(outDir, 'mcp-live-summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
   process.stdout.write(`${summary.ok ? 'OK' : 'FAILED'}  ${all.length} calls, ${failed.length} failed${failed.length ? `: ${failed.join(', ')}` : ''}\n`);
   process.exit(summary.ok ? 0 : 1);

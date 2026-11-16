@@ -346,6 +346,7 @@ const AGENT_CODES = [
   'channel_node_reopened', 'terms_rejected', 'rate_limited', 'voucher_signature_invalid', 'mode_not_voucher', 'mode_not_stream',
   'stop-failed', 'dns-revert-failed', 'tunnel-left', 'unknown',
   'service-down', 'service-not-ready', 'rpc-unavailable',
+  'keyfile-missing', 'wallet-switch-needed', 'clock-skew',
 ];
 
 // Codes in a doc's failure section: the first cell of each table row and every item of a bullet list.

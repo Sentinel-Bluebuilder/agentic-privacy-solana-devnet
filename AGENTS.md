@@ -4,257 +4,217 @@
 dVPN node on Solana devnet. No account, no API key, no server of ours: you hold a key, you pay
 the node directly, you connect.
 
-You use one program, `devnet-dvpn`. It is the command line of the released Sentinel dVPN apps and
-is the same on Windows, Linux and macOS. (The Android app has the same commands inside it, but a
-released Android build cannot be driven from outside the app, so this page does not cover it.)
+You use one program, `devnet-dvpn`, the command line of the released Sentinel dVPN apps, the
+same on Windows, Linux and macOS. (The Android app cannot be driven from outside the app, so
+this page does not cover it.)
 
 Rules of the tool:
 - Add `--json` to any command for one line of machine-readable output.
 - A command that spends money or changes the system does nothing without `--yes`; without it, it
   only prints what it would do (exit code `2`).
 - Exit codes: `0` ok · `1` error · `2` needs `--yes` · `3` wrong usage.
-- Secrets and RPC keys are never printed.
-- Replace every `<…>` (`<ADDRESS>`, `<node>`, `<version>`) with a real value before running a line.
+- A failure prints `{"ok":false,"error":…,"code":…,"action":…}`: `action` is what to run next.
+- Replace every `<…>` (`<ADDRESS>`, `<node>`) with a real value before running a line.
 
-> Every `devnet-dvpn` command outside the "Shortcut" section exists in the released CLI (the CLI
-> reference of each app: "If something fails"). What is proven on each OS, step by step: [`docs/PROOF.md`](docs/PROOF.md). Sections 1 to 6 were
-> run end to end on a clean Ubuntu 24.04 with the public v0.3.0-rc2 package on 2026-11-15,
-> including the refund. On Windows over SSH (rc2, same day), sections 1 to 6 passed, including
-> the refund, with one workaround line for a known `daemon install` bug (see "Install: Windows").
+> **Release:** this page is for **v0.3.0-rc3.1 or newer** on Windows; Linux and macOS: **`v0.3.0-rc3`** (no rc.3.1 there; the lines marked rc.3 apply), a pre-release: the release GitHub marks
+> "Latest" is an older one that cannot make a key file, so take the tag by name. On v0.3.0-rc2 the `agent` commands do
+> not exist (exit `3`, "unknown command: agent"): use "Step by step" below. What is proven, per OS
+> and release: [`docs/PROOF.md`](docs/PROOF.md). Every command, field and failure code of the
+> three `agent` commands: [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md).
 
 ---
 
 ## Quick path
 
-Ten lines per OS. The sections below explain each line; read them the first time.
+Linux and macOS (root or passwordless `sudo`):
 
-**Linux**
-1. The install block in "Install: Linux" (curl, `sha256sum -c`, `apt-get install -y`)
-2. `devnet-dvpn version --json` (must say network devnet)
-3. `export DVPN_KEYFILE="$PWD/agent-key.json"` then `devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json`
-4. Send your operator the message in section 3 with your address; run `devnet-dvpn wallet show --json` until both balances are above 0
-5. `devnet-dvpn daemon init`, then `devnet-dvpn device setup --yes`
-6. `devnet-dvpn daemon install --yes` (passwordless `sudo`, or as root)
-7. `devnet-dvpn quality ip --json`, then `devnet-dvpn nodes list --online --json`
-8. `devnet-dvpn connect <node> --basis per_gb --units 1 --yes --json`
-9. `devnet-dvpn quality ip --json` (`direct.ip` changed; V2Ray / Xray on Linux: `viaSocks.ip`)
-10. `devnet-dvpn disconnect`, `devnet-dvpn settle run --yes`; about 2 hours later `devnet-dvpn settle run --yes`, `devnet-dvpn settle withdraw --yes`
+```sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | sh   # Linux; macOS: section 1, By hand
+export DVPN_KEYFILE="$PWD/agent-key.json"
+devnet-dvpn agent status --json                               # "next" says what is missing
+devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json
+#   → send your operator the message in section 3; wait until agent status shows sol and tdvpn above 0
+devnet-dvpn daemon init
+devnet-dvpn device setup --yes
+devnet-dvpn daemon install --yes                              # once; root / passwordless sudo
+devnet-dvpn quality ip --json                                 # BEFORE: your own IP
+devnet-dvpn agent up --protocol wireguard --basis per_gb --max-price 0.01 --yes --json   # picks, pays, connects
+devnet-dvpn quality ip --json                                 # AFTER: direct.ip is now the node's
+devnet-dvpn agent down --yes --json                           # disconnects and starts the refund
+```
 
-**Windows** (an elevated PowerShell)
-1. The install block in "Install: Windows" (download, check, `Start-Process … /S -Wait`; exit code 0)
-2. `$env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"` (or open a new shell), then `devnet-dvpn version --json`
-3. `$env:DVPN_KEYFILE = "$PWD\agent-key.json"` then `devnet-dvpn wallet create --keyfile $env:DVPN_KEYFILE --yes --json`
-4. As Linux 4
-5. As Linux 5
-6. `devnet-dvpn daemon install --yes` (elevated; on a machine not in a domain, rc2 first needs `$env:USERDOMAIN = $env:COMPUTERNAME`, see "Install: Windows"; `"relogin": true` matters only for a non-elevated shell later, which needs a new sign-in or SSH session; in a new session set `$env:DVPN_KEYFILE` again)
-7. to 10. As Linux 7 to 10
+Without `--max-price`, `agent up` picks the fastest of the cheapest servers (a deposit at most 2 times the cheapest one's); on devnet many servers ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it. Linux / macOS (rc.3) pick by speed,
+not price: always pass `--max-price` there.
 
-**macOS** (passwordless `sudo`)
-1. The install block in "Install: macOS" (curl, `shasum -c`, `hdiutil`, `sudo -n ditto`)
-2. `export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"`, then `devnet-dvpn version --json`
-3. to 5. As Linux 3 to 5
-6. `devnet-dvpn daemon install --yes` (`sudo -n`; otherwise a dialog that only a person can answer)
-7. to 10. As Linux 7 to 10
+macOS: the installer prints one `export PATH=…` line; run it before the next line.
+
+Windows (an **elevated** PowerShell, or SSH as an administrator):
+
+```powershell
+irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
+$env:DVPN_KEYFILE = "$PWD\agent-key.json"
+devnet-dvpn agent status --json
+devnet-dvpn wallet create --keyfile $env:DVPN_KEYFILE --yes --json
+#   then section 3 (funding), then:
+devnet-dvpn daemon init
+devnet-dvpn device setup --yes
+devnet-dvpn daemon install --yes
+devnet-dvpn quality ip --json
+devnet-dvpn agent up --protocol wireguard --basis per_gb --max-price 0.01 --yes --json
+devnet-dvpn quality ip --json
+devnet-dvpn agent down --yes --json
+```
+
+Each answer of `agent status` / `agent up` / `agent down` carries `next` (the command to run
+next) or, on failure, `action`. Follow it. The sections below explain each line.
 
 ---
 
 ## Before you start: can you be administrator / root?
 
-Installing the app and the VPN service needs administrator / root once (section 1 and
-`daemon install` in section 4). If you cannot answer that prompt, stop and tell your operator.
-- Linux: with passwordless `sudo` the plain command works (the CLI calls `sudo -n` itself).
-  Without it the system asks for a password in a prompt you cannot answer over SSH: run the
-  command as root.
-- Windows: no prompt only when your shell already runs elevated (an elevated terminal, or SSH as
-  an administrator). Otherwise Windows shows one UAC prompt, which you cannot answer; with no
-  desktop session the step fails.
-- macOS: no prompt only when `sudo -n` works for your user; otherwise a password dialog opens
-  that only a person at the screen can answer.
+Installing the app and the VPN service (`daemon install`) needs administrator / root once. If you
+cannot get it, stop and tell your operator.
+- Linux / macOS: `sudo -n true` must succeed, or run as root. Otherwise the system asks for a
+  password in a prompt you cannot answer over SSH (macOS: a dialog only a person can answer).
+- Windows: your shell must already be elevated (an elevated terminal, or SSH as an
+  administrator). Otherwise Windows shows a UAC prompt you cannot answer.
 
-If you run in a sandbox where you cannot become administrator / root, you cannot install the VPN
-service. Stop here and tell your operator.
+In a sandbox where you cannot become administrator / root you cannot install the VPN service.
 
-**Install release `v0.3.0-rc2` (a pre-release) or newer, not the one GitHub marks "latest".**
-Older stable releases (Windows v0.2.1, Linux v0.1.21, macOS v0.1.3) cannot make a key file, so
-section 2 fails on them.
+## 1. Install (once)
 
-## 1. Install (once; needs administrator / root)
+### One command
 
-Get the package for your OS from its releases page and check it against `SHA256SUMS`. Read only
-the section for your OS.
-
-### Install: Linux
-
-Linux (deb, rpm, Arch, AppImage; x64 + arm64): <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases>
-
-Debian / Ubuntu, x64:
+Linux (deb, rpm, Arch; x64 and arm64):
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc2
-F=devnet-dvpn_0.3.0-rc.2_amd64.deb
-curl -fsSLO "$U/$F"
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | sh
+```
+
+To read it before it runs:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh
+sh install.sh
+```
+
+Windows (x64), elevated PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
+```
+
+To read it first: `curl.exe -fsSLO <that URL>`, then
+`Set-ExecutionPolicy -Scope Process Bypass -Force; . .\install.ps1` (this process only).
+
+What the installer does: picks the newest release (v0.3.0-rc2 or newer) that has your package,
+downloads it and the release's `SHA256SUMS`, refuses a file that does not match, installs it
+with no questions, and runs `devnet-dvpn version --json`. It prints one JSON line:
+`{"ok":true,"tag":…,"file":…,"version":{…},"path":…,"next":…}`, or `{"ok":false,"error":…}`
+with exit code 1. Pin a release with `DVPN_VERSION=<tag>` (PowerShell: `$env:DVPN_VERSION`).
+
+PATH afterwards:
+- Linux: `devnet-dvpn` is on PATH at once.
+- Windows: the installer sets it in your shell (and in every new shell).
+- macOS: a script cannot change your shell's PATH. Run the line it prints, in every new shell
+  until `daemon install` has run:
+  `export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"`.
+
+### By hand
+
+The same steps, one release. File names carry the version with a dot, the tag without (tag
+`v0.3.0-rc3.1` holds `…0.3.0-rc.3.1…`, `v0.3.0-rc3` holds `…0.3.0-rc.3…`), so take the name from `SHA256SUMS`.
+
+Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; Arch:
+`-x64\.pkg\.tar\.zst$` and `sudo pacman -U --noconfirm`; arm64: `_arm64` / `aarch64`):
+
+```sh
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc3
 curl -fsSLO "$U/SHA256SUMS"
+F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
+curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | sha256sum -c -             # must print: <file name>: OK
 sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "./$F"
 ```
 
-Without the update a fresh machine fails with "libsecret-tools … not installable". Without `-y`
-the install waits for an answer you cannot give over a non-interactive SSH session. For another
-package, take its exact file name from `SHA256SUMS` (it lists every file of the release).
+Without the update a fresh machine fails with "libsecret-tools … not installable"; without `-y`
+the install waits for an answer you cannot give.
 
-Other Linux packages: `sudo dnf install ./devnet-dvpn-<version>.x86_64.rpm` ·
-`sudo pacman -U devnet-dvpn-<version>-x64.pkg.tar.zst` · arm64: `_arm64.deb` / `.aarch64.rpm`.
-
-What is proven on Linux: [`docs/PROOF.md`](docs/PROOF.md#linux).
-
-### Install: Windows
-
-Windows (x64 only; there is no ARM64 build of v0.3.0-rc2 or newer yet):
-<https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases>.
-
-Silent install, in an **elevated** PowerShell (an elevated terminal, or SSH as an
-administrator). The installer is for the whole machine: from a normal shell it raises a UAC
-prompt, and as a standard user over SSH it fails.
-
-```powershell
-$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc2'
-$f = 'Devnet-dVPN-Setup-0.3.0-rc.2-x64.exe'
-curl.exe -fsSLo $f "$u/$f"                     # curl.exe, not curl (an alias in older PowerShell)
-curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"
-$h = ((Select-String -Path .\SHA256SUMS -SimpleMatch " $f").Line -split '\s+')[0]       # the line for this file
-(Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h   # must print True
-$p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode      # 0 = installed; 3 = wrong CPU
-```
-
-Use `Start-Process -Wait`: run directly, the installer returns at once, before it has finished.
-
-Windows only: the installer adds `devnet-dvpn` to the PATH of NEW terminals. In the shell that
-ran the installer, add it yourself, then every line on this page works as written:
-
-```powershell
-$env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"     # the default install folder
-```
-
-Windows PowerShell, the two key lines of section 2:
-
-```powershell
-$env:DVPN_KEYFILE = "$PWD\agent-key.json"
-devnet-dvpn wallet create --keyfile $env:DVPN_KEYFILE --yes --json
-```
-
-In section 4: if `daemon install` answers `"relogin": true` (Windows), your account can use the
-service only from its next sign-in: start a new session (a new SSH connection is enough; no
-restart) before section 5. An elevated shell is usually admitted already, so this matters mostly
-for a non-elevated shell later. If a later `connect` fails with `"code":"daemon-relogin"`, it is the
-same thing: it needs one run from an elevated shell, or a new session.
-
-`$env:DVPN_KEYFILE` lives only in the shell that set it. In every new shell or SSH session, set it
-again before the next command, or the CLI falls back to a stored wallet that does not exist over
-SSH. To carry it into new sessions once:
-`[Environment]::SetEnvironmentVariable('DVPN_KEYFILE', $env:DVPN_KEYFILE, 'User')`.
-
-**Known rc2 bug, Windows machines not joined to a domain** (most cloud and home machines): in
-section 4, `daemon install --yes` fails with "There is no such global user or group:
-WORKGROUP\…", because over SSH Windows sets `USERDOMAIN` to `WORKGROUP`. In the same shell, run
-this once, then `daemon install --yes` again (proven: it then exits 0 and the service runs):
-
-```powershell
-$env:USERDOMAIN = $env:COMPUTERNAME
-```
-
-It is needed only for `daemon install`; later sessions do not need it. To be fixed in the next
-release. On Windows, `daemon uninstall` refuses by design: remove the app in Settings > Apps.
-
-What is proven on Windows: [`docs/PROOF.md`](docs/PROOF.md#windows).
-
-### Install: macOS
-
-macOS: <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases>. No clicks;
-the VPN service is installed in section 4, not here.
-
-macOS install from a shell. You need an administrator account with passwordless sudo
-(`sudo -n true` must succeed), or a person who types the password. Every line below was
-run as written on an Intel Mac (macOS 14, 2026-11-15); the Apple silicon build is built and
-signed but has never been run:
+macOS (`x64` = Intel, `arm64` = Apple silicon):
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc2
-A=$(uname -m); [ "$A" = x86_64 ] && A=x64            # x64 = Intel; arm64 = Apple silicon (under Rosetta it reports x86_64)
-F=Devnet-dVPN-0.3.0-rc.2-$A.dmg
-curl -fsSLO "$U/$F"
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc3
+A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
+F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
+curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
 sudo -n ditto "$M/Devnet dVPN.app" "/Applications/Devnet dVPN.app"
 hdiutil detach -quiet "$M"
-```
-
-`sudo -n` fails at once when a password is needed (plain `sudo` would wait for one forever). If
-an older version is installed, remove it first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
-
-macOS only, before anything else: `devnet-dvpn` is not on your PATH until section 4 has run. Run
-this once in your shell (and again in every new shell until `daemon install` is done), then every
-line on this page works as written, in any shell and in programs you start from it (run in
-`sh` and `zsh` on an Intel Mac, 2026-11-15):
-
-```sh
 export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
 ```
 
-Later on macOS:
-- In section 4 the service can say it is waiting for the network; run `daemon doctor` again after a
-  few seconds.
-- V2Ray, Xray and Hysteria2 come inside the app, so `--protocol v2ray` needs no extra
-  setup. WireGuard, AmneziaWG and OpenVPN need Homebrew and `daemon repair-drivers --yes` first.
-- Shortcut commands: until `daemon install` has run, `next` names the full app path in quotes;
-  run it as printed.
+An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
 
-What is proven on macOS: [`docs/PROOF.md`](docs/PROOF.md#macos).
+Windows x64, elevated PowerShell:
 
-### Then, on every OS
-
-```sh
-devnet-dvpn version --json      # must say network devnet
+```powershell
+$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc3.1'
+curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an alias in older PowerShell)
+$l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
+$h, $f = ($l.Line -split '\s+')[0, 1]
+curl.exe -fsSLo $f "$u/$f"
+(Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h   # must print True
+$p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode      # 0 = installed
+$env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"     # this shell; new shells have it already
 ```
+
+Use `Start-Process -Wait`: run directly, the installer returns at once. On Windows,
+`daemon uninstall` refuses by design: remove the app in Settings > Apps.
+
+Then, on every OS: `devnet-dvpn version --json` must say network devnet.
 
 ## 2. Make a key (once)
 
 ```sh
 export DVPN_KEYFILE="$PWD/agent-key.json"
 devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json    # prints your address
-devnet-dvpn wallet show --json              # address and balances, any time
+devnet-dvpn agent status --json                                       # address, sol, tdvpn, next
 ```
 
-Windows: the PowerShell form is in "Install: Windows".
+Windows: `$env:DVPN_KEYFILE = "$PWD\agent-key.json"`, then the same `wallet create` with
+`$env:DVPN_KEYFILE`.
 
 Already have a key file (your operator's, or one you used before)? Set `DVPN_KEYFILE` to its full
-path, skip `wallet create`, check it with `wallet show --json`, and go to section 4. If it says
-`"wallet":null` but you had a wallet: find the key file and `wallet import <file>`; never
-`wallet create` (a new wallet can't see the old refunds).
+path, skip `wallet create`, and go to section 4. If `wallet show` says `"wallet":null` but you had
+a wallet: find the key file and `wallet import <file>`; never `wallet create` (a new wallet can't
+see the old refunds).
 
-Use a full path (a relative one breaks when you change directory); set `DVPN_KEYFILE` again in
-every new shell. The key file is your money. Keep it private; never print
-it, never commit it.
+Use the full path: a relative one breaks when you change directory. `DVPN_KEYFILE` lives only in
+the shell that set it: set it again in every new shell or SSH session (Windows, once for good:
+`[Environment]::SetEnvironmentVariable('DVPN_KEYFILE', $env:DVPN_KEYFILE, 'User')`). The key
+file is your money: never print it, never commit it.
 
-What `wallet show --json` prints: Appendix A.
+Use one wallet per computer. With a second wallet's key file loaded, `agent up` / `connect` refuse
+(code `wallet-switch-needed`, nothing paid): load the first key file again, or run
+`devnet-dvpn device switch --yes` to set this computer up for the loaded wallet (the first wallet's
+deposits stay refundable with its own key). A half-finished setup or switch:
+`devnet-dvpn device discard-setup --yes`. Linux / macOS (rc.3) have neither command and do not refuse:
+connecting can move this computer's device record to the second wallet, and the first wallet's deposits
+then stop being listed (the money is safe on chain). If it happened, don't connect again; see the rc.3
+release notes for the repair.
 
 ## 3. Get funded (the one step that needs a human)
 
-Your address needs two things, both free on devnet. Both faucets are web pages a person uses,
-so this is the one moment you ask your operator for help.
+Your address needs two things, both free on devnet, from two web faucets a person uses.
 
 | What | Why | Where | How much |
 |---|---|---|---|
 | **tDVPN** | what you pay nodes with | <https://faucet.sentinel.co> | one request = 100 tDVPN |
 | **SOL** (devnet) | pays transaction fees | <https://faucet.solana.com> (linked from the Sentinel faucet page) | 0.5 SOL is plenty |
 
-Get your address:
-
-```sh
-devnet-dvpn wallet show --json      # copy the "owner" value
-```
-
-Then send your operator exactly this, with your address filled in:
+Send your operator exactly this, with your address (`address` in `agent status --json`):
 
 > Please fund my Sentinel dVPN wallet on Solana **devnet**. It takes two minutes, costs nothing,
 > and needs a GitHub account.
@@ -280,158 +240,156 @@ Then send your operator exactly this, with your address filled in:
 > What I am doing, what it costs and the one setup step I may need you for:
 > https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/blob/main/docs/OPERATOR.md
 
-Do not open either faucet page yourself: they are for people (the Solana faucet says so). If
-the Solana CLI is installed you may get the SOL on your own, which leaves your operator only the
-tDVPN step. It is often rate-limited, so fall back to the operator if it fails:
+Do not open the faucet pages yourself: they are for people. With the Solana CLI you may get the
+SOL alone (`solana airdrop 1 <ADDRESS> --url devnet`; often rate-limited).
+
+Minimum: about 0.06 SOL (`device setup` moves 0.05 to the device for its fees) and tDVPN = the
+deposit of the node you pick (a per-GB node on devnet: about 0.002). 0.5 SOL and 100 tDVPN are
+comfortable. Each open per-GB deposit also holds about 0.004 SOL until settled. Wait until
+`agent status --json` shows `sol` and `tdvpn` above 0.
+
+Faucet limits: **2 requests every 8 hours** each, shared by everyone on one network, and the
+Sentinel faucet has a daily total. When it is spent, anyone with tDVPN can send some:
+`devnet-dvpn wallet send --to <ADDRESS> --tdvpn 100 --yes`.
+
+## 4. Set up the VPN service (once)
 
 ```sh
-solana airdrop 1 <ADDRESS> --url devnet
+devnet-dvpn daemon init                 # creates the device key (local, no transaction)
+devnet-dvpn device plan                 # what will be signed; spends nothing
+devnet-dvpn device setup --yes          # one transaction: spending permission + fee SOL for the device
+devnet-dvpn daemon install --yes        # installs and starts the VPN service (administrator / root)
+devnet-dvpn daemon doctor --json        # no check may have "level": "fail"
 ```
 
-Wait for both to arrive. Run this until `ownerLamports` is above 0 and `ownerTdvpn` is not `"0"`:
-
-```sh
-devnet-dvpn wallet show --json
-```
-
-Minimum: about 0.06 SOL (`device setup` moves 0.05 to the device) and tDVPN = the deposit of the
-node you pick (a per-GB node on devnet: about 0.002). Each open per-GB deposit holds ~0.004 SOL.
-
-If your operator says a faucet refused, or nothing arrives: Appendix B.
-
-## 4. Set up the VPN service and allow this device to spend (once)
-
-```sh
-devnet-dvpn daemon init                     # creates the device key (no administrator needed)
-devnet-dvpn device plan                     # shows what will be signed, spends nothing
-devnet-dvpn device setup --yes              # one transaction: spending permission + fee SOL for the device
-devnet-dvpn daemon install --yes            # installs and starts the VPN service (administrator / root, once)
-devnet-dvpn daemon doctor --json            # a list of checks: none may have "level": "fail"
-devnet-dvpn status --json                   # wallet, device, service: all set
-```
-
-`doctor` levels are `ok`, `skip`, `warn`, `fail`; only `fail` stops you. The order matters: the
-service does not start before the device has its spending permission.
-- Spending limit: a new device may spend up to 50 tDVPN from your wallet.
-  If a connect says your spending approval is lower than this deposit: `devnet-dvpn device setup
+In this order: the service does not start before the device has its spending permission.
+- Spending limit: a new device may spend up to 50 tDVPN from your wallet (a cap, not a charge).
+  `agent up` raises it itself (one more transaction), and so does `connect` on Windows (rc.3.1). Plain
+  `connect` on Linux / macOS (rc.3) does not. If it says your spending approval is lower than this deposit: `devnet-dvpn device setup
   --allowance N --yes`, N = `grant.allowance` of `devnet-dvpn device show --json` (base units, /1e6)
   plus the deposit.
-- `"service":"no-service"` in the `device setup` output: the service is not installed yet; normal here.
+- `"service":"no-service"` in the `device setup` output means the service is not installed yet:
+  normal at that step.
+- Windows: `"relogin": true` from `daemon install` matters only for a non-elevated shell later,
+  which needs a new sign-in or SSH session. `agent up` answering `"code":"daemon-relogin"` is the
+  same thing.
+- macOS: the service can report it is waiting for the network; run `daemon doctor` again after a
+  few seconds. WireGuard, AmneziaWG and OpenVPN need Homebrew and `daemon repair-drivers --yes`;
+  V2Ray, Xray and Hysteria2 come inside the app.
 
 ## 5. Connect
 
 ```sh
-devnet-dvpn quality ip --json                            # BEFORE: note "direct.ip", your own IP
-devnet-dvpn daemon drivers                               # the protocol you pick must be ready
-devnet-dvpn nodes list --online --protocol wireguard --sort price --json
-devnet-dvpn cost <node> --basis per_gb --units 1 --json  # exact deposit before you pay
-devnet-dvpn connect <node> --basis per_gb --units 1 --yes --json
-devnet-dvpn quality ip --json                            # AFTER: prove the tunnel (see below)
+devnet-dvpn quality ip --json                                   # BEFORE: note direct.ip
+devnet-dvpn agent up --protocol wireguard --basis per_gb --max-price 0.01 --yes --json   # picks, pays, connects
+devnet-dvpn quality ip --json                                   # AFTER: prove the tunnel
 ```
 
-`<node>` is an address from `nodes list`. A node can cost more than a new wallet holds: `connect`
-then exits 1 with `Not enough tDVPN: this deposit needs 50.` (code `preflight`). Pick a cheap one
-with `nodes list --online --sort price --json`, or check `cost <node>` first. Prices in
-`nodes list --json` have 6 decimals: `"2000"` = 0.002 tDVPN. On devnet many nodes ask about 50 tDVPN per GB, and one faucet
-request gives 100: sort by price.
+`agent up` also takes `--country CC`, `--node N`, `--basis per_gb|per_hour`, `--units N`,
+`--plan S`, `--max-price N` (per unit of the basis: pass `--basis` with it). Without `--yes` it
+prints `{"needsConfirm":true,"what":…}` and signs nothing. It is safe to repeat: already
+connected to a server that matches what you asked, it answers `"reused": true` and pays nothing;
+asking for a different server switches in one step. Connecting again to a server whose deposit
+is still open uses that deposit. Linux / macOS (rc.3): only while the wallet also holds one deposit's
+worth; with less, the funds check refuses it and nothing is paid.
 
-Which protocol: for proof that the whole machine goes through the node, pick a WireGuard,
-AmneziaWG, OpenVPN or Hysteria2 node. If `daemon drivers` asks for `repair-drivers` and only
-AmneziaWG is missing, ignore it unless you pick an AmneziaWG node.
-
-How to read the proof. `quality ip --json` prints `{ "direct": …, "viaSocks": … }` (`source` is
-the Cloudflare check address that answered):
-- WireGuard, AmneziaWG, OpenVPN, Hysteria2 route the whole machine: you are connected when
-  `direct.ip` is now different from the BEFORE value.
-- V2Ray and Xray, Linux: only what you send to the local SOCKS proxy uses the node (`proxy
-  status` shows its address): `direct.ip` stays your own; the proof is `viaSocks.ip`.
+How to read the proof (`{ "direct": { "ip", "source" }, "viaSocks", "sourceIs" }`):
+- WireGuard, AmneziaWG, OpenVPN, Hysteria2 route the whole machine: `direct.ip` is now the
+  node's. Pick one of these when you need proof for the whole machine.
+- V2Ray and Xray, Linux: only what you send to the local SOCKS proxy (`socks` in `agent status`)
+  uses the node: `direct.ip` stays yours; the proof is `viaSocks.ip`.
 - V2Ray and Xray, a new Windows or macOS install: the whole computer goes through the node
   (`"wholeDevice": true` in `daemon settings --json`), so `direct.ip` changes too. Proxy-only:
-  `daemon set --whole-device false --yes`. (Seen on both, rc2.)
+  `daemon set --whole-device false --yes`. There `agent up`'s `directIp` may show the node's
+  address too, and `next` names only the SOCKS address: take your own IP from the BEFORE
+  `quality ip --json`. For the simplest proof with the shortcut, pick WireGuard.
 
-Driving this machine over SSH: read "Over SSH" below before you connect.
-
-You are connected. You are not finished: section 6 gets your deposit back.
+If `agent up` fails, it names `code` and `action`: run the action. `"code":"not-enough-tdvpn"`
+means the server it picked costs more than you hold: add `--max-price`, or fund more.
+`"code":"no-nodes"`: widen `--protocol` / `--country` / `--max-price`. `price-changed`,
+`deposit-unusable` or `deposits-unread`: nothing was paid; run `agent up --yes` again (it reads
+the price fresh, and `--max-price` still caps it). Before picking a protocol,
+check that `devnet-dvpn daemon drivers` shows it ready; when it asks for `repair-drivers` and only
+AmneziaWG is missing (normal on a new Linux install), ignore it unless you pick an AmneziaWG node;
+for one, run `devnet-dvpn daemon repair-drivers --yes` first (administrator, about 2 minutes). Driving this machine over SSH: read "Over SSH" before you connect.
 
 ## 6. Disconnect and get the unused deposit back
 
-**Coming back to this server soon (per GB only):** just disconnect. The deposit stays open and
-the next `connect` to the same server reuses it.
-
 ```sh
-devnet-dvpn disconnect
+devnet-dvpn agent down --yes --json
 ```
 
-**Finished, or you want the money back:** disconnect, then close the deposit.
-
-```sh
-devnet-dvpn disconnect
-devnet-dvpn settle run --yes        # stage 1 of 2: start closing the deposit
-devnet-dvpn settle list             # the ready time (about 2 h for per GB)
-devnet-dvpn settle run --yes        # stage 2, after that time
-devnet-dvpn settle withdraw --yes   # move refunds back to the wallet
-```
-
-You need not stay online for the two hours. In `settle list`, `refundable` below the deposit is
-normal: the part used for traffic and fees is not refunded.
-
-`disconnect` says "the app refunds the unused part automatically": that is the desktop app with
-its window open. From the command line, run the lines above; the wait is what `settle list` shows.
+It disconnects and starts closing every open deposit (stage 1 of 2). A per-hour deposit closes at once. A
+per-GB one waits about two hours: when the answer has `readyAt`, come back after that time and
+run what `next` says (`settle run --yes`, then `settle withdraw --yes`). You do not have to stay
+online in between. `"code":"busy"`: the disconnect is done but another refund run held the lock;
+run `settle run --yes` yourself.
 
 That is the whole flow.
 
 ---
 
+## Step by step (rc2, or if the shortcut fails)
+
+The same flow with the single commands (all of these are also in v0.3.0-rc2):
+
+```sh
+devnet-dvpn daemon drivers                                  # the protocol you pick must be ready
+devnet-dvpn nodes list --online --protocol wireguard --sort price --limit 10 --json
+devnet-dvpn cost <node> --basis per_gb --units 1 --json     # exact deposit before you pay
+devnet-dvpn connect <node> --basis per_gb --units 1 --yes --json
+devnet-dvpn quality ip --json
+devnet-dvpn disconnect
+devnet-dvpn settle run --yes                                # stage 1 of 2: start closing
+devnet-dvpn settle list                                     # the ready time (about 2 h per GB)
+devnet-dvpn settle run --yes                                # stage 2, after that time
+devnet-dvpn settle withdraw --yes
+```
+
+In `settle list`, `refundable` smaller than the deposit is normal: the part used for traffic and
+fees is not refunded.
+
+Prices in `nodes list --json` are base units (`priceUnit` says so): `"50000000"` = 50 tDVPN.
+On devnet many nodes ask about 50 tDVPN per GB and one faucet request gives 100: sort by price.
+
+`disconnect` says the desktop app starts the refund when it is running; from the command line,
+run the `settle` lines.
+
+v0.3.0-rc2 on Windows only: on a machine not joined to a domain, `daemon install` fails with
+"There is no such global user or group: WORKGROUP\…". Run `$env:USERDOMAIN = $env:COMPUTERNAME`
+in the same shell first (`install.ps1` does it for rc2).
+
+---
+
 ## Choices
 
-**Protocol** — WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2. A node serves one.
+**Protocol:** WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2; a node serves one.
+`agent up --protocol <name>`, or `nodes list --online --protocol <name> --json`.
+`daemon drivers` lists the tools this machine has; `daemon repair-drivers --yes` adds the missing.
 
-```sh
-devnet-dvpn nodes list --online --protocol wireguard --json
-devnet-dvpn daemon drivers                  # which protocol tools this machine has
-devnet-dvpn daemon repair-drivers --yes     # install the missing ones (administrator)
-```
+**Location:** `agent up --country DE` (the country the node reports).
 
-macOS: which protocols come inside the app and which need Homebrew is in "Install: macOS".
+**Pricing:**
 
-**Location** — the country is what the node reports.
-
-```sh
-devnet-dvpn nodes list --online --country DE --json
-```
-
-**Price** — cheapest first:
-
-```sh
-devnet-dvpn nodes list --online --sort price --json
-```
-
-**Price and pricing structure** — three ways to pay:
-
-| | command | notes |
+| | how | notes |
 |---|---|---|
-| per GB | `connect <node> --basis per_gb --units <GB> --yes` | pay for data used; unused deposit comes back |
-| per hour | `connect <node> --basis per_hour --units <hours> --yes` | pay for time; when done run `disconnect` and then `settle run --yes` straight away, so the deposit stops being charged |
-| plan | `plans list` → `plans subscribe <plan> --yes` → `connect <node> --plan <subscription> --yes` | one price up front, no refund; `plans roster <plan>` lists its servers |
+| per GB | `agent up --basis per_gb --units <GB>` | unused deposit comes back |
+| per hour | `agent up --basis per_hour --units <hours>` | `agent down` straight after, so it stops billing |
+| plan | `plans list` → `plans subscribe <plan> --yes` → `agent up --plan <subscription>` | one price up front, no refund. An empty `--plan` value is refused (exit `3`); Linux / macOS (rc.3) pay a deposit instead: check the id is set |
 
-`daemon set` (used in the two sections below) needs administrator / root exactly like
-`daemon install`, and it restarts the VPN service: change settings **before** you connect.
+`daemon set` (below) needs administrator / root like `daemon install` and restarts the VPN
+service: change settings **before** you connect.
 
-**Split tunnelling** — choose what uses the VPN.
+**Split tunnelling:** `split status`;
+`daemon set --split-mode exclude --split-routes 10.0.0.0/8 --yes`. To undo it, set both:
+`daemon set --split-mode off --split-routes none --yes` (otherwise the routes stay; Windows /
+macOS, if you set apps: add `--split-apps none`).
 
-```sh
-devnet-dvpn split status
-devnet-dvpn daemon set --split-mode exclude --split-routes 10.0.0.0/8 --yes
-devnet-dvpn daemon set --split-mode off --split-routes none --yes   # undo: both, or the routes stay (Windows / macOS apps: --split-apps none)
-devnet-dvpn proxy status            # V2Ray / Xray: the local SOCKS proxy (whole computer by default on Windows / macOS)
-```
-
-**Kill switch** — block the internet whenever the tunnel is not up.
+**Kill switch:** block the internet whenever the tunnel is not up.
 
 ```sh
-devnet-dvpn daemon settings
+devnet-dvpn daemon set --allow-lan true --yes        # first, if you reach this machine over its LAN
 devnet-dvpn daemon set --kill-switch on --yes        # off | on | persist
-devnet-dvpn daemon set --allow-lan true --yes
 ```
 
 In this app the kill switch `on` and `persist` are the same setting. After `disconnect` / `agent
@@ -440,129 +398,47 @@ this happens when the session had already dropped before you disconnected. `devn
 restore-network` lifts the block for now; it can come back at the next dropped session or service
 restart. `devnet-dvpn daemon set --kill-switch off --yes` stops it coming back.
 
-**Changing server with the kill switch on.** Do not disconnect first: with the kill switch `on`,
-`disconnect` of a live session can lift the block, so the gap between two sessions can go out on
-your real IP. Switch
-in one step, and never to the server you are already on:
+(`disconnect` with no session may still print "keeps the internet blocked until you reconnect":
+reconnecting does not lift it for good; use the two commands above.)
 
-```sh
-devnet-dvpn connect <other node> --switch --yes --json
-```
+To change server with the kill switch on, do not disconnect first: `agent up --node <other>
+--yes` (or `connect <other node> --switch --yes`) switches in one step and the block holds.
 
-If the switch fails, the block holds and nothing leaks: try another node, or run
-`devnet-dvpn daemon restore-network` to get the internet back.
-
-Per-OS details of split tunnelling and the kill switch: [`docs/agent-safety.md`](docs/agent-safety.md).
+Per-OS details: [`docs/agent-safety.md`](docs/agent-safety.md).
 
 ## Over SSH
 
-Over SSH, a full-tunnel connect did not cut the session with WireGuard on Linux (replies to
-connections that came in still leave directly) and on Windows (rc2). Not shown: other protocols,
-macOS, and a whole-computer V2Ray / Xray session on Windows or macOS. There, keep a second way in.
-
-**If you control this machine over the network (SSH), read this first.** The kill switch blocks
-everything that is not the tunnel, and that can include your own connection to the machine. A
-fresh install has `allow-lan` off. If you reach the machine from its local network, set
-`--allow-lan true` **before** `--kill-switch on` or `persist` (proven on macOS: with LAN off the
-kill switch cuts SSH). If you reach it from the internet, do not turn the kill switch on unless
-you have another way in. This has happened: a Windows cloud machine with the kill switch on
-`persist` was locked out after a restart, remote access included, and had to be deleted.
-
-## If you lose the network
-
-```sh
-devnet-dvpn daemon restore-network
-```
-
----
-
-## Shortcut: one command (NOT in v0.3.0-rc2; from the next release)
-
-Releases after v0.3.0-rc2 add three commands that do sections 4 to 6 for you, except
-`daemon install --yes`, which you still run once yourself (root or passwordless sudo; on Windows
-an elevated shell or an administrator SSH login). On rc2 they
-print nothing on stdout, even with `--json`, and exit `3` ("unknown command: agent" on stderr):
-use the steps above. Every JSON field, failure `code` and exit code of the three commands is
-listed in [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md).
-
-```sh
-devnet-dvpn agent status --json                              # what is missing, and the next step
-devnet-dvpn agent up --protocol v2ray --country DE --yes --json   # picks a live server, pays, connects
-devnet-dvpn agent down --yes --json                          # disconnects and starts the refund
-```
-
-`agent up` also takes `--node`, `--basis`, `--units`, `--plan`, `--max-price`. `--max-price` is
-per unit of the basis (per GB or per hour), and the basis defaults to the saved setting, so pass
-`--basis` whenever you pass `--max-price`. A success line carries `next`: follow it. A failure
-carries `action`: follow it, or read `error` when `action` is null. Without `--yes`, `agent up`
-and `agent down` print `{"needsConfirm":true,…}`, exit `2` and sign nothing.
-
-- `agent up` is safe to repeat. Already connected to a server that matches what you asked for:
-  it answers that session (`"reused": true`) and pays nothing. A match means `--node` is the live
-  server, or, without `--node`, `--protocol` and `--country` (each only if given) equal the live
-  ones; `--basis`, `--units`, `--plan` and `--max-price` are not compared while connected. Asking
-  for a different server switches in one step, the kill-switch-safe way.
-- If `agent down` fails because the disconnect itself failed, no deposit was closed and a
-  per-hour one keeps billing: run `daemon doctor`, fix the service, then `agent down --yes` again.
-- `agent down` closes a per-hour deposit at once. A per-GB deposit takes about two hours to
-  close: when `readyAt` is set, follow `next` at that time (`settle run --yes`, then
-  `settle withdraw --yes`). If it fails with `"code":"busy"`, the disconnect is done but another
-  refund run held the lock: run `settle run --yes` yourself (a per-hour deposit bills until closed).
-- `agent down` and the kill switch: after it, check `devnet-dvpn quality ip`. If it shows no
-  address, the block is still up: see "Kill switch" above.
-- Windows: `agent up` can need an elevated shell once (`"code":"daemon-relogin"`); a normal
-  shell gets a prompt you cannot answer.
-- macOS: see "Install: macOS" for how `next` names the app.
-- `agent status --json` field names: Appendix A.
-
----
+On Linux a full-tunnel connect does not cut your SSH session (proven with WireGuard). On Windows,
+WireGuard over SSH was shown on rc2. Not shown: other protocols, macOS, and a whole-computer
+V2Ray / Xray session on Windows or macOS: keep a second way in. The kill switch blocks everything that is not the tunnel, which can include your SSH
+session: reaching the machine over its LAN, set `--allow-lan true` first; reaching it from the
+internet, do not turn the kill switch on without another way in. A Windows cloud machine with
+the kill switch on `persist` was once locked out after a restart and had to be deleted.
 
 ## If something fails
 
 ```sh
-devnet-dvpn status --json
+devnet-dvpn agent status --json
 devnet-dvpn daemon doctor --json
 devnet-dvpn logs --lines 80
+devnet-dvpn daemon restore-network        # if you lost the network
 ```
 
-Every command and option: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
+Windows (rc.3.1): `"code":"clock-skew"`: this computer's clock is off (the error says by about how much); set it right,
+then `agent up --yes` again. Nothing was paid.
 
-MCP clients: after sections 1 to 4, the main commands (status, wallet, servers, connect,
-disconnect, refund, and, on releases that have them, the three `agent` commands) are available
-as tools; see
-[`mcp/README.md`](mcp/README.md).
+Windows (rc.3.1): `agent status` says `"blocked": true` (no session, the internet blocked to protect you): `agent up --yes`
+reconnects with protection on, or `devnet-dvpn daemon restore-network` goes direct (protection off until
+the next connect).
 
----
+Every command: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
+MCP clients, after sections 1 to 4: [`mcp/README.md`](mcp/README.md).
 
-## Appendix A: JSON you will read
+## Appendix: JSON you will read
 
-What `wallet show --json` prints (there is no `ok` field on this one):
+`agent status --json`: `address`, `sol`, `tdvpn` (decimal strings), `refundable` (the balance
+`settle withdraw` moves, not the deposits still open), `device`, `service`, `connected`, and when
+connected `node`, `protocol`, `spent`, `exitIp`, `socks`; always `next`.
 
-| field | meaning |
-|---|---|
-| `owner` | your address (`wallet create --json` prints the same value as `address`) |
-| `ownerLamports` | SOL, as a number of lamports (1 SOL = 1000000000) |
-| `ownerTdvpn` | tDVPN, as a string of base units with 6 decimals (100 tDVPN = `"100000000"`) |
-| `userBalance` | refunds waiting to be withdrawn |
-| `ready` | stays `false` until section 4 is done (it also needs the device set up). In section 3 watch only `ownerLamports` and `ownerTdvpn` |
-
-With no wallet it prints `{"wallet":null}`. An error from any command prints
-`{"ok":false,"error":…,"code":…,"action":…}`; `action` is what to do next.
-
-`agent status --json` uses `address`, `sol`, `tdvpn`, `refundable` (decimal strings). Its `refundable`:
-the balance `settle withdraw` moves; `agent down`'s: the deposits still to come back.
-
-## Appendix B: faucet limits
-
-- Each faucet allows **2 requests every 8 hours** (the Sentinel faucet shows "N / 2 remaining";
-  at zero its button reads "Claim limit reached"). People on one network share an allowance.
-- The Sentinel faucet also has a daily total for everyone. If the limit is reached and 8 hours
-  have passed, waiting will not help: ask your operator to send tDVPN from a wallet that has
-  some: `devnet-dvpn wallet send --to <ADDRESS> --tdvpn 100 --yes`.
-- One claim is 100 tDVPN: afterwards `ownerTdvpn` reads `"100000000"`.
-
-## Appendix C: file names
-
-File names carry the version with a dot, the tag without: tag `v0.3.0-rc2` holds
-`Devnet-dVPN-Setup-0.3.0-rc.2-x64.exe`. Take the file name from the release page, never build it
-from the tag.
+`wallet show --json` (step by step) names them differently: `owner`, `ownerLamports` (1 SOL =
+1000000000), `ownerTdvpn` (base units, 100 tDVPN = `"100000000"`), `userBalance`, `ready`.

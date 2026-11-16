@@ -223,6 +223,9 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `not-enough-tdvpn` | any | `null`: fund the wallet or use fewer `units` (also above) |
 | `session-active` | any | `disconnect` (also above) |
 | `rpc-unavailable` | any | every RPC endpoint failed: check the network, or set another RPC |
+| `keyfile-missing` | up | restore the key file named in the error from your backup (it is the only key to this wallet), then `agent up --yes`; never `wallet create` (a new wallet cannot see the old refunds) |
+| `wallet-switch-needed` | up, down, status | load the key file of the wallet named in the error, or `device switch --yes` (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable). Nothing was paid |
+| `clock-skew` | up | set this computer's clock to the right time (the error says by about how much), then `agent up --yes` |
 
 Usage errors (exit 3) print nothing on stdout, only one line on stderr: a bad flag value, an
 unknown flag or subcommand. The tool's schema check stops nearly all of them before the CLI runs.

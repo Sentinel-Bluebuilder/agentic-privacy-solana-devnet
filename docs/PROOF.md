@@ -9,7 +9,10 @@ evidence. The raw logs are kept by those teams and are not published here.
 - **not proven**: no run yet. The reason is given.
 
 "Earlier build" means a development build from October 2026 with the same command line. The public
-release named in `AGENTS.md` is **v0.3.0-rc2** (2026-11-14); the app reports it as `0.3.0-rc.2`.
+release named in `AGENTS.md` is **v0.3.0-rc3.1** (2026-11-16) on Windows, where the app reports `0.3.0-rc.3.1`,
+and **v0.3.0-rc3** (2026-11-16, app `0.3.0-rc.3`) on Linux and macOS.
+"rc2" is the release before it, v0.3.0-rc2 (2026-11-14), app `0.3.0-rc.2`; most rows below ran on it, and rc.3.1
+"rows are added as they pass.
 "rc.1" below is the release before it, 0.3.0-rc.1 (2026-11-12).
 
 ## Linux
@@ -25,7 +28,7 @@ A fresh-machine test run on **v0.3.0-rc2**, 2026-11-15: a clean Ubuntu 24.04 clo
 | 3. Funding | not a product step | the operator sent 0.15 SOL and 20 tDVPN, which was enough |
 | 4. `daemon init` → `device setup` → `daemon install` → `daemon doctor` | **proven** on rc2 (fresh-machine run) | with passwordless `sudo` no prompt appears; doctor showed no failure |
 | 5. `nodes list`, `cost`, `connect` (WireGuard, per GB), `quality ip` | **proven** on rc2 (fresh-machine run) | the public IP changed to the node's while connected and came back after |
-| 5. The other five protocols | **proven** on rc2 | rows below; also on earlier builds (traffic exits at the node, nothing left after) |
+| 5. The other five protocols | partly | proven on earlier builds, all six (traffic exits at the node, nothing left after) |
 | 5. SSH over a full tunnel | **proven** on rc2 (fresh-machine run, WireGuard) | the SSH session that drove the run survived the connect |
 | 6. `disconnect`, `settle run` | **proven** on rc2 (fresh-machine run) | IP back to direct; the deposit moved to "closing" |
 | 6. Final refund (`settle run` after 2 h, `settle withdraw`) | **proven** on rc2 (fresh-machine run) | after the two-hour close, `settle run --yes` and `settle withdraw --yes` both exited 0: the refund finished |
@@ -68,7 +71,7 @@ cover IPv6. Neither is in the main agent path.
 | 5. SSH over a full tunnel | **proven** on rc2 (2026-11-15, WireGuard) | the SSH session survived the connect; other protocols not run |
 | 5. All six protocols | **proven** on rc2 (2026-11-15) | WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2: the node's IP during each session, the machine's own after, the SSH session stayed up, each deposit settled |
 | Kill switch with a live session | **proven** on rc2 (2026-11-15) | tunnel cut on purpose: no sample showed the machine's own IP until `daemon restore-network`; direct within seconds of it; stayed direct after `--kill-switch off` and a service restart |
-| Kill switch after the session dropped | **seen** on rc2 | `status` said not connected while the block was still on; `quality ip` showed no address (the page says so) |
+| Kill switch after the session dropped | **seen** on rc2 | `status` said not connected while the block was still on; `quality ip` showed no address (the page says so since update 6) |
 | Split tunnel + SOCKS only | **proven** on rc2 | excluded address direct, everything else via the node; with whole computer off, SOCKS = node, plain traffic = own IP; proxy off after `disconnect` |
 | Failure paths: no `--yes`, bad basis, no node, too-dear node, no wallet, unfunded | **proven** on rc2 | documented codes; nothing spent |
 | A connect with the service stopped | **seen** on rc2 | not a refusal: the CLI starts the service and connects |
@@ -93,7 +96,7 @@ All macOS runs are on the **Intel (x64)** build.
 | 4. `daemon init` → `device setup` → `daemon install` with no prompt | proven (rc.1) | needs passwordless `sudo`; otherwise macOS shows a password dialog that only a person at the screen can answer |
 | 4. `daemon doctor` | partly | no failures, but as a normal user some rows say "warn" by design |
 | 5. `connect` per GB, exit IP = node | proven (rc.1, and rc2 as an upgrade, 2026-11-14) | WireGuard |
-| 5. All six protocols per GB | **proven** on rc2 | rows below; also on an earlier build |
+| 5. All six protocols per GB | proven (earlier build) | |
 | 5. V2Ray on a new rc2 install: whole computer | **seen** on rc2 (2026-11-16) | `"wholeDevice": true` by default: `direct.ip` and `viaSocks.ip` both the node's; no system proxy. `daemon set --whole-device false --yes` gives the proxy-only mode |
 | 5. V2Ray / Xray SOCKS proxy (whole computer off) | proven (earlier build) | only traffic sent to the proxy exits at the node |
 | 5. `quality ip` showing the SOCKS exit IP | partly | in the shared code; no macOS log of that line |
@@ -132,10 +135,14 @@ keeps the wallet and settings. That shows the commands work, not that an agent c
 - The kill-switch recovery after a session that had already dropped (`quality ip` shows no
   address → `daemon restore-network`, then `daemon set --kill-switch off --yes`): proven on
   Windows; not run on Linux or macOS.
-- The `agent up / down / status` commands in a public release: they are not in v0.3.0-rc2 (run from a development build only, see Linux).
-- Known gaps on rc2: a plain `connect` above the spending
-  limit refuses and does not raise it (`agent up`, not in rc2, does); after a `sudo daemon set` on macOS, the
+- The `agent up / down / status` commands in v0.3.0-rc3.1 (Windows) and v0.3.0-rc3 (Linux, macOS): rows are added per OS as they pass.
+- Known gaps on rc2 (Windows v0.3.0-rc3.1 fixes the spending limit for `connect`, the reconnect funds check and the price pick; they stay in Linux / macOS v0.3.0-rc3; rows flip once they have run): a plain `connect` above the spending
+  limit refuses and does not raise it (`agent up` does); after a `sudo daemon set` on macOS, the
   user's own `daemon set` can hit "permission denied"; `settle list --device` refuses this
   computer's own device; on Linux, macOS and Android rc2, turning off automatic device permission does
-  not stick, and neither does a revoke's write.
+  not stick, and neither does a revoke's write (fixed in rc.3).
+- Known gaps in v0.3.0-rc3.1, to be fixed in a later release: a device replaced by `device switch` keeps about
+  0.05 SOL of fee SOL; it can't be sent back until the next build. A failure in the middle of a `device switch`
+  is covered by unit tests only, not by a live run. Repeated device setups can leave a token approval larger than
+  the limit you set, and lowering the limit doesn't reduce it yet.
 - The MCP server making a paid connection: its unit tests pass and a live check against real devnet nodes passed on Linux (2026-11-15, read-only tools and previews only).
