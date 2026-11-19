@@ -78,7 +78,7 @@ The server speaks MCP protocol versions `2025-06-18`, `2025-03-26` and `2024-11-
 
 ## 4. Tools
 
-### On v0.3.0-rc2 (every release so far): six CLI tools
+### Six CLI tools (every release from v0.3.0-rc2)
 
 | tool | runs | gives back (`result`) |
 |---|---|---|
@@ -98,9 +98,7 @@ step: `settle withdraw --yes`).
 
 `vpn_connect` and `vpn_settle` spend or sign, so, like `vpn_up` and `vpn_down`, they pass `--yes` only with `"yes": true`; without it the CLI answers a preview (exit `2`) and nothing is spent.
 
-### On the next release: three agent tools
-
-The CLI's `agent` commands are **not** in v0.3.0-rc2. On a CLI that has them:
+### Three agent tools (v0.3.0-rc4; the `agent` commands are not in v0.3.0-rc2)
 
 The output contract is [`docs/AGENT-COMMANDS.md`](../docs/AGENT-COMMANDS.md) (a copy of the
 app source's file, kept equal by a test); the fields below follow it.
@@ -116,7 +114,10 @@ base units, and times (`readyAt`) are Unix seconds.
 | `refundable` | the wallet's balance held in the program, which `settle withdraw` moves to the wallet; **not** the `refundable` of `vpn_down` (on devnet a closed deposit's refund went straight to the wallet, so this stayed `"0"`) |
 | `device` | this computer's device key; `null` = not set up |
 | `service`, `connected` | booleans: the VPN service answers / a session is live |
-| `session`, `node`, `protocol`, `spent`, `exitIp`, `socks` | only when connected (`exitIp` `null` if the check took over 8 s; `socks` `null` when the protocol gives none, and on Android) |
+| `blocked` | `true` only when no session is live and the internet does not answer (the kill switch holds the block, or the network is down) |
+| `session`, `node`, `protocol`, `spent`, `exitIp`, `socks`, `wholeDevice` | only when connected (`exitIp` `null` if the check took over 8 s; `socks` `null` when the protocol gives none, and on Android) |
+| `deposits` | only when the wallet has open or closing deposits: `{channel, node, status, refundable, readyAt}` each |
+| `code`, `message`, `serverStopped`, `alsoNext` | only when the node stopped serving: `code` = `server-stopped`, `connected` is false, the deposit is safe; `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit) |
 | `next` | the next step: create a wallet, fund it, `agent down --yes` (connected), or `agent up --yes` |
 
 **`vpn_up {protocol?, country?, node?, basis?, units?, plan?, max_price?, yes?}`** runs
@@ -133,7 +134,7 @@ deposit (or uses the plan) and connects.
 
 | answer | fields |
 |---|---|
-| connected (exit 0) | `session`, `node`, `protocol` (the one really used), `country`, `exitIp`, `directIp`, `socks` (`socks5h://host:port` or `null`), `channel`, `deposit`, `next` |
+| connected (exit 0) | `session`, `node`, `protocol` (the one really used), `country`, `exitIp`, `directIp`, `socks` (`socks5h://host:port` or `null`), `wholeDevice`, `channel`, `deposit`, `next` (always `agent down --yes`), `note` (what the session means, in one sentence); `blockedBefore: true` when the kill switch held the internet before it; `replaced` / `replacedNote` when the live session was not tunnelled and it switched; `skipped` / `skippedNote` when it left out a node that recently stopped or refused |
 | `deposit` | `{basis, units, tdvpn, baseUnits}` (`tdvpn` = the most it can hold; the unused part is refunded); `{plan, tdvpn: "0"}` with a plan; `null` when `reused` |
 | already connected to a match | the same, with `reused: true`; nothing paid, no `yes` needed. A match: `node` is the live node, or, with no `node`, `protocol` and `country` (each only if given) equal the live ones. `basis`, `units`, `plan` and `max_price` are not compared while a session is live |
 | connected elsewhere | it switches: leaves the live node and connects to the new one (with the kill switch on, the block stays up in between); never picks the live server |
@@ -266,7 +267,7 @@ administrator step or are rare. Run them with the CLI, as `AGENTS.md` describes.
   `yes`. It needs `devnet-dvpn` findable as in section 2. `--bundle <devnet-dvpn.cjs>` adds a pass
   against a CLI built from source (the `out/cli/devnet-dvpn.cjs` of a build; the copy inside an
   installed app is packed in `app.asar` and plain Node cannot read it).
-- Live check with one paid session (v0.3.0-rc.3 or newer, after sections 1 to 4 of `AGENTS.md`):
+- Live check with one paid session (v0.3.0-rc4 or newer, after sections 1 to 4 of `AGENTS.md`):
   `DVPN_KEYFILE=<key> node mcp/live-check.mjs --out <dir> --paid --yes` adds `vpn_up`
   (`yes: true`, WireGuard, per GB, 1 unit), `vpn_agent_status` (connected), `vpn_down`
   (`yes: true`) and `vpn_agent_status` (not connected). It spends one deposit (about 0.002 tDVPN

@@ -9,11 +9,11 @@ evidence. The raw logs are kept by those teams and are not published here.
 - **not proven**: no run yet. The reason is given.
 
 "Earlier build" means a development build from October 2026 with the same command line. The public
-release named in `AGENTS.md` is **v0.3.0-rc3.1** (2026-11-16) on Windows, where the app reports `0.3.0-rc.3.1`,
-and **v0.3.0-rc3** (2026-11-16, app `0.3.0-rc.3`) on Linux and macOS.
-"rc2" is the release before it, v0.3.0-rc2 (2026-11-14), app `0.3.0-rc.2`; most rows below ran on it, and rc.3.1
-"rows are added as they pass.
-"rc.1" below is the release before it, 0.3.0-rc.1 (2026-11-12).
+release named in `AGENTS.md` is **v0.3.0-rc4** (2026-11-16, app `0.3.0-rc.4`) on Windows, Linux and macOS: one
+command line, byte-identical on all three apart from the key store. "rc.3" / "rc.3.1" are the releases before it
+(2026-11-16), "rc2" is v0.3.0-rc2 (2026-11-14); most rows below ran on rc2 or rc.3. On rc.4 the release smoke tests
+(one paid WireGuard or V2Ray connect and disconnect per OS, run by the app team) passed; the agent-path rows on rc.4
+are added as they pass. "rc.1" below is 0.3.0-rc.1 (2026-11-12).
 
 ## Linux
 
@@ -135,13 +135,18 @@ keeps the wallet and settings. That shows the commands work, not that an agent c
 - The kill-switch recovery after a session that had already dropped (`quality ip` shows no
   address → `daemon restore-network`, then `daemon set --kill-switch off --yes`): proven on
   Windows; not run on Linux or macOS.
-- The `agent up / down / status` commands in v0.3.0-rc3.1 (Windows) and v0.3.0-rc3 (Linux, macOS): rows are added per OS as they pass.
-- Known gaps on rc2 (Windows v0.3.0-rc3.1 fixes the spending limit for `connect`, the reconnect funds check and the price pick; they stay in Linux / macOS v0.3.0-rc3; rows flip once they have run): a plain `connect` above the spending
+- The `agent up / down / status` commands on v0.3.0-rc4, on each OS: rows are added per OS as they pass.
+- Fixed in v0.3.0-rc4 on all three OSes, not yet re-run on it (rows flip once they have): a plain `connect` above
+  the spending limit now raises it like `agent up`; `agent up` picks among the cheapest nodes, not the fastest;
+  an empty `--plan` is refused; a node that stopped serving is reported (`server-stopped`) and skipped for 10 minutes.
+- Unchanged in v0.3.0-rc4: reconnecting to a node whose deposit is still open needs one more deposit's worth in
+  the wallet, or the funds check refuses it (nothing is paid).
+- Known gaps on rc2: a plain `connect` above the spending
   limit refuses and does not raise it (`agent up` does); after a `sudo daemon set` on macOS, the
   user's own `daemon set` can hit "permission denied"; `settle list --device` refuses this
   computer's own device; on Linux, macOS and Android rc2, turning off automatic device permission does
   not stick, and neither does a revoke's write (fixed in rc.3).
-- Known gaps in v0.3.0-rc3.1, to be fixed in a later release: a device replaced by `device switch` keeps about
+- Known gaps in v0.3.0-rc3.1 and v0.3.0-rc4, to be fixed in a later release: a device replaced by `device switch` keeps about
   0.05 SOL of fee SOL; it can't be sent back until the next build. A failure in the middle of a `device switch`
   is covered by unit tests only, not by a live run. Repeated device setups can leave a token approval larger than
   the limit you set, and lowering the limit doesn't reduce it yet.

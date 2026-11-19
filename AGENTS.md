@@ -18,7 +18,7 @@ Rules of the tool:
 - A failure prints `{"ok":false,"error":…,"code":…,"action":…}`: `action` is what to run next.
 - Replace every `<…>` (`<ADDRESS>`, `<node>`) with a real value before running a line.
 
-> **Release:** this page is for **v0.3.0-rc3.1 or newer** on Windows; Linux and macOS: **`v0.3.0-rc3`** (no rc.3.1 there; the lines marked rc.3 apply), a pre-release: the release GitHub marks
+> **Release:** this page is for **`v0.3.0-rc4` or newer** on Windows, Linux and macOS (the same command line on all three), a pre-release: the release GitHub marks
 > "Latest" is an older one that cannot make a key file, so take the tag by name. On v0.3.0-rc2 the `agent` commands do
 > not exist (exit `3`, "unknown command: agent"): use "Step by step" below. What is proven, per OS
 > and release: [`docs/PROOF.md`](docs/PROOF.md). Every command, field and failure code of the
@@ -45,8 +45,7 @@ devnet-dvpn quality ip --json                                 # AFTER: direct.ip
 devnet-dvpn agent down --yes --json                           # disconnects and starts the refund
 ```
 
-Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a deposit at most 2 times the cheapest one's); on devnet many nodes ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it. Linux / macOS (rc.3) pick by speed,
-not price: always pass `--max-price` there.
+Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a deposit at most 2 times the cheapest one's); on devnet many nodes ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it.
 
 macOS: the installer prints one `export PATH=…` line; run it before the next line.
 
@@ -125,13 +124,13 @@ PATH afterwards:
 ### By hand
 
 The same steps, one release. File names carry the version with a dot, the tag without (tag
-`v0.3.0-rc3.1` holds `…0.3.0-rc.3.1…`, `v0.3.0-rc3` holds `…0.3.0-rc.3…`), so take the name from `SHA256SUMS`.
+`v0.3.0-rc4` holds `…0.3.0-rc.4…`), so take the name from `SHA256SUMS`.
 
 Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; Arch:
 `-x64\.pkg\.tar\.zst$` and `sudo pacman -U --noconfirm`; arm64: `_arm64` / `aarch64`):
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc3
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc4
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
 curl -fsSLO "$U/$F"
@@ -145,7 +144,7 @@ the install waits for an answer you cannot give.
 macOS (`x64` = Intel, `arm64` = Apple silicon):
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc3
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc4
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
@@ -162,7 +161,7 @@ An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devne
 Windows x64, elevated PowerShell:
 
 ```powershell
-$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc3.1'
+$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc4'
 curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an alias in older PowerShell)
 $l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
 $h, $f = ($l.Line -split '\s+')[0, 1]
@@ -201,11 +200,8 @@ file is your money: never print it, never commit it.
 Use one wallet per computer. With a second wallet's key file loaded, `agent up` / `connect` refuse
 (code `wallet-switch-needed`, nothing paid): load the first key file again, or run
 `devnet-dvpn device switch --yes` to set this computer up for the loaded wallet (the first wallet's
-deposits stay refundable with its own key). A half-finished setup or switch:
-`devnet-dvpn device discard-setup --yes`. Linux / macOS (rc.3) have neither command and do not refuse:
-connecting can move this computer's device record to the second wallet, and the first wallet's deposits
-then stop being listed (the money is safe on chain). If it happened, don't connect again; see the rc.3
-release notes for the repair.
+deposits stay refundable with its own key; about 0.05 SOL of fee SOL stays on the old device, and no
+command sends it back yet). A half-finished setup or switch: `devnet-dvpn device discard-setup --yes`.
 
 ## 3. Get funded (the one step that needs a human)
 
@@ -266,10 +262,9 @@ devnet-dvpn daemon doctor --json        # no check may have "level": "fail"
 
 In this order: the service does not start before the device has its spending permission.
 - Spending limit: a new device may spend up to 50 tDVPN from your wallet (a cap, not a charge).
-  `agent up` raises it itself (one more transaction), and so does `connect` on Windows (rc.3.1). Plain
-  `connect` on Linux / macOS (rc.3) does not. If it says your spending limit is lower than this deposit: `devnet-dvpn device setup
-  --allowance N --yes`, N = `grant.allowance` of `devnet-dvpn device show --json` (base units, /1e6)
-  plus the deposit.
+  `agent up` and `connect` raise it themselves (one more transaction). If one still says your
+  spending limit is lower than this deposit: `devnet-dvpn device setup --allowance N --yes`,
+  N = `grant.allowance` of `devnet-dvpn device show --json` (base units, /1e6) plus the deposit.
 - `"service":"no-service"` in the `device setup` output means the service is not installed yet:
   normal at that step.
 - Windows: `"relogin": true` from `daemon install` matters only for a non-elevated shell later,
@@ -292,8 +287,8 @@ devnet-dvpn quality ip --json                                   # AFTER: prove t
 prints `{"needsConfirm":true,"what":…}` and signs nothing. It is safe to repeat: already
 connected to a node that matches what you asked, it answers `"reused": true` and pays nothing;
 asking for a different node switches in one step. Connecting again to a node whose deposit
-is still open uses that deposit. Linux / macOS (rc.3): only while the wallet also holds one deposit's
-worth; with less, the funds check refuses it and nothing is paid.
+is still open uses that deposit, but only while the wallet also holds one deposit's worth; with
+less, the funds check refuses it and nothing is paid (add tDVPN, or `agent down --yes` and wait for the refund).
 
 How to read the proof (`{ "direct": { "ip", "source" }, "viaSocks", "sourceIs" }`):
 - WireGuard, AmneziaWG, OpenVPN, Hysteria2 route the whole machine: `direct.ip` is now the
@@ -377,7 +372,7 @@ in the same shell first (`install.ps1` does it for rc2).
 |---|---|---|
 | per GB | `agent up --basis per_gb --units <GB>` | unused deposit comes back |
 | per hour | `agent up --basis per_hour --units <hours>` | `agent down` straight after, so it stops billing |
-| plan | `plans list` → `plans subscribe <plan> --yes` → `agent up --plan <subscription>` | one price up front, no refund. An empty `--plan` value is refused (exit `3`); Linux / macOS (rc.3) pay a deposit instead: check the id is set |
+| plan | `plans list` → `plans subscribe <plan> --yes` → `agent up --plan <subscription>` | one price up front, no refund. An empty `--plan` value is refused (exit `3`) |
 
 `daemon set` (below) needs administrator / root like `daemon install` and restarts the VPN
 service: change settings **before** you connect.
@@ -426,14 +421,14 @@ devnet-dvpn logs --lines 80
 devnet-dvpn daemon restore-network        # if you lost the network
 ```
 
-Windows (rc.3.1): `"code":"clock-skew"`: this computer's clock is off (the error says by about how much); set it right,
+`"code":"clock-skew"`: this computer's clock is off (the error says by about how much); set it right,
 then `agent up --yes` again. Nothing was paid.
 
-Windows (rc.3.1): `agent status` says `"blocked": true` (no session, the internet blocked to protect you): `agent up --yes`
+`agent status` says `"blocked": true` (no session, the internet blocked to protect you): `agent up --yes`
 reconnects with protection on, or `devnet-dvpn daemon restore-network` goes direct (protection off until
 the next connect).
 
-The node stopped serving mid-session or refused after the deposit: `devnet-dvpn agent down --yes` closes the deposit (the unused part is refunded after the wait it prints), and `devnet-dvpn agent up --yes` opens a new one with another node. For a few seconds after a node stops, `agent status` can still say `connected` with your own address as `exitIp`: if `exitIp` equals your direct address, you are not tunnelled.
+The node stopped serving mid-session: `agent status` answers `"connected":false`, `"code":"server-stopped"` (your traffic is not going through it; the deposit is safe). `next` (`agent up --yes`) connects to another node and skips that one for 10 minutes; `alsoNext` (`agent down --yes`) closes the deposit and refunds the unused part after the wait it prints. A node that refused after you paid: `"code":"node-refused"`; run `agent down --yes` (it closes that deposit), not `agent up`, which would open a second one. For a few seconds after a node stops, `agent status` can still say `connected`: if `exitIp` equals your direct address, you are not tunnelled.
 
 Every command: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
 MCP clients, after sections 1 to 4: [`mcp/README.md`](mcp/README.md).
@@ -442,7 +437,8 @@ MCP clients, after sections 1 to 4: [`mcp/README.md`](mcp/README.md).
 
 `agent status --json`: `address`, `sol`, `tdvpn` (decimal strings), `refundable` (the balance
 `settle withdraw` moves, not the deposits still open), `device`, `service`, `connected`, and when
-connected `node`, `protocol`, `spent`, `exitIp`, `socks`; always `next`.
+connected `node`, `protocol`, `spent`, `exitIp`, `socks`; `deposits` when the wallet has open or
+closing ones; always `next`.
 
 `wallet show --json` (step by step) names them differently: `owner`, `ownerLamports` (1 SOL =
 1000000000), `ownerTdvpn` (base units, 100 tDVPN = `"100000000"`), `userBalance`, `ready`.

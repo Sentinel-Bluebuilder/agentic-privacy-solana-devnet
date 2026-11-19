@@ -99,7 +99,9 @@ block stays up between the two. The live server is never picked for the switch.
 | `deposit` | object \| null | `{basis, units, tdvpn, baseUnits}` for a per-server deposit (`tdvpn` = most it can hold; the unused part is refunded); `{plan, tdvpn: "0"}` with `--plan`; null when `reused`. |
 | `reused` | `true` | Only when an existing session was kept. |
 | `blockedBefore` | `true` | Only when the internet was blocked before this connect (no session, kill switch holding the block); the new session lifts it while it is up. A block connect cannot lift is refused with code `kill-switch-held`. |
-| `next` | string | Whole device: `the whole computer goes through the node; when done: <cli> agent down --yes`, with ` (<socks> works too)` after "node" when there is a `socks`. Only `socks`: `send traffic through <socks> (e.g. curl --proxy <socks> https://api.ipify.org); only apps that use it go through the node; when done: <cli> agent down --yes`. |
+| `next` | string | Always `<cli> agent down --yes` (one plain command a runner can run; E-38). |
+| `note` | string | What the session means. Whole device: `the whole computer goes through the node; when done: <cli> agent down --yes`, with ` (<socks> works too)` after "node" when there is a `socks`. Only `socks`: `send traffic through <socks> (e.g. curl --proxy <socks> https://api.ipify.org); only apps that use it go through the node; when done: <cli> agent down --yes`. |
+| `replaced` / `replacedNote` | object / string | Only when the live session was not tunnelled (its exit address is this computer's own, E-35): `replaced` = `{ node, code: "server-stopped" }`, `replacedNote` = `The server stopped serving; your traffic is NOT going through it. Switched to <node>; <old node> is skipped next time.` |
 
 ## agent down
 
@@ -214,8 +216,10 @@ Every code connect() can answer (`CONNECT_CODES`) has a command above; a code be
 was paid. Only `unknown`, `connect-failed` and `unsupported` answer `agent status`.
 **An open deposit comes first (E-22):** when the start failed after the check before paying and a deposit is open
 with that server, `action` is `a deposit of X tDVPN is open with this server (<channel>): <cli> agent up --node <node> --yes
-reuses it, or <cli> agent down --yes refunds the unused part at once (per hour: it bills until closed)` (per GB:
-`2 h after it starts the close`), whatever the code. Not for a plan connect or a code from the check before paying.
+picks another node (this server is skipped), or <cli> agent down --yes closes it and refunds the unused part at once (per hour: it bills until closed)` (per GB:
+`2 h after it starts the close`; a closing deposit: `after <ISO readyAt>`), whatever the code. A failure that follows the deposit with code `unknown` or `connect-failed` answers `node-refused` (E-37; the server refused after it was paid, and is skipped next time). `agent status` then lists every open or closing deposit in `deposits` (`channel`, `node`, `status`, `refundable`, `readyAt`), with `next` = `<cli> agent down --yes` (closing: `<cli> agent down --yes after <ISO readyAt>`), never `agent up`, which would open a second deposit.
+
+**The server stopped serving (E-35 / E-36):** when the exit address of the live session is this computer's own, or the daemon ended the session with "the connection to this server stopped working" in the last 30 min, `agent status` answers `connected: false`, `code: "server-stopped"`, `message` = `The server stopped serving; your traffic is NOT going through it. Your deposit is safe: <cli> agent down --yes closes it and the unused <X> tDVPN is refunded (<when>).`, `serverStopped` = `{ node, session, reason }`, `next` = `<cli> agent up --yes` (the dead server is skipped for 10 min), `alsoNext` = `<cli> agent down --yes`. `agent up` never reuses such a session (see `replaced`). Not for a plan connect or a code from the check before paying.
 `tests/unit/agent-no-dead-end.test.ts` fails when a new code has no command here, or a next step names an app
 screen or button. In text mode `cliMessage` also rewrites "press Restore network" (either case) in `error`; the
 JSON `error` keeps the app sentence, so read `action` for what to run.

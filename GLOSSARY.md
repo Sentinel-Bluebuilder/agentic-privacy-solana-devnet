@@ -22,6 +22,7 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **per GB / per hour** (`per_gb`, `per_hour`, `perGb`, `perHour`, `basis`) — how a deposit is billed: by data or by time. Shows: `cost <node> --basis per_gb --units 1`. Changes: `agent up --basis per_gb|per_hour --units <N>`.
 - **price** (`priceUnit`) — tDVPN per GB or per hour a node asks. Shows: `nodes list --json`, `cost <node>`. Changes: `agent up --max-price N` caps it.
 - **open / in-use / closing / ready** (`pending`) — the state of a deposit: open = unused, in-use = the live session's, closing = refund started and waiting, ready = refund can be taken. Shows: `settle list`, `agent down --json` (`pending`).
+- **deposits** — in `agent status --json`: the wallet's open or closing deposits (`channel`, `node`, `status`, `refundable`, `readyAt`); present only when it has any. Shows: `agent status --json` (`deposits`).
 - **readyAt** — the time (Unix seconds) a closing deposit becomes ready. Shows: `settle list`, `agent down --json`.
 - **refundable** — in `settle list` and `agent down --json`: the tDVPN still to come back from deposits that are closing; a lower bound. In `agent status --json` it means something else: the tDVPN already held for your wallet (`userBalance`). Shows: `settle list`, `agent status --json`.
 - **settle** — the two steps that return a deposit's unused part: `settle run --yes` starts closing, and again after the wait finishes it. Shows: `settle list`. Changes: `settle run --yes`.
@@ -32,7 +33,7 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 
 ## This computer
 
-- **device** (`device key`) — what signs for you on this computer: a key kept here that spends from your wallet only up to the spending limit. Shows: `device show --json`. Changes: `daemon init`, `device setup --yes`, `device switch --yes` (Windows rc.3.1).
+- **device** (`device key`) — what signs for you on this computer: a key kept here that spends from your wallet only up to the spending limit. Shows: `device show --json`. Changes: `daemon init`, `device setup --yes`, `device switch --yes`, `device discard-setup --yes`.
 - **spending limit** (`allowance`, `grant.allowance`, `token approval`, `spending approval`) — the most tDVPN the device may spend from your wallet; a cap, not a charge. It is a token approval, and repeated setups can leave it larger than you set. Shows: `device show --json` (`grant.allowance`, base units). Changes: `device setup --allowance N --yes`.
 - **device SOL** — a little SOL (about 0.05) that `device setup` sends the device to pay its own fees. Shows: `device show --json`. Changes: `device setup --yes`.
 - **service** (`dvpnd`, `no-service`) — the VPN program that runs in the background on this computer and builds the tunnel. Shows: `daemon doctor --json`. Changes: `daemon install --yes`, `daemon uninstall`.
@@ -54,6 +55,11 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **socks** (`viaSocks`) — the local proxy address (`socks5h://host:port`) for apps; the only traffic that uses a V2Ray or Xray tunnel on Linux. Shows: `agent status --json` (`socks`), `quality ip --json` (`viaSocks`).
 - **reused** — `agent up` kept the live session because it already matches what you asked; nothing was paid. Shows: `agent up --json` (`reused`).
 - **switchFrom** — the node a switch would leave. Shows: `agent up` without `--yes` (`switchFrom`).
+- **note** — one sentence on what the live session means (whole computer through the node, or only the proxy) and the command to stop it. Shows: `agent up --json` (`note`).
+- **server stopped** (`server-stopped`, `serverStopped`, `alsoNext`) — the node stopped serving: your traffic is not going through it, the deposit is safe. `agent status` answers `connected: false` with this code; `serverStopped` names the node, the session and the reason. Changes: `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit, refunds the unused part). Shows: `agent status --json`.
+- **node refused** (`node-refused`) — a node refused after you paid it. The deposit is open: `agent down --yes` closes it; `agent up` is not offered, because it would open a second deposit. Shows: a failed `agent up --json`.
+- **replaced** (`replacedNote`) — the live session was not tunnelled (its exit address is this computer's own), so `agent up` did not reuse it and switched to another node; `replaced` names the old node. Shows: `agent up --json`.
+- **skipped** (`skippedNote`) — a node `agent up` leaves out for 10 minutes because it stopped serving or refused after a deposit. Shows: `agent up` (with or without `--yes`).
 
 ## Answers and flags
 
@@ -73,17 +79,10 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **version, tag, file, path** — the installer's answer: the app version it installed, the release tag, the file it used and the program's path. Shows: the last line of `install.sh` or `install.ps1`.
 - **SHA256SUMS** — the list of checksums in a release; the installer compares the file to it. Shows: the release page.
 
-## Next release (the published apps do not have these yet)
+## Next release (v0.3.0-rc4 does not have these yet)
 
-Terms from the next release of the apps. Until it is published, the answers of the published apps do not carry them.
+Terms from the release after v0.3.0-rc4. Until it is published, the answers of the published apps do not carry them.
 
-- **money** — next release: every failed answer says whether money moved, in one sentence: "Nothing was paid." / "A deposit may be open: `agent down --yes` closes it." / "It is not known whether a deposit was opened: `agent status` lists it." Shows: any failed `--json` answer (`money`); the table "Did money move?" in `docs/AGENT-COMMANDS.md`.
-- **held** — next release: the `agent status` field that replaces `refundable` there: the tDVPN held for your wallet inside the program (the same number as `userBalance`). In the published apps `agent status` still calls it `refundable` (see **refundable**). Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
-- **note** — next release: one sentence on what the live session means (whole computer through the node, or only the proxy) and the command to stop it. Shows: `agent up --json` (`note`).
-- **replaced** (`replacedNote`) — next release: the live session was not tunnelled (its exit address is this computer's own), so `agent up` did not reuse it and switched to another node; `replaced` names the old node and `replacedNote` says so in a sentence. Shows: `agent up --json`.
-- **skipped** (`skippedNote`) — next release: a node `agent up` leaves out because it stopped serving or refused after a deposit, for a short time; `skipped` names it and `skippedNote` says so. Shows: `agent up` (with or without `--yes`).
-- **nodeStopped** — next release: with code `server-stopped`: the node, the session and the reason. Shows: `agent status --json`.
-- **alsoNext** — next release: the second way out of a stopped or refusing node: `agent down --yes` (`next` is `agent up --yes`). Shows: `agent status --json`.
-- **deposits** — next release: the wallet's open or closing deposits (`channel`, `node`, `status`, `refundable`, `readyAt`); present only when it has any. Shows: `agent status --json` (`deposits`).
-- **server-stopped** — next release: code of `agent status` when the node stopped serving: your traffic is not going through it, the deposit is safe. Run `agent up --yes` (another node) or `agent down --yes` (closes the deposit, refunds the unused part).
-- **node-refused** — next release: code when a node refused after you paid it. The deposit is open: `agent down --yes` closes it, `agent status` lists it in `deposits`; `agent up` is not offered, because it would open a second deposit.
+- **money** — next release: every failed answer says whether money moved, in one sentence: "Nothing was paid." / "A deposit may be open: `agent down --yes` closes it." / "It is not known whether a deposit was opened: `agent status` lists it." Shows: any failed `--json` answer (`money`).
+- **held** — next release: the `agent status` field that replaces `refundable` there: the tDVPN held for your wallet inside the program (the same number as `userBalance`). In v0.3.0-rc4 `agent status` still calls it `refundable` (see **refundable**). Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
+- **nodeStopped** — next release: the new name of `serverStopped` (see **server stopped**). Shows: `agent status --json`.
