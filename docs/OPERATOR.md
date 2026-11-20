@@ -110,9 +110,7 @@ already dropped. `devnet-dvpn daemon restore-network` lifts the block for now; i
 
 - **Android:** the app works on a phone, but an agent cannot drive the released Android app from
   outside it.
-- **Windows on ARM:** no build of the release the agent needs (v0.3.0-rc2 or newer) yet.
-- **Windows machines not in a domain** (most cloud and home machines): v0.3.0-rc2's service
-  install fails there until the agent runs one extra line first; the agent's guide has it.
+- **Windows on ARM:** no build of the release the agent needs (v0.3.0-rc6) yet.
 - **Apple silicon Macs:** the build exists but has not been tested; Intel Macs are tested.
 - **Machines where nobody can be administrator** (most sandboxes): the VPN service cannot be
   installed.

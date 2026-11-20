@@ -3,28 +3,28 @@
 One plain line per term the page ([`AGENTS.md`](AGENTS.md)), [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md),
 [`mcp/README.md`](mcp/README.md) and the JSON answers use, with the command that shows or changes it.
 A line is `**term** (`other names`) — meaning. Shows: … Changes: …`. Every command starts with
-`devnet-dvpn`. Failure `code` values are not listed here: each one is defined, with its message and its next
+`devnet-dvpn` (except the Path B section at the end: `sentinel-dvpn`). Failure `code` values are not listed here: each one is defined, with its message and its next
 command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md).
 
 ## Money and accounts
 
-- **tDVPN** (`tdvpn`) — the devnet token you pay nodes with. It has no value. Shows: `agent status --json` (`tdvpn`). Changes: a person asks the faucet (page, section 3), or `wallet send --to <ADDRESS> --tdvpn 100 --yes`.
+- **tDVPN** (`tdvpn`, `deposit.tdvpn`) — the devnet token you pay nodes with. It has no value. Shows: `agent status --json` (`tdvpn`). Changes: a person asks the faucet (page, section 3), or `wallet send --to <ADDRESS> --tdvpn 100 --yes`. `deposit.tdvpn` = the most tDVPN one deposit can hold.
 - **SOL** (`sol`) — devnet SOL: pays transaction fees only. It has no value. Shows: `agent status --json` (`sol`). Changes: a person asks the Solana faucet.
 - **devnet** — the Solana test network. Nothing on it is worth money. Shows: `version --json` (must say network devnet).
 - **wallet** (`address`, `owner`) — your account: an address that holds tDVPN and SOL. Shows: `wallet show --json`, `agent status --json` (`address`). Changes: `wallet create --keyfile <path> --yes`, `wallet import <file>`.
 - **key file** (`DVPN_KEYFILE`) — the file with your wallet's secret key; whoever has it owns the wallet. The environment variable `DVPN_KEYFILE` names it. Shows: `wallet show`. Changes: `wallet create`, `wallet import <file>`. Never print it or commit it.
-- **base units** (`baseUnits`, `ownerLamports`, `ownerTdvpn`, `priceUnit`) — the same amount as a whole number: 1 tDVPN = 1000000, 1 SOL = 1000000000. Shows: any `--json` answer that carries the field.
-- **userBalance** — tDVPN held for your wallet inside the program, in base units; `settle withdraw` moves it to the wallet. It is the number `agent status` calls `refundable`. Shows: `wallet show --json`. Changes: `settle withdraw --yes`.
+- **base units** (`baseUnits`, `ownerLamports`, `ownerTdvpn`, `priceUnit`, `deviceLamports`, `solLamports`, `tdvpnBase`, `heldBase`, `spentBase`, `refundableBase`, `deposit.baseUnits`, `deposit.tdvpnBase`) — the same amount as a whole number: 1 tDVPN = 1000000, 1 SOL = 1000000000. Shows: any `--json` answer that carries the field. From v0.3.0-rc6 every amount has a twin in base units: `sol` → `solLamports`, `tdvpn` → `tdvpnBase`, `held` → `heldBase`, `spent` → `spentBase`, `refundable` → `refundableBase`, `deposit.tdvpn` → `deposit.tdvpnBase` (`deposit.baseUnits` is the older name). `deviceLamports` = the SOL this computer's device key holds.
+- **userBalance** — tDVPN held for your wallet inside the program, in base units; `settle withdraw` moves it to the wallet. It is the number `agent status` calls `held`. Shows: `wallet show --json`. Changes: `settle withdraw --yes`.
 
 ## Deposits and refunds
 
-- **deposit** (`channel`) — tDVPN you lock for one node. The part you do not use comes back. Shows: `settle list`. Changes: `agent up --yes` opens one, `agent down --yes` closes it.
+- **deposit** (`channel`, `userOpenChannels`) — tDVPN you lock for one node. The part you do not use comes back. Shows: `settle list`. Changes: `agent up --yes` opens one, `agent down --yes` closes it. `userOpenChannels` = how many deposits are open (`wallet show --json`).
 - **per GB / per hour** (`per_gb`, `per_hour`, `perGb`, `perHour`, `basis`) — how a deposit is billed: by data or by time. Shows: `cost <node> --basis per_gb --units 1`. Changes: `agent up --basis per_gb|per_hour --units <N>`.
-- **price** (`priceUnit`) — tDVPN per GB or per hour a node asks. Shows: `nodes list --json`, `cost <node>`. Changes: `agent up --max-price N` caps it.
+- **price** (`priceUnit`, `cost`) — tDVPN per GB or per hour a node asks. Shows: `nodes list --json`, `cost <node>`. Changes: `agent up --max-price N` caps it. `cost <node>` = the command that shows the exact deposit before you pay.
 - **open / in-use / closing / ready** (`pending`) — the state of a deposit: open = unused, in-use = the live session's, closing = refund started and waiting, ready = refund can be taken. Shows: `settle list`, `agent down --json` (`pending`).
 - **deposits** — in `agent status --json`: the wallet's open or closing deposits (`channel`, `node`, `status`, `refundable`, `readyAt`); present only when it has any. Shows: `agent status --json` (`deposits`).
 - **readyAt** — the time (Unix seconds) a closing deposit becomes ready. Shows: `settle list`, `agent down --json`.
-- **refundable** — in `settle list` and `agent down --json`: the tDVPN still to come back from deposits that are closing; a lower bound. In `agent status --json` it means something else: the tDVPN already held for your wallet (`userBalance`). Shows: `settle list`, `agent status --json`.
+- **refundable** — in `settle list` and `agent down --json`: the tDVPN still to come back from deposits that are closing; a lower bound. Not the `held` of `agent status` (in v0.3.0-rc4, `agent status` called that balance `refundable`: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md)). Shows: `settle list`, `agent down --json`.
 - **settle** — the two steps that return a deposit's unused part: `settle run --yes` starts closing, and again after the wait finishes it. Shows: `settle list`. Changes: `settle run --yes`.
 - **withdraw** — moves the tDVPN held for your wallet (`userBalance`) into the wallet. Changes: `settle withdraw --yes`. Shows: `agent status --json` (`refundable`).
 - **spent** — tDVPN the live session has used so far. Shows: `agent status --json` (`spent`).
@@ -34,20 +34,20 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 ## This computer
 
 - **device** (`device key`) — what signs for you on this computer: a key kept here that spends from your wallet only up to the spending limit. Shows: `device show --json`. Changes: `daemon init`, `device setup --yes`, `device switch --yes`, `device discard-setup --yes`.
-- **spending limit** (`allowance`, `grant.allowance`, `token approval`, `spending approval`) — the most tDVPN the device may spend from your wallet; a cap, not a charge. It is a token approval, and repeated setups can leave it larger than you set. Shows: `device show --json` (`grant.allowance`, base units). Changes: `device setup --allowance N --yes`.
+- **spending limit** (`allowance`, `grant.allowance`, `token approval`, `spending approval`, `delegated`, `limitRaised`, `limitNote`) — the most tDVPN the device may spend from your wallet; a cap, not a charge. It is a token approval, and repeated setups can leave it larger than you set. Shows: `device show --json` (`grant.allowance`, base units). Changes: `device setup --allowance N --yes`. `delegated` = the approval left, in base units (`wallet show --json`). `limitRaised` (`from`, `to`) and `limitNote` (the command that lowers it again) = `agent up` raised the limit for this deposit; from v0.3.0-rc6 only with `--raise-limit`.
 - **device SOL** — a little SOL (about 0.05) that `device setup` sends the device to pay its own fees. Shows: `device show --json`. Changes: `device setup --yes`.
 - **service** (`dvpnd`, `no-service`) — the VPN program that runs in the background on this computer and builds the tunnel. Shows: `daemon doctor --json`. Changes: `daemon install --yes`, `daemon uninstall`.
 - **drivers** (`repair-drivers`) — the protocol tools the service needs on this computer. Shows: `daemon drivers`. Changes: `daemon repair-drivers --yes`.
 - **relogin** — the service does not accept this account yet in a normal shell: start a new sign-in or SSH session. Shows: `daemon install --json` (`"relogin": true`).
-- **RPC** — the Solana connection the service uses. Shows: `daemon settings --json`. Changes: `daemon set --rpc <https url> --yes`.
-- **kill switch** (`persist`, `on`, `off`, `blocked`, `blockedBefore`) — blocks the internet whenever the tunnel is not up. `persist` and `on` are the same setting in these apps. `blocked` = no session and the internet is blocked. Shows: `daemon settings --json`, `quality ip`, `agent status --json` (`blocked`). Changes: `daemon set --kill-switch on|off --yes`, `daemon restore-network`.
+- **RPC** (`rpc-ws`) — the Solana connection the service uses. Shows: `daemon settings --json`. Changes: `daemon set --rpc <https url> --yes`. `rpc-ws` = the failure code (exit 6) when the RPC's websocket address (set with `daemon set --rpc-ws <wss url> --yes`) does not answer; nothing changed, retry in a minute.
+- **kill switch** (`persist`, `on`, `off`, `blocked`, `blockedBefore`, `kill-switch`) — blocks the internet whenever the tunnel is not up. `persist` and `on` are the same setting in these apps. `blocked` = no session and the internet is blocked. Shows: `daemon settings --json`, `quality ip`, `agent status --json` (`blocked`). Changes: `daemon set --kill-switch on|off --yes`, `daemon restore-network`. `kill-switch` = the failure code (exit 5) when the kill switch refuses a step; run the `action`.
 - **split tunnelling** — sends some addresses or apps around the tunnel. Shows: `split status`. Changes: `daemon set --split-mode exclude --split-routes <list> --yes`.
 - **whole device** (`wholeDevice`) — the whole computer goes through the node, not only apps that use the proxy. Shows: `agent status --json` (`wholeDevice`), `daemon settings --json`. Changes: `daemon set --whole-device false --yes`.
 
 ## Nodes and the connection
 
 - **node** (`server`) — a computer that sells VPN traffic; you pay it a deposit. The page says node; `server` means the same. Shows: `nodes list --online --json`. Changes: `agent up --node N`.
-- **protocol** — how the tunnel is built; a node serves one. WireGuard, AmneziaWG, OpenVPN and Hysteria2 carry the whole computer. V2Ray and Xray carry the whole computer on a new Windows or macOS install and only proxy users on Linux. Shows: `daemon drivers`, `nodes list --protocol <name>`. Changes: `agent up --protocol <name>`.
+- **protocol** (`wireguard`, `amneziawg`, `openvpn`, `hysteria2`, `v2ray`, `xray`) — how the tunnel is built; a node serves one. WireGuard, AmneziaWG, OpenVPN and Hysteria2 carry the whole computer. V2Ray and Xray carry the whole computer on a new Windows or macOS install and only proxy users on Linux. Shows: `daemon drivers`, `nodes list --protocol <name>`. Changes: `agent up --protocol <name>`.
 - **country** — the two-letter country the node reports. Changes: `agent up --country DE`.
 - **tunnel** — the encrypted link between this computer and the node. Shows: `quality ip --json`.
 - **connected** (`disconnected`, `session`) — a session with a node is live; `session` is its id. Shows: `agent status --json`. Changes: `agent up --yes`, `agent down --yes`.
@@ -56,14 +56,17 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **reused** — `agent up` kept the live session because it already matches what you asked; nothing was paid. Shows: `agent up --json` (`reused`).
 - **switchFrom** — the node a switch would leave. Shows: `agent up` without `--yes` (`switchFrom`).
 - **note** — one sentence on what the live session means (whole computer through the node, or only the proxy) and the command to stop it. Shows: `agent up --json` (`note`).
-- **server stopped** (`server-stopped`, `serverStopped`, `alsoNext`) — the node stopped serving: your traffic is not going through it, the deposit is safe. `agent status` answers `connected: false` with this code; `serverStopped` names the node, the session and the reason. Changes: `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit, refunds the unused part). Shows: `agent status --json`.
+- **server stopped** (`server-stopped`, `serverStopped`, `alsoNext`, `message`) — the node stopped serving: your traffic is not going through it, the deposit is safe. `agent status` answers `connected: false` with this code; `serverStopped` names the node, the session and the reason. Changes: `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit, refunds the unused part). Shows: `agent status --json`. `message` = the sentence that comes with this code: what happened, and that your deposit is safe.
 - **node refused** (`node-refused`) — a node refused after you paid it. The deposit is open: `agent down --yes` closes it; `agent up` is not offered, because it would open a second deposit. Shows: a failed `agent up --json`.
 - **replaced** (`replacedNote`) — the live session was not tunnelled (its exit address is this computer's own), so `agent up` did not reuse it and switched to another node; `replaced` names the old node. Shows: `agent up --json`.
+- **notClosed / warning** — in `agent down --json`: deposits that another device of this wallet opened (a replaced computer) and that this computer cannot close. `notClosed` = `[{channel, device}]`, `warning` = the sentence that says so. Changes: `device revoke --device <device> --yes`, then `settle run --device <device> --yes`.
 - **skipped** (`skippedNote`) — a node `agent up` leaves out for 10 minutes because it stopped serving or refused after a deposit. Shows: `agent up` (with or without `--yes`).
 
 ## Answers and flags
 
 - **devnet-dvpn** (`DVPN_CLI_NAME`, `<cli>`) — the command-line program of the Sentinel dVPN apps; every command here starts with it. When an app's shortcut renames it, `DVPN_CLI_NAME` holds the new name and `<cli>` stands for it. Shows: `version --json`.
+- **programId / mint** (`J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs`, `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`) — the Solana program this build pays and the tDVPN token it uses. On devnet: `programId` = `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs`, `mint` = `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`; any other value is the wrong build: pay nothing. Shows: `version --json` (v0.3.0-rc6 and newer).
+- **sentinel-dvpn / sentinel-dvpnd** — Sentinel's own public command-line tool and VPN daemon, used on Path B instead of `devnet-dvpn`. Shows: [`docs/DIRECT.md`](docs/DIRECT.md).
 - **signatures** — the transactions a command signed; an empty list means none. Shows: `agent down --json` (`signatures`).
 - **agent** (`connect`, `disconnect`, `status`) — `agent up`, `agent down` and `agent status` do the whole flow with one command each; `connect`, `disconnect` and `status` are the single steps. Shows: `agent status --json`.
 - **ok** — `true` when the command worked, `false` when it failed. Shows: every `--json` answer.
@@ -77,6 +80,7 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 - **`--json`** — the flag that makes a command print one line of JSON.
 - **ready** — in `wallet show --json`: `true` when this wallet is set up to connect. Shows: `wallet show --json`.
 - **version, tag, file, path** — the installer's answer: the app version it installed, the release tag, the file it used and the program's path. Shows: the last line of `install.sh` or `install.ps1`.
+- **DVPN_VERSION** — the release tag the installer takes, e.g. `v0.3.0-rc6`; without it the installer takes the newest. Changes: `DVPN_VERSION=v0.3.0-rc6 sh` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0-rc6'`).
 - **SHA256SUMS** — the list of checksums in a release; the installer compares the file to it. Shows: the release page.
 
 ## Next release (v0.3.0-rc4 does not have these yet)
@@ -84,5 +88,32 @@ command, in the failure-code tables of [`docs/AGENT-COMMANDS.md`](docs/AGENT-COM
 Terms from the release after v0.3.0-rc4. Until it is published, the answers of the published apps do not carry them.
 
 - **money** — next release: every failed answer says whether money moved, in one sentence: "Nothing was paid." / "A deposit may be open: `agent down --yes` closes it." / "It is not known whether a deposit was opened: `agent status` lists it." Shows: any failed `--json` answer (`money`).
-- **held** — next release: the `agent status` field that replaces `refundable` there: the tDVPN held for your wallet inside the program (the same number as `userBalance`). In v0.3.0-rc4 `agent status` still calls it `refundable` (see **refundable**). Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
+- **held** — in `agent status --json`: the tDVPN held for your wallet inside the program (the same number as `userBalance`), which `settle withdraw` moves to the wallet. Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
 - **nodeStopped** — next release: the new name of `serverStopped` (see **server stopped**). Shows: `agent status --json`.
+
+## Path B (Sentinel's own tools, or your own code)
+
+Terms for [`docs/DIRECT.md`](docs/DIRECT.md) (Sentinel's `sentinel-dvpn` CLI and `sentinel-dvpnd` daemon) and
+[`docs/BUILD-YOUR-OWN-CLIENT.md`](docs/BUILD-YOUR-OWN-CLIENT.md) (your own code against the program). Commands here start
+with `sentinel-dvpn`, not `devnet-dvpn`. A field written `Account.field` is the program's IDL field
+(`sentinel-programs/idl/dvpn.json` in the public repo).
+
+- **grant** — an on-chain permission from your wallet (granter) to another key (grantee) for a set of actions, at PDA `["grant", owner, grantee, target]`. Shows: `sentinel-dvpn grant search --granter <owner> --grantee <device>`; IDL `Grant.permissions`, `Grant.expires_at`. Changes: `grant open-grant`, `grant update-grant`, `grant close-grant`.
+- **allowance** (the cap) — the most tDVPN, in base units, the grantee may lock into channels for you; each new escrow is charged against it and it is not given back on close. Error 6024 when exceeded. Shows: `grant search` (`Grant.allowance`; 18446744073709551615 = unlimited). Changes: `grant open-grant --allowance N`, `grant update-grant`.
+- **delegate** (`approve-delegate`) — the Token-2022 approval that lets the program move tDVPN from your token account when the grantee opens or funds a channel; set it to the allowance. Shows: `sentinel-dvpn wallet balance`. Changes: `wallet approve-delegate --amount-base-units N`, `wallet revoke-delegate`.
+- **operator key** (`device key`, `client.key`) — the daemon's own key: it signs the daemon's transactions and every voucher, and pays channel and user-account rent. Shows: `sentinel-dvpnd init` output (`public_key`), `/var/lib/sentinel-dvpn/<instance>/keys/`. Changes: `sentinel-dvpnd init --instance <name>`.
+- **escrow** — the tDVPN locked in one channel for one node; the unspent part comes back after close + withdraw. Shows: `sentinel-dvpn channel show <channel>` (`Channel.escrow`, `Channel.redeemed`). Changes: `client start --new-channel --escrow-base-units N`, IDL `open_channel(escrow)`, `fund_channels(amounts)`.
+- **escrow_base_units** — the daemon's default escrow when a new channel gives none: 1000000000 = 1000 tDVPN. Always pass `--escrow-base-units`. Shows: `/var/lib/sentinel-dvpn/<instance>/config.toml` (`escrow_base_units`).
+- **signed voucher** (`Voucher`) — not the billing mode **voucher** above: a signed running total (`cumulative_amount` + 64-byte ed25519 signature) of what you owe on a channel; the node redeems it on chain and can never take more than the escrow (6034). Shows: `sentinel-dvpn client status <session id>` (`spent`); IDL type `Voucher`, `Channel.redeemed`. Changes: the daemon signs them as you use the session.
+- **voucher_signer** — the key whose signatures a voucher channel accepts, fixed when the channel opens; with the daemon it must be the operator key. Shows: `channel show <channel>` (`Channel.voucher_signer`). Changes: IDL `open_channel(terms = Voucher { voucher_signer })`.
+- **start_close** — starts a voucher channel's refund: status goes from open (0) to closing (1) and the grace clock starts. Shows: `channel search --owner <owner>` (`Channel.status`, `Channel.close_started_at`). Changes: `sentinel-dvpn channel start-close-channel --channel <channel>`.
+- **channel_close_grace** (`channel_close_grace_seconds`) — the wait between start-close and close, 7200 s (2 h) on devnet, so the node can redeem signed vouchers; closing early gives 6035. Shows: `sentinel-dvpn program params` (`Config.channel_close_grace_seconds`).
+- **close** (`close-channel`) — after the grace, moves the unspent escrow to your user account and returns the channel rent; anyone may send it for a voucher channel. Changes: `sentinel-dvpn channel close-channel --channel <channel>`.
+- **withdraw-user-balance** — the Path B command for **withdraw** above: moves your whole user balance from the program to your token account, and closes the user account when no channels are open. Shows: `sentinel-dvpn user search --owner <owner>` (`User.balance`). Changes: `sentinel-dvpn user withdraw-user-balance`.
+- **rent_recipient** — the address that gets an account's SOL rent back when it closes; it must be the signer or the rent payer when the account opens (6049, 6050). Shows: `channel show <channel>` (`Channel.rent_recipient`), `User.rent_recipient`, `Grant.rent_recipient`. Changes: IDL `open_channel(channel_rent_recipient, user_rent_recipient)`, `open_grant(grant_rent_recipient)`.
+- **user account** (`User`) — the program's record for your wallet at PDA `["user", owner]`: refunds land in `balance`, `open_channels` counts channels. The first channel open creates it; `withdraw-user-balance` closes it. Shows: `sentinel-dvpn user search --owner <owner>`.
+- **Config PDA** — the program's one settings account at PDA `["config"]` (devnet `Cu5vofxVQgZXRVwfBqApw84ZWy1hjhDmHkznyDr6TRiQ`): mint, vault, fees, grace windows, pause mask. Shows: `sentinel-dvpn program params`, `program status`.
+- **node API address** (`uri`) — the HTTPS address where a node serves its session API, stored on chain with the node. Shows: `sentinel-dvpn node search --live`, `node inspect <node>` (`Node.uri`).
+- **kill_switch setting** (`config.toml`) — the config key behind **kill switch** above: the daemon's firewall that blocks all traffic except the tunnel when no session is up; `on` locks you out of an SSH box. Shows: `/var/lib/sentinel-dvpn/<instance>/config.toml` (`kill_switch`), `StopSession` reply `kill_switch_released`. Changes: edit `kill_switch = 'on'|'off'|'persist'`, then restart the daemon.
+- **paused_mask** — the program's switches for new opens; bit 32 (`PAUSE_CHANNEL_OPENS`) set means `open_channel` fails with 6001. Shows: `sentinel-dvpn program status` (`paused_features`), `Config.paused_mask` (0 on devnet).
+- **fee_bps** — the network's cut of every redeemed voucher, in basis points: 200 = 2 %. It comes out of the node's pay, not your escrow. Shows: `sentinel-dvpn program params` (`Config.fee_bps`).

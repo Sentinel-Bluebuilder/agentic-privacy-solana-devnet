@@ -336,7 +336,7 @@ const AGENT_CODES = [
   'test-running', 'rpc-busy', 'price-changed', 'deposit-unusable', 'deposits-unread',
   'not-confirmed', 'plan-limit', 'busy', 'unsupported', 'network-mismatch',
   'session-active', 'node-gone', 'node-stale', 'node-offline', 'protocol-blocked', 'driver-missing', 'basis-unavailable',
-  'not-enough-tdvpn', 'spending-limit', 'device-sol', 'preflight', 'kill-switch-held', 'switch-reconnecting', 'switch-offline',
+  'not-enough-tdvpn', 'spending-limit', 'price-cap', 'device-sol', 'preflight', 'kill-switch-held', 'switch-reconnecting', 'switch-offline',
   'cancelled',
   'waiting-for-network', 'ticket-other-owner', 'approval-revoked', 'service-stopped-connecting', 'node-identity', 'node-ledger',
   'node-price', 'node-error', 'kill-switch-failed', 'tunnel-failed', 'tunnel-dead', 'tunnel-mtu', 'tunnel-closing', 'port-in-use',
@@ -446,4 +446,23 @@ test('live-check runs vpn_down after any paid vpn_up that is not a clean refusal
     assert.equal(mustRunDown(up, null), true);
     assert.equal(mustRunDown(up, notConnected), false);
   }
+});
+
+test('S15: every tool has a title and annotations; read-only tools never spend, spending tools say destructive', async () => {
+  const list = await handleMessage({ jsonrpc: '2.0', id: 9, method: 'tools/list' });
+  for (const t of list.result.tools) {
+    assert.equal(typeof t.title, 'string', `${t.name} has a title`);
+    assert.equal(typeof t.annotations, 'object', `${t.name} has annotations`);
+    assert.equal(t.inputSchema.additionalProperties, false, `${t.name} rejects unknown arguments`);
+  }
+  const by = Object.fromEntries(list.result.tools.map((t) => [t.name, t.annotations]));
+  for (const n of ['vpn_status', 'vpn_wallet', 'vpn_nodes', 'vpn_agent_status']) assert.equal(by[n].readOnlyHint, true, n);
+  for (const n of ['vpn_connect', 'vpn_up', 'vpn_down', 'vpn_disconnect']) assert.equal(by[n].destructiveHint, true, n);
+});
+
+test('S7: vpn_up raise_limit maps to --raise-limit, only when true', () => {
+  const up = TOOLS.find((t) => t.name === 'vpn_up');
+  assert.deepEqual(up.args(checkInput(up, { raise_limit: true, yes: true })), ['agent', 'up', '--raise-limit', '--yes']);
+  assert.deepEqual(up.args(checkInput(up, { raise_limit: false, yes: true })), ['agent', 'up', '--yes']);
+  assert.throws(() => checkInput(up, { raise_limit: 'yes' }), /raise_limit must be true or false/);
 });

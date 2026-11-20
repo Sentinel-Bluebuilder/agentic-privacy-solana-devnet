@@ -1,0 +1,54 @@
+# ─── checks: run on every push and pull request ───
+# Text and unit checks only: no network test, no wallet, no secret.
+name: checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Installers parse (bash -n, sh -n)
+        run: |
+          bash -n install.sh
+          sh -n install.sh
+          for f in direct/*.sh; do
+            [ -f "$f" ] || continue
+            bash -n "$f"
+          done
+
+      - name: MCP server unit tests
+        run: node --test mcp/server.test.js
+
+      - name: Public-file check (only where the private checker is present)
+        if: hashFiles('tools/check-public.sh') != ''
+        run: bash tools/check-public.sh
+
+      - name: Secret scan (with a planted positive control)
+        run: sh tools/secret-scan.sh
+
+      - name: Agent answers match the JSON Schema (Ajv 2020)
+        run: |
+          tmp="$(mktemp -d)"
+          (cd "$tmp" && npm init -y >/dev/null && npm i --no-audit --no-fund --silent ajv@8.17.1)
+          cd "$tmp" && node "$GITHUB_WORKSPACE/tools/check-agent-answers.mjs" \
+            "$GITHUB_WORKSPACE/docs/agent-answers.schema.json" \
+            "$GITHUB_WORKSPACE/fixtures/agent-answers.jsonl"
+
+      - name: llms-full.txt is up to date
+        run: |
+          git ls-files --error-unmatch llms-full.txt >/dev/null
+          sh tools/make-llms-full.sh
+          git diff --exit-code -- llms-full.txt

@@ -1,0 +1,21 @@
+{
+  "name": "dvpn-byoc-ts",
+  "private": true,
+  "type": "module",
+  "description": "Talk to the Sentinel dvpn program on Solana devnet with @solana/web3.js and the public IDL",
+  "scripts": {
+    "read": "tsx read.ts",
+    "open": "tsx open-channel.ts",
+    "close": "tsx close-channel.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.31.1",
+    "@solana/web3.js": "1.98.4",
+    "bn.js": "5.2.2",
+    "bs58": "6.0.0"
+  },
+  "devDependencies": {
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

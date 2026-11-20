@@ -49,19 +49,19 @@ const address = (what) => ({ type: 'string', pattern: BASE58_ADDRESS.source, des
 export const TOOLS = [
   {
     name: 'vpn_status',
-    description: 'Wallet, device, service and session at a glance. Runs: devnet-dvpn status --json',
+    description: 'Wallet, device, service and session at a glance, for a person reading it. Agents: prefer vpn_agent_status, which adds `next`. Runs: devnet-dvpn status --json',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     args: () => ['status'],
   },
   {
     name: 'vpn_wallet',
-    description: 'Address and balances (SOL, tDVPN, refundable, approved). Runs: devnet-dvpn wallet show --json',
+    description: 'Address and balances (SOL, tDVPN, the amount held in deposits, the approved spending limit). Read-only. Not for: deciding the next step (use vpn_agent_status, which adds next). Runs: devnet-dvpn wallet show --json',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     args: () => ['wallet', 'show'],
   },
   {
     name: 'vpn_nodes',
-    description: 'Online nodes, checked live, with protocol, country and prices. Runs: devnet-dvpn nodes list --online --json',
+    description: 'Online nodes, checked live, with protocol, country and prices (about 7 s). Read-only. Use it to pick a node for vpn_connect or vpn_up {node}. Not for: connecting (vpn_up picks the best node itself). Runs: devnet-dvpn nodes list --online --json',
     inputSchema: {
       type: 'object',
       properties: {
@@ -80,7 +80,7 @@ export const TOOLS = [
   },
   {
     name: 'vpn_connect',
-    description: 'Pay a deposit (or use a plan) and connect to one node. Spends tDVPN, so it runs only with yes:true; '
+    description: 'Pay a deposit (or use a plan) and connect to one exact node. Not for: agents that want the best node picked for them (use vpn_up). Spends tDVPN, so it runs only with yes:true; '
       + 'without it, a preview (exit 2): what, and the deposit it would pay. '
       + 'Runs: devnet-dvpn connect <node> [--basis per_gb|per_hour] [--units N] [--plan <subscription>] [--yes] --json',
     inputSchema: {
@@ -105,7 +105,7 @@ export const TOOLS = [
   },
   {
     name: 'vpn_disconnect',
-    description: 'Stop the session; the deposit settles later (then call vpn_settle). Runs: devnet-dvpn disconnect --json',
+    description: 'Stop the session at once, with no deposit close; the deposit settles later (then call vpn_settle). Needs no wallet. Not for: getting money back (vpn_down does disconnect + refunds in one call). Runs: devnet-dvpn disconnect --json',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     args: () => ['disconnect'],
   },
@@ -129,7 +129,7 @@ export const TOOLS = [
       + 'Result: session, node, protocol, country, exitIp, directIp, socks (socks5h://host:port or null), channel, '
       + 'deposit ({basis, units, tdvpn, baseUnits}; null when reused), next. Already connected to a match: reused:true, pays nothing. '
       + 'Without yes:true it pays nothing and answers a preview: what, node, deposit, switchFrom. '
-      + 'Failure: {ok:false, error, code, action}; do what `action` says. '
+      + 'Failure: {ok:false, error, code, action}; do what `action` says. Not for: reading state (use vpn_agent_status) or a second session (one at a time). '
       + 'Runs: devnet-dvpn agent up [--protocol P] [--country CC] [--node N] [--basis per_gb|per_hour] [--units N] [--plan S] [--max-price N] [--yes] --json',
     inputSchema: {
       type: 'object',
@@ -141,6 +141,7 @@ export const TOOLS = [
         units: { type: 'integer', minimum: 1, maximum: 1000, description: 'GB (per_gb) or hours (per_hour) the deposit covers; default from settings' },
         plan: address('subscription address you hold: connect on the plan (no deposit, its live nodes only)'),
         max_price: { type: 'string', pattern: TDVPN_AMOUNT.source, description: 'highest price per unit of `basis` in tDVPN, e.g. "0.5"; needs `basis` too' },
+        raise_limit: { type: 'boolean', description: 'devnet-dvpn 0.3.0-rc.6+: allow raising this computer\'s spending limit when the deposit is above it. Without it such a call fails with code "spending-limit" and pays nothing. Set it only after reading that failure.' },
         yes: YES,
       },
       additionalProperties: false,
@@ -156,6 +157,7 @@ export const TOOLS = [
       ...(i.units !== undefined ? ['--units', String(i.units)] : []),
       ...(i.plan ? ['--plan', i.plan] : []),
       ...(i.max_price ? ['--max-price', i.max_price] : []),
+      ...(i.raise_limit === true ? ['--raise-limit'] : []),
       ...(i.yes === true ? ['--yes'] : []),
     ],
   },
@@ -173,7 +175,7 @@ export const TOOLS = [
     name: 'vpn_agent_status',
     agent: true,
     description: 'Read-only: wallet, device, service and session in one answer, with `next`, the exact next step (what to fund, or vpn_up). '
-      + 'Result: address, sol, tdvpn, refundable (decimal strings or null), device, service, connected; when connected also '
+      + 'Result: address, sol, tdvpn, held (decimal strings or null; rc.6 adds solLamports, tdvpnBase, heldBase), device, service, connected; when connected also '
       + 'session, node, protocol, spent, exitIp, socks. Runs: devnet-dvpn agent status --json',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     args: () => ['agent', 'status'],
@@ -375,7 +377,35 @@ export const callTool = async (name, input, opts = {}) => {
 // ─── JSON-RPC over stdio ─────────────────────────────────────────────────────
 
 const rpcError = (id, code, message) => ({ jsonrpc: '2.0', id: id ?? null, error: { code, message } });
-const publicTool = ({ name, description, inputSchema }) => ({ name, description, inputSchema });
+// ─── MCP tool annotations (S15): hints a client uses to decide what needs a person's OK ───
+// readOnly = never signs or changes the system; destructive = may spend tDVPN or end a session;
+// idempotent = calling it twice with the same input does no more than once; openWorld = talks to the chain / nodes.
+const RO = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
+const SPEND = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true };
+export const ANNOTATIONS = {
+  vpn_status: { title: 'Status (read-only)', ...RO },
+  vpn_wallet: { title: 'Wallet balances (read-only)', ...RO },
+  vpn_nodes: { title: 'Online nodes (read-only)', ...RO },
+  vpn_agent_status: { title: 'Agent status + next step (read-only)', ...RO },
+  vpn_connect: { title: 'Connect to one node (pays a deposit)', ...SPEND },
+  vpn_up: { title: 'Connect in one call (pays a deposit)', ...SPEND, idempotentHint: true }, // already connected: reused, pays nothing
+  vpn_disconnect: { title: 'Disconnect', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  vpn_down: { title: 'Disconnect and start refunds', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  vpn_settle: { title: 'Settle deposits (refunds)', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+};
+// S15: every tool's structuredContent has this shape. `result` is the CLI's one JSON line, described field by field
+// in docs/agent-answers.schema.json (agent tools) and docs/AGENT-COMMANDS.md.
+export const OUTPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    exitCode: { type: ['integer', 'null'], description: '0 ok · 1 error · 2 preview (needs yes:true) · 3 wrong usage · rc.6+: 4 needs you/your operator · 5 refused for safety · 6 network, retry later; null = the CLI did not run' },
+    command: { type: 'string', description: 'the exact devnet-dvpn command line that ran' },
+    result: { type: ['object', 'null'], description: 'the CLI JSON answer: {ok:true,…,next} or {ok:false,error,code,action,money?}' },
+    preview: { type: 'boolean', description: 'true when nothing was signed (exit 2): call again with yes:true to do it' },
+  },
+  required: ['exitCode'],
+};
+const publicTool = ({ name, description, inputSchema }) => ({ name, title: ANNOTATIONS[name]?.title ?? name, description, inputSchema, outputSchema: OUTPUT_SCHEMA, ...(ANNOTATIONS[name] ? { annotations: ANNOTATIONS[name] } : {}) });
 
 export const handleMessage = async (msg, opts = {}) => {
   if (!msg || typeof msg !== 'object') return rpcError(null, -32600, 'invalid request');

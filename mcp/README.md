@@ -17,7 +17,7 @@ they run are proven on their own.
 ## 1. Set the machine up with the CLI first
 
 MCP cannot set the machine up: installing the service needs administrator / root once. Do sections
-1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc2 or newer**,
+1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc6** by name (macOS: v0.3.0-rc4),
 `wallet create --keyfile <path> --yes`, get the address funded (a person sends devnet SOL and
 tDVPN), then `daemon init` → `device setup --yes` → `daemon install --yes`. After that,
 everything below runs as the normal user over MCP.
@@ -78,7 +78,7 @@ The server speaks MCP protocol versions `2025-06-18`, `2025-03-26` and `2024-11-
 
 ## 4. Tools
 
-### Six CLI tools (every release from v0.3.0-rc2)
+### Six CLI tools (every release from v0.3.0-rc2 on)
 
 | tool | runs | gives back (`result`) |
 |---|---|---|
@@ -98,7 +98,7 @@ step: `settle withdraw --yes`).
 
 `vpn_connect` and `vpn_settle` spend or sign, so, like `vpn_up` and `vpn_down`, they pass `--yes` only with `"yes": true`; without it the CLI answers a preview (exit `2`) and nothing is spent.
 
-### Three agent tools (v0.3.0-rc4; the `agent` commands are not in v0.3.0-rc2)
+### Three agent tools (v0.3.0-rc4 and newer)
 
 The output contract is [`docs/AGENT-COMMANDS.md`](../docs/AGENT-COMMANDS.md) (a copy of the
 app source's file, kept equal by a test); the fields below follow it.
@@ -111,13 +111,13 @@ base units, and times (`readyAt`) are Unix seconds.
 |---|---|
 | `address` | wallet address; `null` = no wallet on this computer |
 | `sol`, `tdvpn` | balances; `null` when there is no wallet or they could not be read |
-| `refundable` | the wallet's balance held in the program, which `settle withdraw` moves to the wallet; **not** the `refundable` of `vpn_down` (on devnet a closed deposit's refund went straight to the wallet, so this stayed `"0"`) |
+| `held` | the wallet's balance held in the program, which `settle withdraw` moves to the wallet; **not** the `refundable` of `vpn_down` (v0.3.0-rc4 named it `refundable`) (on devnet a closed deposit's refund went straight to the wallet, so this stayed `"0"`) |
 | `device` | this computer's device key; `null` = not set up |
 | `service`, `connected` | booleans: the VPN service answers / a session is live |
 | `blocked` | `true` only when no session is live and the internet does not answer (the kill switch holds the block, or the network is down) |
 | `session`, `node`, `protocol`, `spent`, `exitIp`, `socks`, `wholeDevice` | only when connected (`exitIp` `null` if the check took over 8 s; `socks` `null` when the protocol gives none, and on Android) |
 | `deposits` | only when the wallet has open or closing deposits: `{channel, node, status, refundable, readyAt}` each |
-| `code`, `message`, `serverStopped`, `alsoNext` | only when the node stopped serving: `code` = `server-stopped`, `connected` is false, the deposit is safe; `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit) |
+| `code`, `message`, `nodeStopped`, `alsoNext` | only when the node stopped serving: `code` = `server-stopped`, `connected` is false, the deposit is safe; `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit) |
 | `next` | the next step: create a wallet, fund it, `agent down --yes` (connected), or `agent up --yes` |
 
 **`vpn_up {protocol?, country?, node?, basis?, units?, plan?, max_price?, yes?}`** runs
@@ -170,7 +170,7 @@ A `next` or `action` that runs `… agent up`, `… agent down` or `… agent st
 `vpn_down` or `vpn_agent_status` (`--yes` in it = `yes: true`). Any other command in it
 (`daemon install`, `device setup`, `settle run`, …) is a CLI step: see "Not covered".
 
-**On v0.3.0-rc2 or older**, the three tools return `isError: true` with
+**On a release without the `agent` commands** (v0.3.0-rc2 or older: [`docs/OLDER-RELEASES.md`](../docs/OLDER-RELEASES.md)), the three tools return `isError: true` with
 `structuredContent.error = "no agent command in this CLI"` and a `fix` that says to use
 `vpn_nodes` + `vpn_connect`. Nothing is run.
 
@@ -213,6 +213,7 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `price-changed`, `deposit-unusable`, `deposits-unread` | up | `agent up --yes` again: nothing was paid, and it reads the price fresh (`max_price` still caps it). The server's price rose above the deposit shown / your open deposit with it started closing / your open deposits could not be read |
 | `not-confirmed`, `plan-limit`, `busy`, `unsupported`, `network-mismatch` | up | → status: refused before anything started |
 | `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `kill-switch-held`, `switch-reconnecting`, `switch-offline` | up | → status: the check before paying failed; nothing paid |
+| `price-cap` | up | rc6: no `max_price` and the deposit is above the default cap (the spending limit / 10: 5 tDVPN by default); nothing was paid. Call `vpn_up` again with `max_price` (the `action` names the node's price) or fewer `units` |
 | `cancelled` | up | → status: stopped |
 | `waiting-for-network`, `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding` | up | → status: failed after the start; a deposit already paid stays open until `agent down --yes` |
 | `credit_exhausted`, `peer_limit_reached`, `lease_insufficient`, `subscription_invalid`, `ticket_request_stale`, `provider_unreachable`, `ticket_invalid`, `unauthorized`, `cannot cover the prepay`, `voucher_exceeds_escrow`, `channel_node_reopened`, `terms_rejected`, `rate_limited`, `voucher_signature_invalid`, `mode_not_voucher`, `mode_not_stream` | up | → status: the server refused; pick another with `node` or other filters |

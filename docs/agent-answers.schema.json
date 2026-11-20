@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/blob/main/docs/agent-answers.schema.json",
+  "title": "devnet-dvpn agent answers (v0.3.0-rc6)",
+  "description": "The one JSON line that `devnet-dvpn agent status|up|down --json` prints on stdout. Exit 0 = a success answer, exits 1, 4, 5, 6 = the error answer (4 needs you or your operator, 5 refused for safety, 6 network with no deposit open; from 0.3.0-rc.6, older releases exit 1), exit 2 = a confirm answer (nothing was signed), exit 3 = no JSON (wrong usage, one line on stderr). Amounts are decimal strings in tDVPN or SOL; from rc6 each has a base-unit twin as a string (`solLamports`, `tdvpnBase`, `heldBase`, `spentBase`, `refundableBase`, `deposit.tdvpnBase`; `deposit.baseUnits` is the older name), and `fromBase`, `toBase` are base units; `readyAt` is Unix seconds. Field by field: docs/AGENT-COMMANDS.md. Fields not listed may be added in a later release.",
+  "anyOf": [
+    { "$ref": "#/$defs/statusAnswer" },
+    { "$ref": "#/$defs/upAnswer" },
+    { "$ref": "#/$defs/upConfirm" },
+    { "$ref": "#/$defs/downAnswer" },
+    { "$ref": "#/$defs/downConfirm" },
+    { "$ref": "#/$defs/errorAnswer" }
+  ],
+  "$defs": {
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "A decimal amount in tDVPN or SOL, e.g. \"0.002\"."
+    },
+    "baseUnits": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "A whole number of base units: 1 tDVPN = 1000000, 1 SOL = 1000000000."
+    },
+    "command": {
+      "type": "string",
+      "description": "The command (or the funding) to do next, starting with `devnet-dvpn` (or DVPN_CLI_NAME)."
+    },
+    "depositRow": {
+      "description": "agent status `deposits`: one open or closing deposit.",
+      "type": "object",
+      "properties": {
+        "channel": { "type": "string" },
+        "node": { "type": "string" },
+        "status": { "enum": ["open", "closing", "ready", "in-use"] },
+        "refundable": { "$ref": "#/$defs/amount", "description": "tDVPN still to come back from this deposit; a lower bound." },
+        "readyAt": { "type": ["integer", "null"] }
+      },
+      "required": ["channel", "node", "status", "refundable", "readyAt"]
+    },
+    "pendingRow": {
+      "description": "agent down `pending`: a deposit left after this run, as the settle list reads it. Amounts here are base units.",
+      "type": "object",
+      "properties": {
+        "channel": { "type": "string" },
+        "node": { "type": "string" },
+        "mode": { "type": "integer", "description": "The deposit kind as the program stores it." },
+        "escrow": { "$ref": "#/$defs/baseUnits" },
+        "redeemed": { "$ref": "#/$defs/baseUnits" },
+        "status": { "enum": ["open", "closing", "ready", "in-use"] },
+        "readyAt": { "type": ["integer", "null"] },
+        "refundable": { "$ref": "#/$defs/baseUnits", "description": "Base units still to come back; a lower bound." },
+        "unverified": { "const": true },
+        "device": { "type": "string", "description": "Only when another device of this wallet opened it." }
+      },
+      "required": ["channel", "node", "mode", "status", "readyAt", "refundable"]
+    },
+
+    "statusAnswer": {
+      "description": "agent status, exit 0. Reads only: never signs, never connects.",
+      "type": "object",
+      "properties": {
+        "ok": { "const": true },
+        "address": { "type": ["string", "null"], "description": "The wallet address; null = no wallet on this computer." },
+        "keyfileMissing": { "type": "string", "description": "Only when the key file DVPN_KEYFILE names is gone." },
+        "sol": { "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }] },
+        "tdvpn": { "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }] },
+        "held": { "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }], "description": "tDVPN held for the wallet in the program (userBalance); `settle withdraw --yes` moves it to the wallet." },
+        "solLamports": { "anyOf": [{ "$ref": "#/$defs/baseUnits" }, { "type": "null" }], "description": "sol in lamports (rc6)." },
+        "tdvpnBase": { "anyOf": [{ "$ref": "#/$defs/baseUnits" }, { "type": "null" }], "description": "tdvpn in base units (rc6)." },
+        "heldBase": { "anyOf": [{ "$ref": "#/$defs/baseUnits" }, { "type": "null" }], "description": "held in base units (rc6)." },
+        "device": { "type": ["string", "null"], "description": "This computer's device key; null = not set up yet." },
+        "service": { "type": "boolean", "description": "The VPN service answers." },
+        "connected": { "type": "boolean" },
+        "session": { "type": "string" },
+        "node": { "type": "string" },
+        "protocol": { "type": "string" },
+        "spent": { "$ref": "#/$defs/amount" },
+        "spentBase": { "$ref": "#/$defs/baseUnits", "description": "Only when connected: spent in base units (rc6)." },
+        "exitIp": { "type": ["string", "null"] },
+        "wholeDevice": { "type": "boolean" },
+        "socks": { "type": ["string", "null"], "description": "socks5h://host:port" },
+        "code": { "const": "server-stopped" },
+        "message": { "type": "string" },
+        "nodeStopped": {
+          "type": "object",
+          "properties": {
+            "node": { "type": "string" },
+            "session": { "type": ["string", "null"] },
+            "reason": { "type": "string" }
+          },
+          "required": ["node", "reason"]
+        },
+        "alsoNext": { "$ref": "#/$defs/command" },
+        "deposits": { "type": "array", "items": { "$ref": "#/$defs/depositRow" } },
+        "blocked": { "const": true, "description": "Only when no session is live and the internet does not answer." },
+        "next": { "$ref": "#/$defs/command" }
+      },
+      "required": ["ok", "address", "sol", "tdvpn", "held", "device", "service", "connected", "next"],
+      "dependentRequired": {
+        "code": ["message", "nodeStopped", "alsoNext"]
+      },
+      "if": { "properties": { "connected": { "const": true } } },
+      "then": { "required": ["session", "node", "protocol", "spent", "exitIp", "wholeDevice", "socks"] }
+    },
+
+    "deposit": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "basis": { "enum": ["per_gb", "per_hour"] },
+            "units": { "type": "integer", "minimum": 1, "maximum": 1000 },
+            "tdvpn": { "$ref": "#/$defs/amount", "description": "The most the deposit can hold; the unused part is refunded." },
+            "tdvpnBase": { "$ref": "#/$defs/baseUnits", "description": "tdvpn in base units (rc6; baseUnits is the older name)." },
+            "baseUnits": { "$ref": "#/$defs/baseUnits" }
+          },
+          "required": ["basis", "units", "tdvpn", "baseUnits"]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "plan": { "type": "string" },
+            "tdvpn": { "const": "0" }
+          },
+          "required": ["plan", "tdvpn"]
+        }
+      ]
+    },
+
+    "upAnswer": {
+      "description": "agent up --yes, exit 0.",
+      "type": "object",
+      "properties": {
+        "ok": { "const": true },
+        "connected": { "const": true },
+        "session": { "type": "string" },
+        "node": { "type": "string" },
+        "protocol": { "type": "string" },
+        "country": { "type": ["string", "null"] },
+        "exitIp": { "type": ["string", "null"] },
+        "directIp": { "type": ["string", "null"], "description": "This computer's own address, never the node's." },
+        "socks": { "type": ["string", "null"] },
+        "wholeDevice": { "type": "boolean" },
+        "channel": { "type": ["string", "null"] },
+        "deposit": { "anyOf": [{ "$ref": "#/$defs/deposit" }, { "type": "null" }], "description": "null when reused." },
+        "reused": { "const": true },
+        "blockedBefore": { "const": true },
+        "limitRaised": {
+          "type": "object",
+          "description": "Only when this connect raised the spending limit (rc5).",
+          "properties": {
+            "from": { "$ref": "#/$defs/amount" },
+            "to": { "$ref": "#/$defs/amount" },
+            "fromBase": { "$ref": "#/$defs/baseUnits" },
+            "toBase": { "$ref": "#/$defs/baseUnits" }
+          },
+          "required": ["from", "to", "fromBase", "toBase"]
+        },
+        "limitNote": { "type": "string" },
+        "replaced": {
+          "type": "object",
+          "properties": {
+            "node": { "type": "string" },
+            "code": { "const": "server-stopped" }
+          },
+          "required": ["node", "code"]
+        },
+        "replacedNote": { "type": "string" },
+        "payer": { "type": ["string", "null"], "description": "The wallet that paid the deposit." },
+        "payerIsLoaded": { "type": ["boolean", "null"], "description": "true when the payer is the loaded wallet; null when unknown." },
+        "payerNote": { "type": ["string", "null"] },
+        "skipped": { "description": "Only when nodes that failed recently were left out of the pick." },
+        "skippedNote": { "type": "string" },
+        "note": { "type": "string" },
+        "next": { "$ref": "#/$defs/command", "description": "Always `devnet-dvpn agent down --yes`." }
+      },
+      "required": ["ok", "connected", "session", "node", "protocol", "exitIp", "socks", "wholeDevice", "deposit", "next"],
+      "dependentRequired": {
+        "limitRaised": ["limitNote"],
+        "replaced": ["replacedNote"]
+      }
+    },
+
+    "upConfirm": {
+      "description": "agent up without --yes, exit 2. Nothing was signed.",
+      "type": "object",
+      "properties": {
+        "needsConfirm": { "const": true },
+        "what": { "type": "string", "description": "The sentence it would do; names a spending-limit raise when --yes would raise it." },
+        "node": { "type": "string" },
+        "deposit": { "$ref": "#/$defs/deposit" },
+        "switchFrom": { "type": ["string", "null"], "description": "The live node it would leave; null = not connected." },
+        "skipped": { "description": "Only when nodes that failed recently were left out of the pick." },
+        "limitRaise": { "type": "string", "description": "Only when this deposit is above the spending limit: the sentence that says so (it is in `what` too). rc6: raised only with --raise-limit; rc5: --yes raised it." }
+      },
+      "required": ["needsConfirm", "what", "node", "deposit", "switchFrom"]
+    },
+
+    "downAnswer": {
+      "description": "agent down --yes, exit 0.",
+      "type": "object",
+      "properties": {
+        "ok": { "const": true },
+        "disconnected": { "type": ["object", "null"] },
+        "spent": { "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }], "description": "null = there was no session." },
+        "spentBase": { "anyOf": [{ "$ref": "#/$defs/baseUnits" }, { "type": "null" }], "description": "spent in base units (rc6)." },
+        "refundable": { "$ref": "#/$defs/amount", "description": "Sum over `pending`: tDVPN still to come back. Not `held`." },
+        "refundableBase": { "$ref": "#/$defs/baseUnits", "description": "refundable in base units (rc6)." },
+        "readyAt": { "type": ["integer", "null"] },
+        "signatures": { "type": "array", "items": { "type": "string" } },
+        "pending": { "type": "array", "items": { "$ref": "#/$defs/pendingRow" } },
+        "notClosed": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "channel": { "type": "string" }, "device": { "type": "string" } },
+            "required": ["channel", "device"]
+          }
+        },
+        "warning": { "type": "string" },
+        "next": { "$ref": "#/$defs/command" }
+      },
+      "required": ["ok", "disconnected", "spent", "refundable", "readyAt", "signatures", "pending", "next"],
+      "dependentRequired": {
+        "notClosed": ["warning"]
+      }
+    },
+
+    "downConfirm": {
+      "description": "agent down without --yes, exit 2. Nothing was signed.",
+      "type": "object",
+      "properties": {
+        "needsConfirm": { "const": true },
+        "what": { "type": "string" },
+        "session": { "type": ["string", "null"] },
+        "perHour": { "type": "integer", "minimum": 0 },
+        "perGb": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["needsConfirm", "what", "session", "perHour", "perGb"]
+    },
+
+    "errorAnswer": {
+      "description": "Any of the three, exit 1 (rc6: also 4, 5 or 6; e.g. `price-cap` and `spending-limit` exit 4). Do what `action` says; when it is null, read `error`. Every code and its action: docs/AGENT-COMMANDS.md.",
+      "type": "object",
+      "properties": {
+        "ok": { "const": false },
+        "error": { "type": "string" },
+        "code": { "type": ["string", "null"] },
+        "action": { "type": ["string", "null"] },
+        "money": {
+          "type": "string",
+          "description": "Did money move? Present on the failures of agent, connect, switch and test when the code has a class. One of: \"Nothing was paid.\" / \"A deposit may be open: …\" / \"It is not known whether a deposit was opened: …\" / \"No new money was spent; …\"."
+        }
+      },
+      "required": ["ok", "error", "code", "action"]
+    }
+  }
+}

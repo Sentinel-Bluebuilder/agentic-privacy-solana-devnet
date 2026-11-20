@@ -1,0 +1,41 @@
+# Agentic Privacy — Solana devnet
+
+> For AI agents: a private connection through a Sentinel dVPN node on Solana devnet. No account, no API key,
+> nothing hosted: you hold a key file, you pay the node directly in test tokens (devnet only, no value), you
+> connect, and you get the unused deposit back. Two paths: Path A uses the Sentinel dVPN app's command line
+> `devnet-dvpn` (Windows, Linux, macOS); Path B uses only Sentinel's own public tools, `sentinel-dvpnd` and
+> `sentinel-dvpn` (Linux).
+
+Pick one path and read its first file top to bottom once.
+
+- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc6 by name (macOS: v0.3.0-rc4); the first command after install is
+  `devnet-dvpn agent status --json`. Every answer carries `next` (the command to run next) or, on failure, `action`.
+  Add `--json` for one line of JSON; nothing spends without `--yes` (without it: a preview, exit code 2).
+- **Path B (direct, Linux):** [docs/DIRECT.md](docs/DIRECT.md). The first command is
+  `git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet && cd agentic-privacy-solana-devnet && sudo sh direct/install.sh`.
+  Writing your own code against the on-chain program: [docs/BUILD-YOUR-OWN-CLIENT.md](docs/BUILD-YOUR-OWN-CLIENT.md).
+
+The one step you cannot do alone on either path: funding. A person uses two web faucets; the page gives the
+exact message to send them.
+
+## Docs
+
+- [AGENTS.md](AGENTS.md): Path A, install to refund, with the commands per OS. Safety rules at the top.
+- [docs/DIRECT.md](docs/DIRECT.md): Path B with `sentinel-dvpnd` + `sentinel-dvpn` (Linux).
+- [docs/BUILD-YOUR-OWN-CLIENT.md](docs/BUILD-YOUR-OWN-CLIENT.md): your own code: build the transactions against the `dvpn` program, then drive `sentinel-dvpnd`.
+- [direct/install.sh](direct/install.sh): Path B's installer; then `direct/fund-request.sh`, `direct/connect.sh`, `direct/disconnect.sh`, `direct/refund.sh`.
+- [GLOSSARY.md](GLOSSARY.md): every term and JSON field, one line each, with the command that shows or changes it.
+- [docs/AGENT-COMMANDS.md](docs/AGENT-COMMANDS.md): every field and `next` of `agent status`, `agent up`, `agent down`.
+- [docs/CODES.md](docs/CODES.md): every failure `code`: meaning, whether money moved, the command to run.
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): symptom → cause → exact command.
+- [docs/SECURITY-MODEL.md](docs/SECURITY-MODEL.md): what the keys can sign, the spending limit, what a node sees.
+- [docs/agent-safety.md](docs/agent-safety.md): kill switch, DNS, split tunnelling and SSH lock-out, per OS.
+- [docs/OPERATOR.md](docs/OPERATOR.md): for the person who funds you: what you do and what it costs.
+- [mcp/README.md](mcp/README.md): Path A as MCP tools, for MCP clients.
+- [install.sh](install.sh), [install.ps1](install.ps1): Path A's one-command installers (Linux and macOS; Windows).
+
+## Optional
+
+- [docs/OLDER-RELEASES.md](docs/OLDER-RELEASES.md): v0.3.0-rc2, rc4 and rc5 differences, and the single commands behind `agent up` / `agent down`.
+- [docs/PROOF.md](docs/PROOF.md): what has been proven, per OS and release, and the known gaps.
+- [docs/agent-answers.schema.json](docs/agent-answers.schema.json): JSON Schema (draft 2020-12) of every `agent` answer and the error shape.
