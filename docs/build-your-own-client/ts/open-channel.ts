@@ -12,6 +12,7 @@ import {
   MINT, PROGRAM_ID, TOKEN_2022, ata, channelPda, configPda, connection, fetchDecoded,
   ixCoder, loadKeypair, programErrorCode, userPda,
 } from './common.ts';
+import { explain } from './errors.ts';
 
 const [keyPath, nodeArg, escrowArg] = process.argv.slice(2);
 const simulateOnly = process.argv.includes('--simulate') || process.argv.includes('--bad-rent');
@@ -72,7 +73,10 @@ const sim = await connection.simulateTransaction(tx, { sigVerify: false });
 const code = programErrorCode(sim.value.logs);
 console.log('simulate:', sim.value.err ? `error ${JSON.stringify(sim.value.err)} program_error=${code}` : 'ok',
   'units', sim.value.unitsConsumed);
-if (sim.value.err) { console.log((sim.value.logs ?? []).slice(-6).join('\n')); process.exit(badRent && code === 6049 ? 0 : 1); }
+if (sim.value.err) {
+  console.log(JSON.stringify(explain(sim.value.logs, sim.value.err)));
+  process.exit(badRent && code === 6049 ? 0 : 1);
+}
 if (simulateOnly) process.exit(0);
 
 const sig = await connection.sendTransaction(tx, { skipPreflight: false });

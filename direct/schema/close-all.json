@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/close-all.json",
+  "title": "direct/close-all.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next", "to", "owner", "device", "ownerLamports", "ownerTdvpn", "deviceLamports"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "close-all"},
+    "next": {"type": "string", "minLength": 1},
+    "to": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"},
+    "owner": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"},
+    "device": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{32,44}$"},
+    "ownerLamports": {"const": 0},
+    "ownerTdvpn": {"const": 0},
+    "deviceLamports": {"const": 0},
+    "owner-tdvpn": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,90}$"},
+    "owner-sol": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,90}$"},
+    "device-sol": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,90}$"}
+  },
+  "additionalProperties": false
+}

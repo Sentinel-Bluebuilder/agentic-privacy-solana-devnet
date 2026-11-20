@@ -1,2 +1,4 @@
 dist/*
 !dist/SHA256SUMS
+dist-build/
+sentinel-solana/

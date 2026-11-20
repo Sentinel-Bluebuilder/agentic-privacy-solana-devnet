@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/install.json",
+  "title": "direct/install.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next", "owner", "device", "instance"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "install"},
+    "next": {"type": "string", "minLength": 1}, "owner": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "instance": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

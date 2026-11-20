@@ -1,16 +1,23 @@
 #!/bin/sh
-# ─── direct/build.sh: build Sentinel's own client tools for Solana devnet, no app ───
+# ─── direct/build.sh: build Sentinel's own client tools for Solana devnet yourself, then compare ───
 #
 # Builds sentinel-dvpnd (daemon) and sentinel-dvpn (CLI) from the PUBLIC upstream
-# https://github.com/sentinel-official/sentinel-solana at a pinned commit, with the devnet
-# link-time ids, then prints the SHA-256 of each binary. Compare those with direct/SHA256SUMS
-# (or the release direct-v1): with the same Go version and commit, the bytes are the same.
+# https://github.com/sentinel-official/sentinel-solana at the pinned commit
+# 26de52407c5b722cfecad1772dcbeefd984ef6d0 with the devnet link-time ids, for linux/amd64 and
+# linux/arm64, into dist-build/ with the release file names. Then it compares every SHA-256 with
+# direct/SHA256SUMS (the same lines as the release direct-v1). With Go 1.27.3 the bytes are the same:
+# the upstream Makefile builds with -trimpath and CGO_ENABLED=0.
 #
-#   sh direct/build.sh            # builds into ./sentinel-solana/<tool>/bin/
-#   OUT=/usr/local/bin sh direct/build.sh   # also copies both binaries there (needs write access)
+#   sh direct/build.sh                      # both arches; prints MATCH or MISMATCH per file
+#   ARCHES=amd64 sh direct/build.sh         # one arch only
+#   OUT=/usr/local/bin sh direct/build.sh   # also installs this machine's arch there
 #
-# Needs: git, make, Go 1.27.3 on PATH (https://go.dev/dl/). No CGO, no root.
+# Needs: git, make, Go 1.27.3 on PATH (https://go.dev/dl/; check its SHA-256 on that page). No root.
+# Exit: 0 all MATCH (or Go is not 1.27.3: built, with a warning, not compared strictly) · 5 a MISMATCH
+# with Go 1.27.3 (do not use those bytes; report it) · 1 the build failed.
+# The last stdout line is JSON: {"ok":…,"step":"build","result":"MATCH"|"MISMATCH"|"UNCHECKED",…}
 set -eu
+HERE=$(cd "$(dirname "$0")" && pwd)
 
 COMMIT=26de52407c5b722cfecad1772dcbeefd984ef6d0
 REPO=https://github.com/sentinel-official/sentinel-solana
@@ -19,11 +26,15 @@ NETWORK=devnet
 PROGRAM_ID=J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs
 MINT=Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa
 SRC=${SRC:-./sentinel-solana}
+DIST=${DIST:-./dist-build}
+ARCHES=${ARCHES:-amd64 arm64}
 
 run() { printf '+ %s\n' "$*" >&2; "$@"; }
 
 GO_HAVE=$(go env GOVERSION 2>/dev/null || echo none)
+STRICT=1
 if [ "$GO_HAVE" != "$GO_WANT" ]; then
+  STRICT=0
   echo "warning: Go is $GO_HAVE, the recorded build used $GO_WANT; the binaries will work but SHA-256 will differ" >&2
 fi
 
@@ -32,17 +43,44 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 run git -C "$SRC" fetch -q origin
 run git -C "$SRC" checkout -q --detach "$COMMIT"
+[ "$(git -C "$SRC" rev-parse HEAD)" = "$COMMIT" ] || { echo "error: checkout is not $COMMIT" >&2; exit 1; }
 
-for tool in sentinel-dvpnd sentinel-dvpn; do
-  run make -C "$SRC/$tool" build \
-    SENTINEL_NETWORK="$NETWORK" SENTINEL_PROGRAM_ID="$PROGRAM_ID" SENTINEL_MINT="$MINT"
+mkdir -p "$DIST"
+for arch in $ARCHES; do
+  for tool in sentinel-dvpnd sentinel-dvpn; do
+    run env GOOS=linux GOARCH="$arch" make -C "$SRC/$tool" build \
+      SENTINEL_NETWORK="$NETWORK" SENTINEL_PROGRAM_ID="$PROGRAM_ID" SENTINEL_MINT="$MINT" >&2
+    run cp "$SRC/$tool/bin/$tool" "$DIST/$tool-linux-$arch"
+  done
 done
 
-echo "sha256 (compare with direct/SHA256SUMS):"
-(cd "$SRC" && sha256sum sentinel-dvpnd/bin/sentinel-dvpnd sentinel-dvpn/bin/sentinel-dvpn)
+# ─── compare with direct/SHA256SUMS ───
+RESULT=MATCH
+(cd "$DIST" && sha256sum sentinel-dvpn*-linux-*) > "$DIST/SHA256SUMS"
+echo "sha256 of this build (dist-build/SHA256SUMS):" >&2
+cat "$DIST/SHA256SUMS" >&2
+while read -r sum name; do
+  want=$(awk -v n="$name" '$2 == n {print $1}' "$HERE/SHA256SUMS")
+  if [ "$sum" = "$want" ]; then
+    echo "MATCH    $name" >&2
+  else
+    echo "MISMATCH $name: built $sum, direct/SHA256SUMS says ${want:-nothing}" >&2
+    RESULT=MISMATCH
+  fi
+done < "$DIST/SHA256SUMS"
 
-"$SRC/sentinel-dvpn/bin/sentinel-dvpn" version
+NATIVE=$(case $(uname -m) in x86_64) echo amd64 ;; aarch64|arm64) echo arm64 ;; *) echo none ;; esac)
+[ -x "$DIST/sentinel-dvpn-linux-$NATIVE" ] && "$DIST/sentinel-dvpn-linux-$NATIVE" version >&2
 
-if [ -n "${OUT:-}" ]; then
-  run install -m 0755 "$SRC/sentinel-dvpnd/bin/sentinel-dvpnd" "$SRC/sentinel-dvpn/bin/sentinel-dvpn" "$OUT/"
+if [ -n "${OUT:-}" ] && [ -x "$DIST/sentinel-dvpnd-linux-$NATIVE" ]; then
+  run install -m 0755 "$DIST/sentinel-dvpnd-linux-$NATIVE" "$OUT/sentinel-dvpnd"
+  run install -m 0755 "$DIST/sentinel-dvpn-linux-$NATIVE" "$OUT/sentinel-dvpn"
 fi
+
+if [ "$RESULT" = MISMATCH ] && [ "$STRICT" = 0 ]; then RESULT=UNCHECKED; fi
+OK=true; [ "$RESULT" = MISMATCH ] && OK=false
+printf '{"ok":%s,"step":"build","result":"%s","go":"%s","commit":"%s","dist":"%s","next":"%s"}\n' \
+  "$OK" "$RESULT" "$GO_HAVE" "$COMMIT" "$DIST" \
+  "$(case $RESULT in MATCH) echo 'sudo BUILD=1 sh direct/install.sh' ;; UNCHECKED) echo 'install Go 1.27.3 from https://go.dev/dl/, then sh direct/build.sh' ;; *) echo 'do not use these bytes; report the MISMATCH lines above' ;; esac)"
+[ "$RESULT" = MISMATCH ] && exit 5
+exit 0

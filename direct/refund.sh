@@ -29,7 +29,7 @@ GRACE=$(try none sentinel-dvpn program params | jq -r .channel_close_grace_secon
 NOW=$(date +%s)
 
 ACTIVE=0; daemon_running && ACTIVE=$(try none dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[]? | select(.status == "active")] | length')
-[ "$ACTIVE" = 0 ] || fail "$E_OTHER" session-active "a session is active; its channel cannot be closed cleanly" "sh direct/disconnect.sh, then $SELF" none
+[ "$ACTIVE" = 0 ] || fail "$E_OTHER" session-active "a session is active; its channel cannot be closed cleanly" "sh direct/disconnect.sh && $SELF" none
 
 # ─── plan (read-only) ───
 CHANNELS=$(try none sentinel-dvpn channel search --owner "$OWNER")
@@ -62,7 +62,20 @@ if [ -z "$WHAT" ]; then
   fi
   exit 0
 fi
+# who gets what back, and the fees (S6)
+NS=$(printf '%s\n' $TO_START | grep -c . || true); NC=$(printf '%s\n' $TO_CLOSE | grep -c . || true)
+fee_tx "$NS"; fee_tx "$NC"   # one start-close-channel / close-channel each, signed by the owner
+[ "$NC" -gt 0 ] && payee refund "$OWNER" "$ESCROW_CLOSE" 0 unspent-part program \
+  && payee refund "$DEVICE" 0 $((NC * RENT_CHANNEL)) yes program
+{ [ "$BAL" -gt 0 ] || [ "$NC" -gt 0 ]; } && fee_tx 1   # withdraw-user-balance
+[ "$BAL" -gt 0 ] && payee refund "$OWNER" "$BAL" 0 yes program
+if [ "$REVOKE" = 1 ] && [ "$WAIT_UNTIL" = 0 ]; then
+  fee_tx 2   # grant close-grant + wallet revoke-delegate
+  [ -n "$GRANT" ] && payee refund "$OWNER" 0 "$RENT_GRANT" yes program
+fi
+[ "$NS" -gt 0 ] && FEE_NOTE="starting a close returns nothing yet: up to $ESCROW_START base units come back on the run after the 2 h wait"
 confirm "$WHAT" "$SELF"
+MONEY_STATE=refund        # a stop from here leaves deposits closing or in the user balance: run refund.sh again
 
 # ─── do it ───
 for ch in $TO_START; do try refund sentinel-dvpn channel start-close-channel --channel "$ch" >&2; done

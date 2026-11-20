@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/fund-device.json",
+  "title": "direct/fund-device.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next", "signature", "lamports", "device", "deviceLamports"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "fund-device"},
+    "next": {"type": "string", "minLength": 1}, "signature": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,90}$"}, "lamports": {"type": "integer", "minimum": 1}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "deviceLamports": {"type": ["integer", "null"]}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/failure.json",
+  "title": "direct/*.sh last line on failure",
+  "type": "object",
+  "required": ["ok", "step", "code", "money", "moneyNote", "error", "next"],
+  "properties": {
+    "ok": {"const": false},
+    "step": {"type": "string", "enum": ["install", "fund-request", "fund-device", "connect", "disconnect", "refund", "selftest", "close-all", "classify", "direct"]},
+    "code": {"type": "string", "pattern": "^[a-z]+(-[a-z]+)*$"},
+    "money": {"enum": ["none", "open", "unclear", "refund"]},
+    "moneyNote": {"type": "string", "minLength": 1},
+    "error": {"type": "string", "minLength": 1},
+    "next": {"type": "string", "minLength": 1},
+    "owner": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"},
+    "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"},
+    "funded": {"const": false}
+  },
+  "additionalProperties": false
+}

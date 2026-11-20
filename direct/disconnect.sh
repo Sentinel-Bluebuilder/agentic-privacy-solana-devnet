@@ -10,6 +10,7 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 STEP=disconnect
+MONEY_STATE=refund        # stopping keeps the channel deposit: refund.sh returns it
 need sentinel-dvpn; need jq; need curl
 ROUTES=${XDG_CACHE_HOME:-$HOME/.cache}/sentinel-direct/routes-$INSTANCE
 

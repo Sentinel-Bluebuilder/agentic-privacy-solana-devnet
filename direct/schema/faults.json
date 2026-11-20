@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/faults.json",
+  "title": "direct/faults.sh last line (a report: ok is false when any case failed; it carries no code)",
+  "type": "object",
+  "required": ["ok", "step", "pass", "fail", "log", "next"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "step": {"const": "faults"},
+    "pass": {"type": "integer", "minimum": 0},
+    "fail": {"type": "integer", "minimum": 0},
+    "log": {"type": "string", "pattern": "^\\S+\\.log$"},
+    "next": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

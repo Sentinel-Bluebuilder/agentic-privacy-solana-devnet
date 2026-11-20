@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/fund-request.json",
+  "title": "direct/fund-request.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next", "owner", "device", "funded"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "fund-request"},
+    "next": {"type": "string", "minLength": 1}, "owner": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "funded": {"const": true}
+  },
+  "additionalProperties": false
+}

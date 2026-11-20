@@ -6,7 +6,8 @@
   "scripts": {
     "read": "tsx read.ts",
     "open": "tsx open-channel.ts",
-    "close": "tsx close-channel.ts"
+    "close": "tsx close-channel.ts",
+    "explain": "tsx explain-failure.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.31.1",

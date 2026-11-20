@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/disconnect.json",
+  "title": "direct/disconnect.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next", "session", "spent", "ip", "tunnel"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "disconnect"},
+    "next": {"type": "string", "minLength": 1}, "session": {"type": "string"}, "spent": {"type": "integer", "minimum": 0}, "ip": {"type": "string"}, "tunnel": {"const": "down"}
+  },
+  "additionalProperties": false
+}

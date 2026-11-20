@@ -1,0 +1,76 @@
+# ─── direct-build: rebuild Path B's binaries on GitHub's runners and sign their provenance ───
+# Runs direct/build.sh (public upstream sentinel-official/sentinel-solana at the pinned commit,
+# Go 1.27.3) and compares every SHA-256 with direct/SHA256SUMS, the lines of release direct-v1.
+#   MATCH    → attests the four binaries (actions/attest-build-provenance) and attaches them with
+#              GitHub's own SHA256SUMS to a release direct-build-<run>. An attestation is bound to
+#              the file's digest, so `gh attestation verify` then also passes on the direct-v1 files.
+#   MISMATCH → still attests and uploads what GitHub built (as a workflow artifact, for comparison),
+#              publishes no release, and fails. Never edit direct/SHA256SUMS to make this pass.
+name: direct-build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write        # create the release
+  id-token: write        # sign the attestation (Sigstore)
+  attestations: write    # store the attestation
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
+
+      - name: Build from the public upstream and compare with direct/SHA256SUMS
+        id: build
+        run: |
+          set +e
+          sh direct/build.sh > build.json
+          rc=$?
+          set -e
+          cat build.json
+          result=$(tail -1 build.json | jq -r .result)
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          {
+            echo "## direct-build: $result"
+            echo
+            echo '```'
+            cat dist-build/SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ "$result" = MATCH ] || [ "$result" = MISMATCH ] || exit 1
+          [ "$rc" = 0 ] || [ "$rc" = 5 ] || exit "$rc"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'dist-build/sentinel-dvpn*-linux-*'
+
+      - name: Upload what GitHub built
+        uses: actions/upload-artifact@v4
+        with:
+          name: direct-build-${{ github.run_number }}
+          path: dist-build/
+
+      - name: Release (MATCH only)
+        if: steps.build.outputs.result == 'MATCH'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="direct-build-${{ github.run_number }}"
+          gh release create "$tag" dist-build/sentinel-dvpn*-linux-* dist-build/SHA256SUMS \
+            --title "$tag: Path B binaries rebuilt on GitHub, provenance attested" \
+            --notes "Built by direct/build.sh at commit ${{ github.sha }} from sentinel-official/sentinel-solana@26de52407c5b722cfecad1772dcbeefd984ef6d0 with Go 1.27.3. SHA-256 equal to release direct-v1. Verify: gh attestation verify <file> -R ${{ github.repository }}"
+
+      - name: Fail on MISMATCH
+        if: steps.build.outputs.result != 'MATCH'
+        run: |
+          echo "GitHub's bytes differ from direct/SHA256SUMS (release direct-v1): report it; do not edit the sums." >&2
+          exit 1

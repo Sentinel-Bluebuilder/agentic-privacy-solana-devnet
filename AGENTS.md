@@ -11,16 +11,21 @@ same on Windows, Linux and macOS. (The Android app cannot be driven from outside
 this page does not cover it.)
 
 Rules of the tool:
+- **`devnet-dvpn agent status --json` is the "where am I" call.** Run it first, and whenever you are unsure what
+  state you are in: it changes nothing, and its `next` names the one step to run.
 - Add `--json` to any command for one line of machine-readable output.
 - A command that spends money or changes the system does nothing without `--yes`; without it, it
   only prints what it would do (exit code `2`).
 - Exit codes: `0` ok · `1` error · `2` needs `--yes` · `3` wrong usage · `4` needs you or your operator
-  (`not-funded`, `spending-limit`, `price-cap`, `no-wallet`; nothing was paid) · `5` refused for safety (kill
+  (`not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `keyfile-mode`; nothing was paid) · `5` refused for safety (kill
   switch; read `action`) · `6` network or RPC, no deposit open (retry in a minute). Other network codes exit `1`:
   read `money`.
 - Every amount has a twin in base units: `sol` → `solLamports`, `tdvpn` → `tdvpnBase`, `held` → `heldBase`,
   `spent` → `spentBase`, `refundable` → `refundableBase`, `deposit.tdvpn` → `deposit.tdvpnBase`.
-- A failure prints `{"ok":false,"error":…,"code":…,"action":…,"money":…}`: `action` is what to run next; `money` says whether money moved.
+- A failure prints `{"ok":false,"error":…,"code":…,"action":…,"next":…,"money":…}`: `next` = `action`, the line to run; `docUrl` links its row in `docs/CODES.md`; `money` says whether money moved
+  (a `wallet` / `device` / `settle` failure: "Nothing was sent or signed." when nothing was).
+- Every `--json` answer of a step command (`wallet`, `device`, `settle`, `disconnect`, `daemon install`) carries a
+  runnable `next` too; `settle run` adds `nextAfter` (Unix seconds: when the last closing deposit is ready).
 - Replace every `<…>` (`<ADDRESS>`, `<node>`) with a real value before running a line.
 
 > **Two paths. Pick one.** Both use the same chain, the same nodes and the same tDVPN.
@@ -29,23 +34,33 @@ Rules of the tool:
 > |---|---|---|
 > | Runs on | Windows, Linux, macOS | Linux (x86_64, arm64) with systemd and `sudo`; proven on Ubuntu 24.04 x86_64 |
 > | You install | the Devnet dVPN app (`devnet-dvpn`) | `sentinel-dvpnd` + `sentinel-dvpn`, Sentinel's public tools |
-> | First command | after install: `devnet-dvpn agent status --json` | `git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet && cd agentic-privacy-solana-devnet && sudo sh direct/install.sh` |
-> | Then | follow `next` in each answer | `sh direct/fund-request.sh` → `sh direct/connect.sh` → `sh direct/disconnect.sh` → `sh direct/refund.sh` |
-> | Read | this page, from "Quick path" | [`docs/DIRECT.md`](docs/DIRECT.md) |
+> | Get it | download + verify against the release SHA256SUMS (source not public): [`docs/PROVENANCE.md`](docs/PROVENANCE.md) | download + verify, or build from source (`sh direct/build.sh`): [`docs/PROVENANCE.md`](docs/PROVENANCE.md) |
+> | First command | after install: `devnet-dvpn agent status --json` | the three lines below |
+> | Then | follow `next` in each answer | follow `next` in each answer (`disconnect.sh`, then `refund.sh --yes`) |
+> | Read | this page, from "Quick path" | full steps: [`docs/DIRECT.md`](docs/DIRECT.md) |
+>
+> Path B, the first three lines (after the second, fund the address it prints: `sh direct/fund-request.sh` names the one message to send):
+>
+> ```sh
+> git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet && cd agentic-privacy-solana-devnet
+> sudo sh direct/install.sh    # downloads release direct-v1, checks it against direct/SHA256SUMS, sets up the key and daemon
+> sh direct/connect.sh --yes   # connects; prints {"ok":true,"exitIp":...}
+> ```
 >
 > Your own code instead of a CLI: [`docs/BUILD-YOUR-OWN-CLIENT.md`](docs/BUILD-YOUR-OWN-CLIENT.md).
+> A script that drives the app: [`docs/examples/agent-loop.mjs`](docs/examples/agent-loop.mjs) (one Node file, no dependencies, `--json` only: checks programId + mint, follows `next`, never pays without `--yes`).
 
-> **Release: `v0.3.0-rc6`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc4`. The same
+> **Release: `v0.3.0-rc7`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc4`. The same
 > command line on all three. Pin the tag by name, as the lines below do: on macOS the release GitHub marks
 > "Latest" is an older one that cannot make a key file. The download line per OS:
-> - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc6 sh`
-> - macOS: section 1, "By hand" (`…/releases/download/v0.3.0-rc4`: rc6 for macOS is not published yet; on rc4 read the rc4 list in `docs/OLDER-RELEASES.md`).
-> - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc6'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
+> - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc7 sh`
+> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc4`: rc7 for macOS is not built yet; on rc4 read the rc4 list in `docs/OLDER-RELEASES.md`).
+> - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc7'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
 >
-> Done when `devnet-dvpn version --json` says `0.3.0-rc.6`, network `devnet`, `programId`
+> Done when `devnet-dvpn version --json` says `0.3.0-rc.7`, network `devnet`, `programId`
 > `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` and `mint` `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`;
 > any other `programId` or `mint`: stop, wrong build, pay nothing. (macOS: `0.3.0-rc.4`, which prints no
-> `programId` / `mint`.) Another release
+> `programId` / `mint`: check network `devnet` only.) Another release
 > installed: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What is proven, per OS and
 > release: [`docs/PROOF.md`](docs/PROOF.md). Every field and failure code of the three `agent`
 > commands: [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md); as a JSON Schema:
@@ -56,7 +71,10 @@ Rules of the tool:
 > 2. Over SSH from the internet, never turn the kill switch on without another way in: it can lock you out for good.
 > 3. `--yes` spends money or changes the system. Without it nothing is signed (exit `2`).
 > 4. Had a wallet before? Never `wallet create`: load its key file, or `wallet import <file>`.
-> 5. `agent up` never raises this computer's spending limit by itself: it refuses (`spending-limit`, nothing paid) and `action` is the same line with `--raise-limit --yes`.
+> 5. `agent up` never raises this computer's spending limit by itself: it refuses (`spending-limit`, nothing paid) and `action` is your line pinned to the node it picked, plus `--raise-limit --yes`: run it to accept that deposit.
+>
+> **Give the agent its own small wallet.** A key file just for the agent (`devnet-dvpn wallet create --keyfile <new path> --yes`), not the one that holds your own funds; fund only what one task needs (one deposit, plus the SOL a new device needs: section 3). The spending limit (150 tDVPN on a new install) is its ceiling on this computer.
+> After the task: `devnet-dvpn agent down --yes`, `devnet-dvpn settle withdraw --yes` once the refund is ready, then empty it: `devnet-dvpn wallet send --to <ADDRESS> --tdvpn <N> --sol <N> --yes` (`<ADDRESS>` = your own wallet; keep a little SOL back for that fee).
 
 ---
 
@@ -65,9 +83,10 @@ Rules of the tool:
 Linux and macOS (root or passwordless `sudo`):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc6 sh   # Linux; macOS: section 1, By hand
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc7 sh   # Linux; macOS: docs/INSTALL-BY-HAND.md
+devnet-dvpn agent status --json                               # where am I; "next" says what is missing
+# only if agent status has no "address" (a key file already set stays as it is):
 export DVPN_KEYFILE="$PWD/agent-key.json"
-devnet-dvpn agent status --json                               # "next" says what is missing
 devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json
 #   → send your operator the message in section 3; go on when its "done when" check passes
 devnet-dvpn daemon init
@@ -79,17 +98,18 @@ devnet-dvpn quality ip --json                                 # AFTER: direct.ip
 devnet-dvpn agent down --yes --json                           # disconnects and starts the refund
 ```
 
-Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a deposit at most 2 times the cheapest one's) and never pays a deposit above 5 tDVPN (the spending limit / 10; `price-cap`, nothing paid). On devnet many nodes ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it.
+Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a deposit at most 2 times the cheapest one's) and never pays a deposit above its default cap ("Defaults" below; `price-cap`, nothing paid). On devnet many nodes ask 50 tDVPN per GB, so `--max-price 0.01` sets your own cap. On `no-nodes`, raise it.
 
 macOS: the installer prints one `export PATH=…` line; run it before the next line.
 
 Windows (an **elevated** PowerShell, or SSH as an administrator):
 
 ```powershell
-$env:DVPN_VERSION = 'v0.3.0-rc6'
+$env:DVPN_VERSION = 'v0.3.0-rc7'
 irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
-$env:DVPN_KEYFILE = "$PWD\agent-key.json"
 devnet-dvpn agent status --json
+# only if agent status has no "address":
+$env:DVPN_KEYFILE = "$PWD\agent-key.json"
 devnet-dvpn wallet create --keyfile $env:DVPN_KEYFILE --yes --json
 #   then section 3 (funding), then:
 devnet-dvpn daemon init
@@ -103,6 +123,20 @@ devnet-dvpn agent down --yes --json
 
 Each answer of `agent status` / `agent up` / `agent down` carries `next` (the command to run
 next) or, on failure, `action`. Follow it. The sections below explain each line.
+
+Every step at a glance (amounts are today's devnet ones; the answers name the exact ones):
+
+| Step | Does | Costs (who gets it) | Prints | Undo |
+|---|---|---|---|---|
+| install | installs the app, checked against `SHA256SUMS` | nothing on chain | `{"ok":true,"tag",…,"next"}` | remove the app (Windows: Settings > Apps) |
+| `wallet create` | makes your key file | nothing | `address` | none; to retire it, empty it (`wallet send`) |
+| funding | an operator uses two faucets | free | `agent status`: `sol`, `tdvpn` | `wallet send` it back |
+| `daemon init` | makes the device key, here only | nothing | the device key | not needed |
+| `device setup --yes` | lets the device spend up to the spending limit | about 0.05 SOL to the device (yours) + a fee | `device`, `ready` | `device revoke --yes` (the SOL stays on the device) |
+| `daemon install --yes` | installs the VPN service | nothing on chain | `daemon doctor --json` checks | `daemon uninstall --yes` (not on Windows) |
+| `agent up --yes` | picks a node, pays a deposit, connects | the deposit (the node gets only what you use) + about 0.004 SOL held + a fee | `connected`, `node`, `exitIp`, `deposit`, `next` | `agent down --yes` |
+| `agent down --yes` | disconnects, starts closing deposits | a fee | `refundable`, `readyAt`, `next` | `agent up --yes` (a new deposit) |
+| `settle run` / `settle withdraw --yes` | finishes the close, moves refunds to the wallet | a fee | `held` back to `tdvpn` | not needed |
 
 ---
 
@@ -124,20 +158,20 @@ In a sandbox where you cannot become administrator / root you cannot install the
 Linux (deb, rpm, Arch; x64 and arm64):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc6 sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc7 sh
 ```
 
 To read it before it runs:
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh
-DVPN_VERSION=v0.3.0-rc6 sh install.sh
+DVPN_VERSION=v0.3.0-rc7 sh install.sh
 ```
 
 Windows (x64), elevated PowerShell:
 
 ```powershell
-$env:DVPN_VERSION = 'v0.3.0-rc6'
+$env:DVPN_VERSION = 'v0.3.0-rc7'
 irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
 ```
 
@@ -149,7 +183,7 @@ release with your package, which may not be the one this page is for), downloads
 release's `SHA256SUMS`, refuses a file that does not match, installs it with no questions, and
 runs `devnet-dvpn version --json`. It prints one JSON line:
 `{"ok":true,"tag":…,"file":…,"version":{…},"path":…,"next":…}`, or `{"ok":false,"error":…}`
-with exit code 1. `tag` must be `v0.3.0-rc6`.
+with exit code 1. `tag` must be `v0.3.0-rc7`.
 
 PATH afterwards:
 - Linux: `devnet-dvpn` is on PATH at once.
@@ -160,60 +194,15 @@ PATH afterwards:
 
 ### By hand
 
-The same steps, one release. File names carry the version with a dot, the tag without (tag
-`v0.3.0-rc6` holds `…0.3.0-rc.6…`), so take the name from `SHA256SUMS`.
-
-Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; Arch:
-`-x64\.pkg\.tar\.zst$` and `sudo pacman -U --noconfirm`; arm64: `_arm64` / `aarch64`):
-
-```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc6
-curl -fsSLO "$U/SHA256SUMS"
-F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
-curl -fsSLO "$U/$F"
-grep " $F\$" SHA256SUMS | sha256sum -c -             # must print: <file name>: OK
-sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "./$F"
-```
-
-Without the update a fresh machine fails with "libsecret-tools … not installable"; without `-y`
-the install waits for an answer you cannot give.
-
-macOS (`x64` = Intel, `arm64` = Apple silicon):
-
-```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc4
-A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
-curl -fsSLO "$U/SHA256SUMS"
-F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-curl -fsSLO "$U/$F"
-grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
-M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
-sudo -n ditto "$M/Devnet dVPN.app" "/Applications/Devnet dVPN.app"
-hdiutil detach -quiet "$M"
-export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
-```
-
-An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
-
-Windows x64, elevated PowerShell:
-
-```powershell
-$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc6'
-curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an alias in older PowerShell)
-$l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
-$h, $f = ($l.Line -split '\s+')[0, 1]
-curl.exe -fsSLo $f "$u/$f"
-(Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h   # must print True
-$p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode      # 0 = installed
-$env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"     # this shell; new shells have it already
-```
-
-Use `Start-Process -Wait`: run directly, the installer returns at once. On Windows,
-`daemon uninstall` refuses by design: remove the app in Settings > Apps.
+No installer script: download, check against `SHA256SUMS` and install yourself, per OS:
+[`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (macOS rc4: only there).
 
 Then, on every OS: `devnet-dvpn version --json` must say network devnet.
 
 ## 2. Make a key (once)
+
+First `devnet-dvpn agent status --json`. It already shows an `address`? You have a key: skip this section
+(do not set `DVPN_KEYFILE` again over one that is set). Only with no `address`:
 
 ```sh
 export DVPN_KEYFILE="$PWD/agent-key.json"
@@ -225,7 +214,7 @@ Windows: `$env:DVPN_KEYFILE = "$PWD\agent-key.json"`, then the same `wallet crea
 `$env:DVPN_KEYFILE`.
 
 Already have a key file (your operator's, or one you used before)? Set `DVPN_KEYFILE` to its full
-path, skip `wallet create`, and go to section 4. If `wallet show` says `"wallet":null` but you had
+path, skip `wallet create`, run the section 3 "Done when" check, then section 4. If `wallet show` says `"wallet":null` but you had
 a wallet: find the key file and `wallet import <file>`; never `wallet create` (a new wallet can't
 see the old refunds).
 
@@ -278,8 +267,9 @@ Send your operator exactly this, with your address (`address` in `agent status -
 Do not open the faucet pages yourself: they are for people. With the Solana CLI you may get the
 SOL alone (`solana airdrop 1 <ADDRESS> --url devnet`; often rate-limited).
 
-Minimum: about 0.06 SOL (`device setup` moves 0.05 to the device for its fees) and tDVPN = the
-deposit of the node you pick (a per-GB node on devnet: about 0.002). 0.5 SOL and 100 tDVPN are
+Minimum SOL: a **new device** needs its setup amount plus fees (today about 0.06 SOL: `device setup`
+moves 0.05 to the device); a **device already set up** needs only fees. tDVPN: the deposit of the node you
+pick (a per-GB node on devnet: about 0.002). When short, `not-funded` names the exact amounts, plus a recommended tDVPN amount that also covers a reconnect. 0.5 SOL and 100 tDVPN are
 comfortable. Each open per-GB deposit also holds about 0.004 SOL until settled.
 
 **Done when** (run it before section 4; `device setup` then moves 0.05 SOL away):
@@ -288,7 +278,7 @@ comfortable. Each open per-GB deposit also holds about 0.004 SOL until settled.
 devnet-dvpn agent status --json
 ```
 
-- `sol` is above `0.06`, and
+- `sol` covers the step `next` names (a new device: its setup amount plus fees; set up already: fees only), and
 - `tdvpn` is at least the deposit: `--max-price` times `--units` (the Quick path's
   `--max-price 0.01`, 1 GB: `0.01`). After section 4, `agent up` without `--yes` prints the
   exact deposit (`deposit.tdvpn`).
@@ -302,7 +292,7 @@ Sentinel faucet has a daily total. When the operator sees a limit message:
 - tDVPN: anyone with tDVPN can send some: `devnet-dvpn wallet send --to <ADDRESS> --tdvpn 100 --yes`.
   Otherwise wait for the time the faucet names (at most 8 hours), then ask again.
 - SOL: try `solana airdrop 1 <ADDRESS> --url devnet`, or wait and ask again. You need only about
-  0.06 SOL, so a smaller airdrop is enough.
+  the setup amount plus fees, so a smaller airdrop is enough.
 - Tell your operator what is missing and when to try again; do not start section 4 before the
   check passes.
 
@@ -317,10 +307,10 @@ devnet-dvpn daemon doctor --json        # no check may have "level": "fail"
 ```
 
 In this order: the service does not start before the device has its spending permission.
-- Spending limit: a new device may spend up to 50 tDVPN from your wallet (a cap, not a charge).
+- Spending limit: a new install may spend up to 150 tDVPN from your wallet (a cap, not a charge; an existing limit is kept).
   When a deposit is above it, `agent up --yes` pays nothing and answers `"code":"spending-limit"`
-  (exit `4`); its `action` is your same line with `--raise-limit --yes`. Run that line to raise the
-  limit for this connect (the answer then carries `limitRaised` and `limitNote`), or set your own:
+  (exit `4`); its `action` is your line pinned to the node it picked, plus `--raise-limit --yes`. Run it
+  to raise the limit for this connect (the answer then carries `limitRaised` and `limitNote`), or set your own:
   `devnet-dvpn device setup --allowance N --yes`, N in tDVPN.
 - `"service":"no-service"` in the `device setup` output means the service is not installed yet:
   normal at that step.
@@ -360,14 +350,28 @@ How to read the proof (`{ "direct": { "ip", "source" }, "viaSocks", "sourceIs" }
 
 If `agent up` fails, it names `code` and `action`: run the action. `"code":"not-enough-tdvpn"`
 means the node it picked costs more than you hold: add `--max-price`, or fund more.
-`"code":"no-nodes"`: widen `--protocol` / `--country` / `--max-price`. `"code":"spending-limit"`: nothing was
-paid; run the `action` (your line with `--raise-limit --yes`). `"code":"price-cap"`: no `--max-price` and the
-deposit is above 5 tDVPN; nothing was paid; pass `--max-price` (the `action` names the price) or fewer `--units`. `price-changed`,
+`"code":"no-nodes"`: under `--max-price`, `action` names the cheapest price (run it if you accept it); else widen `--protocol` / `--country`. `"code":"spending-limit"`: nothing was
+paid; run the `action` (your line, pinned, with `--raise-limit --yes`). `"code":"price-cap"`: no `--max-price` and the
+deposit is above `defaults.priceCap`; nothing was paid; pass `--max-price` (the `action` names the price) or fewer `--units`. `price-changed`,
 `deposit-unusable` or `deposits-unread`: nothing was paid; run `agent up --yes` again (it reads
 the price fresh, and `--max-price` still caps it). Before picking a protocol,
 check that `devnet-dvpn daemon drivers` shows it ready; when it asks for `repair-drivers` and only
 AmneziaWG is missing (normal on a new Linux install), ignore it unless you pick an AmneziaWG node;
 for one, run `devnet-dvpn daemon repair-drivers --yes` first (administrator, about 2 minutes). Driving this machine over SSH: read "Over SSH" before you connect.
+
+## Defaults: what `agent up` picks when you pass no flag
+
+rc7 sizes its defaults from the online nodes that match your request; every flag still wins, and your
+spending limit stays the ceiling. Every preview and answer shows them in `defaults`.
+
+- Price cap (no `--max-price`): the larger of the spending limit / 10 and the market p75 price (3 in 4
+  matching nodes ask that or less) times `--units`, never above the spending limit. Above it: `price-cap`, nothing paid.
+- Spending limit: 150 tDVPN on a new install; an existing limit is kept. `defaults.spendingLimitRecommended`
+  is the market's suggestion: `devnet-dvpn settings set allowanceTdvpn=<n>` takes effect at the next raise
+  (`--raise-limit`), or now with `devnet-dvpn device setup --allowance <n> --yes`.
+- `no-nodes` under your `--max-price` names the cheapest matching price; `action` is a runnable line with it.
+- Fewer than 3 priced nodes match: the fixed defaults apply (cap = spending limit / 10; `defaults.source` =
+  `fixed`, `reason` says why).
 
 ## 6. Disconnect and get the unused deposit back
 
@@ -377,7 +381,7 @@ devnet-dvpn agent down --yes --json
 
 It disconnects and starts closing every open deposit (stage 1 of 2). A per-hour deposit closes at once. A
 per-GB one waits about two hours: when the answer has `readyAt`, come back after that time and
-run what `next` says (`settle run --yes`, then `settle withdraw --yes`). You do not have to stay
+run what `next` says (`settle run --yes`, then `settle withdraw --yes`; a `settle run` answer with `nextAfter` set: run it again after that time). You do not have to stay
 online in between. `"code":"busy"`: the disconnect is done but another refund run held the lock;
 run `settle run --yes` yourself.
 
@@ -387,54 +391,14 @@ That is the whole flow.
 
 The shortcut failed and its `action` does not help? The single commands behind `agent up` /
 `agent down` (`nodes list`, `cost`, `connect`, `disconnect`, `settle`) are in
-[`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md), "Step by step"; they work on rc6 too.
+[`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md), "Step by step"; they work on rc7 too.
 
 ---
 
 ## Choices
 
-**Protocol:** WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2; a node serves one.
-`agent up --protocol <name>`, or `nodes list --online --protocol <name> --json`.
-`daemon drivers` lists the tools this machine has; `daemon repair-drivers --yes` adds the missing.
-
-**Location:** `agent up --country DE` (the country the node reports).
-
-**Pricing:**
-
-| | how | notes |
-|---|---|---|
-| per GB | `agent up --basis per_gb --units <GB>` | unused deposit comes back |
-| per hour | `agent up --basis per_hour --units <hours>` | `agent down` straight after, so it stops billing |
-| plan | `plans list` → `plans subscribe <plan> --yes` → `agent up --plan <subscription>` | one price up front, no refund. An empty `--plan` value is refused (exit `3`) |
-
-`daemon set` (below) needs administrator / root like `daemon install` and restarts the VPN
-service: change settings **before** you connect.
-
-**Split tunnelling:** `split status`;
-`daemon set --split-mode exclude --split-routes 10.0.0.0/8 --yes`. To undo it, set both:
-`daemon set --split-mode off --split-routes none --yes` (otherwise the routes stay; Windows /
-macOS, if you set apps: add `--split-apps none`).
-
-**Kill switch:** block the internet whenever the tunnel is not up.
-
-```sh
-devnet-dvpn daemon set --allow-lan true --yes        # first, if you reach this machine over its LAN
-devnet-dvpn daemon set --kill-switch on --yes        # off | on | persist
-```
-
-In these apps the kill switch `on` and `persist` are the same setting. After `disconnect` / `agent
-down`, check `devnet-dvpn quality ip` (`status` can say not connected while it blocks). If it shows no address, the kill switch is still blocking —
-this happens when the session had already dropped before you disconnected. `devnet-dvpn daemon
-restore-network` lifts the block for now; it can come back at the next dropped session or service
-restart. `devnet-dvpn daemon set --kill-switch off --yes` stops it coming back.
-
-(`disconnect` with no session may still print "keeps the internet blocked until you reconnect":
-reconnecting does not lift it for good; use the two commands above.)
-
-To change node with the kill switch on, do not disconnect first: `agent up --node <other>
---yes` (or `connect <other node> --switch --yes`) switches in one step and the block holds.
-
-Per-OS details: [`docs/agent-safety.md`](docs/agent-safety.md).
+Protocol, country, pricing (per GB, per hour, plan), split tunnelling and the kill switch:
+[`docs/CHOICES.md`](docs/CHOICES.md). Change `daemon set` settings **before** you connect.
 
 ## Over SSH
 
@@ -454,40 +418,14 @@ devnet-dvpn logs --lines 80
 devnet-dvpn daemon restore-network        # if you lost the network
 ```
 
-`"code":"clock-skew"`: this computer's clock is off (the error says by about how much); set it right,
-then `agent up --yes` again. Nothing was paid.
-
-`agent status` says `"blocked": true` (no session, the internet blocked to protect you): `agent up --yes`
-reconnects with protection on, or `devnet-dvpn daemon restore-network` goes direct (protection off until
-the next connect).
-
-The node stopped serving mid-session: `agent status` answers `"connected":false`, `"code":"server-stopped"` (your traffic is not going through it; the deposit is safe). `next` (`agent up --yes`) connects to another node and skips that one for 10 minutes; `alsoNext` (`agent down --yes`) closes the deposit and refunds the unused part after the wait it prints. With the kill switch also holding the block (`"blocked": true`), `next` is `devnet-dvpn daemon restore-network` (run it first) and `alsoNext` names the step after it: `agent up --yes` to reconnect or `agent down --yes` to close the deposit. A node that refused after you paid: `"code":"node-refused"`; run `agent down --yes` (it closes that deposit), not `agent up`, which would open a second one. A connect that fails with no known cause says whether a deposit was paid: `node-refused` (the deposit is safe and refunded after the wait) or `unknown` ("Nothing was paid"; read `devnet-dvpn logs --lines 80`, then try `agent up --yes` once more). For a few seconds after a node stops, `agent status` can still say `connected`: if `exitIp` equals your direct address, you are not tunnelled.
+Every failure answer names `code`, `action` and `money`: run the `action`. Symptom by symptom (blocked
+internet, a node that stopped, `node-refused`, `unknown`, `clock-skew`, …): [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md);
+every code: [`docs/CODES.md`](docs/CODES.md). A deposit `open` with no session (`agent status` `deposits`): `agent down --yes` first, never `agent up`.
 
 Every command: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
 MCP clients, after sections 1 to 4: [`mcp/README.md`](mcp/README.md).
 
 ## Appendix: JSON you will read
 
-Every answer of the three `agent` commands, as a JSON Schema (draft 2020-12):
-[`docs/agent-answers.schema.json`](docs/agent-answers.schema.json). Field by field:
-[`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md).
-
-`agent status --json`: `address`, `sol`, `tdvpn`, `held` (decimal strings; `held` is the balance
-`settle withdraw` moves, not the deposits still open), `device`, `service`, `connected`, and when
-connected `session`, `node`, `protocol`, `spent`, `exitIp`, `socks`, `wholeDevice`; `deposits`
-when the wallet has open or closing ones; `blocked` when the internet is blocked with no session;
-always `next`.
-
-`wallet show --json` (used by the single commands) reads the same wallet with other names and
-other units:
-
-| `agent status` | `wallet show` | How to compare |
-|---|---|---|
-| `address` | `owner` | the same address |
-| `sol` | `ownerLamports` | a number in base units: `sol` = `ownerLamports` / 1000000000 |
-| `tdvpn` | `ownerTdvpn` | base units, a string: `tdvpn` = `ownerTdvpn` / 1000000 (100 tDVPN = `"100000000"`) |
-| `held` | `userBalance` | base units: `held` = `userBalance` / 1000000 |
-| `device` | `device` | the same device key |
-| `deposits` (one row each) | `userOpenChannels` (a count) | the count of open deposits |
-| (none; `next` names what is missing) | `ready` | true when the spending permission, the approval and the device SOL are all in place |
-| (none) | `delegated`, `deviceLamports`, `grant.allowance` | approval, device SOL and spending limit, in base units (`device show --json` shows `grant.allowance` too) |
+Every answer as a JSON Schema: [`docs/agent-answers.schema.json`](docs/agent-answers.schema.json); field by field:
+[`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md); `agent status` vs `wallet show` names: [`docs/JSON-FIELDS.md`](docs/JSON-FIELDS.md).

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/preview.json",
+  "title": "direct/*.sh last line of a preview (exit 2): nothing was signed; names every payee, the fee and the rent",
+  "type": "object",
+  "required": ["ok", "needsConfirm", "step", "what", "payees", "feeLamports", "feeSource", "rentLamports", "rentSource", "next"],
+  "properties": {
+    "ok": {"const": false},
+    "needsConfirm": {"const": true},
+    "step": {"enum": ["connect", "refund", "fund-device", "close-all"]},
+    "what": {"type": "string", "minLength": 1},
+    "payees": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "to", "payer", "baseUnits", "tdvpn", "lamports", "comesBack"],
+        "properties": {
+          "role": {"enum": ["deposit", "transfer", "rent", "refund"]},
+          "to": {"type": "string", "minLength": 1},
+          "payer": {"enum": ["owner", "device", "program"]},
+          "baseUnits": {"type": "integer", "minimum": 0},
+          "tdvpn": {"type": "string", "pattern": "^[0-9]+([.][0-9]{1,6})?$"},
+          "lamports": {"type": "integer", "minimum": 0},
+          "comesBack": {"enum": ["yes", "no", "unspent-part", "yours"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "feeLamports": {"type": "integer", "minimum": 0},
+    "feeSource": {"type": "string", "pattern": "^fixed: 5000 lamports per signature"},
+    "rentLamports": {"type": "integer", "minimum": 0},
+    "rentSource": {"type": "string", "minLength": 1},
+    "next": {"type": "string", "pattern": " --yes$"}
+  },
+  "additionalProperties": false
+}

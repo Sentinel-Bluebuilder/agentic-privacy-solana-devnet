@@ -1,5 +1,69 @@
 # Path B: connect with Sentinel's own tools, no app
 
+## Get the binaries: two options, the same bytes
+
+You can download the binaries or build them yourself. Both give the same four files with the same SHA-256 hashes:
+
+```text
+7040b5740f89fa05c419ba74b9bd692310b494dbc48e49a0a91a69636c18faf1  sentinel-dvpnd-linux-amd64
+7131e22a37a945063b8e6758ef4702f081cbfd0b580cbef55ddc9d086dbc7095  sentinel-dvpn-linux-amd64
+62fd806b1c59ea9cffa76bf22cb9a09d20af44f0580e02cd98f4163c7f657f8b  sentinel-dvpnd-linux-arm64
+01858093aea92693eed2cb2e82bb767349567e20edad5e28d14a3bf5a67755f7  sentinel-dvpn-linux-arm64
+```
+
+**Release `direct-v1` (2026-11-20):** these four files, built from upstream `26de5240` unchanged, with the
+devnet ids, Go 1.27.3, `CGO_ENABLED=0`, `-trimpath`. A second clean build matched every hash. arm64 is
+cross-built and has not been run yet. Devnet only, Linux only.
+**When a direct-v2 release is cut:** only when one of these bytes would change (a new upstream commit, Go version
+or build flag). A script-only change (`direct/*.sh`) ships in this repo and keeps `direct-v1`. A release is
+never re-uploaded: new bytes always get a new tag, plus new lines in `direct/SHA256SUMS` and on this page.
+
+**Which one?** On the quick path you need neither block: `sudo sh direct/install.sh` does Option A
+(download + `sha256sum` check). Use Option B when you want to prove the bytes yourself.
+
+<table>
+<tr><th>Option A: download</th><th>Option B: build it yourself</th></tr>
+<tr><td valign="top">
+
+From the release
+[direct-v1](https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/releases/tag/direct-v1):
+
+```sh
+U=https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/releases/download/direct-v1
+for f in SHA256SUMS sentinel-dvpnd-linux-amd64 sentinel-dvpn-linux-amd64; do
+  curl -fsSLO "$U/$f"; done
+sha256sum --ignore-missing -c SHA256SUMS
+gh attestation verify sentinel-dvpnd-linux-amd64 \
+  -R Sentinel-Bluebuilder/agentic-privacy-solana-devnet
+```
+
+`sudo sh direct/install.sh` does the download and the `sha256sum` check for you, and refuses to
+install on a mismatch (exit 5). The attestation comes from the `direct-build` workflow, which rebuilds
+the binaries on GitHub's runners and signs them with `actions/attest-build-provenance`. It is bound to
+the file's hash, so it verifies these files only once that workflow has produced the same bytes.
+Until its first run, `gh attestation verify` reports no attestation. That is expected; the
+`sha256sum` line is then the check.
+
+</td><td valign="top">
+
+From the public source
+[sentinel-official/sentinel-solana@26de52407c5b722cfecad1772dcbeefd984ef6d0](https://github.com/sentinel-official/sentinel-solana/tree/26de52407c5b722cfecad1772dcbeefd984ef6d0)
+with [Go 1.27.3](https://go.dev/dl/):
+
+```sh
+sh direct/build.sh
+# MATCH    sentinel-dvpnd-linux-amd64
+# ... one line per file, then
+# {"ok":true,"step":"build","result":"MATCH",...}
+```
+
+`build.sh` clones that exact commit and builds both tools for amd64 and arm64 with the devnet ids.
+It compares each hash with the lines above (`direct/SHA256SUMS`), and exits 5 on a mismatch.
+`sudo BUILD=1 sh direct/install.sh` builds and installs that way.
+
+</td></tr>
+</table>
+
 This path uses only Sentinel's public upstream tools, built from
 [sentinel-official/sentinel-solana](https://github.com/sentinel-official/sentinel-solana) at commit
 [`26de5240`](https://github.com/sentinel-official/sentinel-solana/tree/26de52407c5b722cfecad1772dcbeefd984ef6d0)
@@ -10,14 +74,26 @@ with the Solana devnet ids:
 Path A (the Devnet dVPN app) uses the same chain, the same nodes and the same tDVPN.
 
 **Proven:** Ubuntu 24.04 x86_64 on Azure, 2026-11-20. Live session through node `E5o54jGD…` (GB):
-the exit IP was the node's IP, the session was stopped, and the channel close was started.
+the exit IP was the node's IP, the session was stopped, the channel close was started, and 2 h later
+`close-channel` + `withdraw-user-balance` returned the full escrow (20 of 20 tDVPN back). Then
+`grant close-grant` + `wallet revoke-delegate` ran. `sh direct/selftest.sh` passed on a second, fresh
+box, including a live public-RPC 429 that the retry absorbed. The same owner key file also opened in
+Path A's `devnet-dvpn` (rc.5) with the same address and balances.
 **Windows: NOT proven** (Windows 11 x64, Azure, 2026-11-20). Build, daemon, service, grant, session and close start
 all work, but traffic does not go through the tunnel (gap W-1; see "Windows").
-**Not run yet:** macOS, arm64 (the arm64 binaries build cleanly but have not been run),
-and the final `close-channel` + `withdraw-user-balance` (due 2 h after the close start; this page is
-updated once they run).
+**Not run yet:** macOS, arm64 (the arm64 binaries build cleanly but have not been run).
 
-**Needs:** Linux with systemd, `sudo` (WireGuard and routes need root), and git. Go 1.27.3 only if you build.
+**Per release.** CI (`.github/workflows/checks.yml`) runs on every push: script syntax, every last line against
+`direct/schema` (hand-made and 17 captured live lines), and the example programs. The live checks cannot run in
+CI (they need a VM, root and a devnet wallet), so `sh direct/faults.sh` and the paid `sh direct/selftest.sh` are
+re-run on Azure Ubuntu 24.04 whenever the pinned upstream commit, the Go version or the release tag (`direct-v1` today)
+changes, and after any change to `direct/*.sh`. Each run's log is kept and dated. Runs for `direct-v1` on
+2026-11-20: `faults.sh` at 11:28Z (52 pass, 0 fail), 11:40Z (56/0), 12:07Z (59/0), 12:43Z (62/0) and 13:14Z
+(66/0, the current set); `selftest.sh` passed on a fresh box twice (channel close started 11:02Z and 11:49Z).
+
+**Needs:** Linux with systemd, `sudo` (WireGuard and routes need root), and git. `install.sh` adds
+`wireguard-tools`, `jq` and `curl`. `fund-device.sh` also uses `python3` and `openssl`, which stock Ubuntu has.
+Go 1.27.3 only if you build.
 
 > **Remote box? Read this first.** The upstream daemon (1) turns the kill switch on by default,
 > which locks out SSH, and (2) routes the node's own API into the tunnel, which drops the session
@@ -30,26 +106,86 @@ updated once they run).
 git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet
 cd agentic-privacy-solana-devnet
 sudo sh direct/install.sh       # tools + owner key + daemon; prints both addresses
-sh direct/fund-request.sh       # prints the ONE funding message to send; --wait waits for the money
+sh direct/fund-request.sh       # prints the ONE funding message for your funder; --wait waits for the money
+sh direct/fund-device.sh --yes  # only when fund-request's "next" names it: sends 0.02 SOL owner -> device
 sh direct/connect.sh            # PREVIEW: says what it would sign and spend (exit 2)
 sh direct/connect.sh --yes      # connect; prints {"ok":true,"exitIp":...}
 sh direct/disconnect.sh         # stop (signs nothing)
 sh direct/refund.sh --yes       # get unspent escrow back (run again after the time it prints)
+sh direct/close-all.sh --to <address> --yes   # done with the box: refund, revoke, send both keys' funds to <address>
 ```
+
+- **Your funder** is whoever gives you devnet tDVPN; the token has no public faucet. Devnet SOL is
+  also free from `https://faucet.solana.com`.
+- **`<address>`** for `close-all.sh` is the wallet that gets everything back, usually your funder's.
+
+| Script | Signs or pays? | Safe to run again? (exact rerun behaviour) |
+|---|---|---|
+| `sudo sh direct/install.sh` | no | **Yes.** It keeps an existing owner key and daemon instance (`config.toml`), downloads and re-checks the binaries, sets the kill switch again, and restarts the service only if it is already running. |
+| `sh direct/fund-request.sh` | no | **Yes.** It only reads balances. `--wait` polls every 30 s for up to 30 min. |
+| `sh direct/fund-device.sh --yes` | yes: one SOL transfer | **No, each `--yes` sends again.** Run the preview (no `--yes`) first: it shows both balances. If it was killed after `sendTransaction`, read the device balance (`sh direct/fund-request.sh`) before you rerun. |
+| `sh direct/connect.sh --yes` | yes: grant (first run), deposit | **Yes.** The grant opens only if there is none. A channel to the same node that is still open is reused (no new deposit). With a session active it refuses (`session-active`). If it is killed after `client start`, a channel may be open (`money` = `unclear`): the rerun reuses that channel. |
+| `sh direct/disconnect.sh` | no | **Yes.** With no session it prints `no active session` and still removes the route exceptions. |
+| `sh direct/refund.sh --yes` | yes: close, withdraw | **Yes.** Each run does only what is due now (start close, close after 2 h, withdraw) and prints when to run it again. A killed run is finished by the next run. |
+| `sh direct/close-all.sh --to <address> --yes` | yes: close, withdraw, revoke, sends | **Yes.** Without `--yes` it is a dry run that lists every step and amount. While a close is still in its 2 h wait it stops (`close-wait`) before sending anything, and `next` is the same command after the wait. A rerun after a partial sweep sends what is left (`sweep-incomplete`). |
+| `sh direct/selftest.sh` | yes: one deposit per run | **Yes, but each run opens a new deposit** (refund starts its close), plus about 0.0022 SOL channel rent from the device, which comes back on close. |
+| `sh direct/build.sh` | no | **Yes.** It reuses `./sentinel-solana` and rebuilds into `./dist-build`. |
+| `sh direct/faults.sh` | two 5000-lamport fees | **Yes.** It blocks every deposit. Its only writes are the two `grant update-grant` calls (+1, then back). |
+
+A killed or `set -e`-stopped script still ends with a JSON line: `interrupted` (killed: `next` is the same
+command) or `unknown` (a raw stop, naming the last command), with `money` set by how far it got.
+The last line of every script matches a JSON Schema in [`direct/schema/`](../direct/schema/):
+`failure.json`, `preview.json`, or `<step>.json` on success. `python3 -I direct/schema/validate.py '<line>'` checks
+one line, and `faults.sh` checks every case.
 
 Every script prints each raw command as `+ <command>` on stderr before it runs it, so you can copy
 any step and do it by hand. The last stdout line is always one JSON object:
 
 ```json
 {"ok":true,"step":"connect","next":"sh direct/disconnect.sh","exitIp":"185.241.226.196", ...}
-{"ok":false,"needsConfirm":true,"step":"connect","what":"deposit 1000000 base units (1 tDVPN) into a new channel to node E5o5… (2000 base units/GB; device pays ~0.0022 SOL rent, back on close)","next":"sh direct/connect.sh --yes"}
-{"ok":false,"step":"connect","code":"device-sol","money":"none","moneyNote":"Nothing was paid.","error":"…InvalidAccountForFee","next":"send SOL to the device address (sh direct/fund-request.sh prints it)"}
+{"ok":false,"needsConfirm":true,"step":"connect","what":"deposit 2000 base units (0.002 tDVPN = 1 GB) into a new channel to node E5o5… (0.002 tDVPN/GB; device pays ~0.0022 SOL rent, back on close)","next":"sh direct/connect.sh --yes"}
+{"ok":false,"step":"connect","code":"device-sol","money":"none","moneyNote":"Nothing was paid.","error":"…InvalidAccountForFee","next":"sh direct/fund-device.sh --sol 0.02 --yes && sh direct/connect.sh --yes"}
 ```
 
-Read `ok` first, then do what `next` says. Anything that signs (`connect.sh`, `refund.sh`) only
-previews unless you pass `--yes` (or `YES=1`). On failure, `code` names the case, `money` says
-whether money moved, `moneyNote` says it in one sentence, and `next` is the fix.
-`sh direct/selftest.sh` runs the whole page end to end.
+Read `ok` first, then do what `next` says: it is always one command you can run as printed. Anything
+that signs or sends (`connect.sh`, `refund.sh`, `fund-device.sh`, `close-all.sh`) only previews unless
+you pass `--yes` (or `YES=1`). On failure, `code` names the case, `money` says whether money moved,
+`moneyNote` says it in one sentence, and `next` is the fix. Every script takes `--help`.
+A preview also says who gets paid, the fee and the rent:
+
+| Preview field | Meaning |
+|---|---|
+| `payees` | one entry per payment this step makes or returns, with the fields below |
+| `role` | deposit (escrow to a node), transfer (a send), rent (a new account) or refund (money coming back to you) |
+| `to` | who gets it: a node, device or wallet address, or the kind of account the rent opens |
+| `payer` | owner, device, or program (the program pays out a refund) |
+| `baseUnits`, `tdvpn` | the tDVPN amount, in base units and in tDVPN |
+| `lamports` | the SOL amount, in lamports |
+| `comesBack` | yes, no, unspent-part (escrow: what the node does not redeem) or yours (a send between your own keys) |
+| `feeLamports` | the network fees this step pays |
+| `feeSource` | how the fee was counted: fixed, 5000 lamports per signature, one signature per transaction |
+| `rentLamports` | the rent this step pays for new accounts (it comes back when they close, except the user account) |
+| `rentSource` | where the rent amounts come from: measured on devnet on 2026-11-20 |
+`sh direct/selftest.sh` runs the whole page end to end on a funded box (it opens one deposit).
+
+**No terminal needed.** No script prompts or reads a TTY; `--yes` is the only confirmation. On 2026-11-20 at
+13:21Z, over `ssh -T` (stdin and stdout not a tty, stdin from `/dev/null`), `fund-request.sh`, `disconnect.sh`
+and the previews of `connect.sh`, `fund-device.sh`, `refund.sh` and `close-all.sh` each ended with a JSON line
+that passed its schema. `faults.sh` (66 cases) ran the same way. The paid `selftest.sh` itself has not yet been run over `ssh -T`:
+it opens a deposit with a 2 h close.
+
+Every script at a glance (amounts measured on devnet on 2026-11-20, see "Money rules"; the preview `what`
+names the exact ones):
+
+| Script | Does | Costs (who gets it) | Prints (`next`) | Undo |
+|---|---|---|---|---|
+| `sudo sh direct/install.sh` | installs the two tools (checked against `SHA256SUMS`), makes the owner key, registers the daemon service (it starts in `connect.sh`, once the grant exists) | nothing on chain | `owner`, `device` (`next`: fund) | `sudo systemctl disable --now` the `sentinel-dvpnd` socket and service (instance `c1`); keep the owner key |
+| `sh direct/fund-request.sh` | prints the one funding message; `--wait` waits | nothing | `funded` (`next`: `connect.sh`) | not needed |
+| `sh direct/fund-device.sh --yes` | sends `--sol` SOL (default 0.02) from the owner to the device | that SOL to the device (yours) + a 5000-lamport fee | `signature`, `deviceLamports` | not needed (the device spends it on fees and rent) |
+| `sh direct/connect.sh --yes` | first run: grant + delegate (the spending cap); then opens a channel and connects | the deposit (escrow; the node gets only what it redeems) + rent: grant 0.00167 SOL (owner), channel 0.00217 SOL and user account 0.00124 SOL once (device) + fees | `exitIp`, `node`, `channel` (`next`: `disconnect.sh`) | `disconnect.sh`, then `refund.sh --yes` |
+| `sh direct/disconnect.sh` | ends the session | nothing (signs nothing) | `spent`, `tunnel` (`next`: `refund.sh`) | `connect.sh --yes` |
+| `sh direct/refund.sh --yes` | starts closing, after 2 h closes, withdraws | fees; the unspent escrow and the channel rent come back | `closeAfter`, then `userBalance` (`next`: wait, then run it again) | not needed; `--revoke` also closes the grant (its rent comes back) |
+| `sh direct/close-all.sh --to <address> --yes` | disconnect, refund + revoke, then sends all tDVPN and SOL from both keys to `<address>` (with Path A's `devnet-dvpn`, installed from its release if missing) | fees; the owner's token account rent (~0.002 SOL) stays | the three send signatures, all balances 0 | not needed |
 
 `money` is always exactly one of Path A's four classes:
 
@@ -66,9 +202,23 @@ whether money moved, `moneyNote` says it in one sentence, and `next` is the fix.
 | 1 | failed (every code not listed below) | `session-active`, `device-sol`, `device-permission`, `node-gone`, `node-stale`, `no-nodes`, `daemon-unavailable`, `tunnel-failed`, `close-wait`, `unknown`, and `rpc-unavailable` when money is not `none` |
 | 2 | needs `--yes` (a preview; nothing was signed) | `needsConfirm` |
 | 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing` |
-| 4 | needs you or your funder; nothing was paid | `not-funded`, `spending-limit`, `no-wallet` |
+| 4 | needs you or your funder; nothing was paid | `not-funded`, `spending-limit`, `price-cap`, `no-wallet` |
 | 5 | refused for safety | `checksum-mismatch` (Path B only; Path A uses 5 for its kill-switch codes) |
-| 6 | network or RPC, and no deposit can be open | `rpc-unavailable` with money `none` |
+| 6 | network or RPC, and no deposit can be open | `rpc-busy`, `rpc-unavailable` with money `none`, `download-failed` |
+
+Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 13:14Z gave
+66 pass, 0 fail. Lines from that run for exits 4, 5 and 6 (case, code, exit, money):
+
+```text
+no-key                 code=no-wallet            exit=4 money=none    | PASS
+unfunded-dvpn          code=not-funded           exit=4 money=none    | PASS
+price-cap-auto         code=price-cap            exit=4 money=none    | PASS
+cl-spending-limit      code=spending-limit       exit=4 money=none    | PASS
+checksum-mismatch      code=checksum-mismatch    exit=5 money=none    | PASS
+rpc-429-read           code=rpc-busy             exit=6 money=none    | PASS
+rpc-refused            code=rpc-unavailable      exit=6 money=none    | PASS
+rpc-429-start          code=rpc-busy             exit=1 money=unclear | PASS   (same code; a deposit may be open, so exit 1)
+```
 
 The exit numbers, the `money` classes and the `code` names are Path A's (`devnet-dvpn`, see
 [AGENT-COMMANDS.md](AGENT-COMMANDS.md)). When a Path B failure has a Path A twin it uses the same
@@ -76,9 +226,9 @@ name; codes with no Path A twin are Path B only:
 
 | Path B `code` | Path A `code` | When |
 |---|---|---|
-| `not-funded`, `device-sol`, `spending-limit`, `device-permission`, `session-active`, `node-gone`, `node-stale`, `node-offline`, `no-nodes`, `price-changed`, `deposit-unusable`, `service-down`, `daemon-unavailable`, `rpc-unavailable`, `tunnel-failed`, `tunnel-closing`, `no-wallet`, `unsupported`, `unknown` | the same name | as in Path A |
+| `not-funded`, `device-sol`, `spending-limit`, `price-cap`, `device-permission`, `session-active`, `node-gone`, `node-stale`, `node-offline`, `no-nodes`, `price-changed`, `deposit-unusable`, `service-down`, `daemon-unavailable`, `rpc-busy`, `rpc-unavailable`, `tunnel-failed`, `tunnel-closing`, `no-wallet`, `unsupported`, `unknown` | the same name | as in Path A |
 | `close-wait`, `not-closing`, `nothing-to-withdraw` | (none: Path A's `settle run` does the wait for you) | refund steps run by hand |
-| `no-session`, `wrong-account`, `usage`, `needs-root`, `tool-missing`, `checksum-mismatch` | (none) | raw CLI and install cases |
+| `no-session`, `wrong-account`, `usage`, `needs-root`, `tool-missing`, `checksum-mismatch`, `no-device`, `install-failed`, `download-failed`, `build-failed`, `route-failed`, `session-dropped`, `step-failed`, `interrupted`, `sweep-incomplete` | (none) | raw CLI and install cases (`no-device`: the daemon instance has no device key; run `sudo sh direct/install.sh`) |
 
 ## Two keys, and who pays what
 
@@ -89,6 +239,17 @@ name; codes with no Path A twin are Path B only:
 
 The owner key never enters the daemon. The daemon spends for you only through an on-chain grant,
 and only up to the grant's allowance.
+
+| Key | Where it lives | What it can sign |
+|---|---|---|
+| **Owner key** (your wallet) | `~/.sentinel-dvpn/keys/owner.json`, a plain file only your user can read (mode 600) | Everything the wallet can do: open, change and close the grant (`grant open-grant`, `grant update-grant`, `grant close-grant`), approve and revoke the token delegate, start closing and close channels, withdraw your user balance, and send SOL (`fund-device.sh`, `close-all.sh`). Anyone with this file holds your funds. |
+| **Device key** ("operator") | `/var/lib/sentinel-dvpn/c1/keys/`, root only; used by `sentinel-dvpnd` | Only what the grant allows (permissions `788529152`, the client set): open and fund channels to nodes and sign vouchers for the node to redeem. It moves your tDVPN only up to the grant's allowance, and it pays its own fees and rent from its SOL. It cannot withdraw, send your tDVPN elsewhere or change the grant. |
+| **The grant** (an on-chain account, not a key) | the program account `grant search --granter <owner> --grantee <device>` shows | It signs nothing. It is the cap: the allowance is a running total of escrow the device may lock (closes do not give it back). The owner removes it with `sh direct/refund.sh --revoke --yes` (`grant close-grant` + `wallet revoke-delegate`). |
+
+**The same key file works on both paths (a 64-number JSON array).** It is the standard Solana keypair
+file. Path A reads it with `DVPN_KEYFILE=~/.sentinel-dvpn/keys/owner.json devnet-dvpn wallet show --json`,
+and that showed the same address and balances as `sentinel-dvpn wallet balance`. To move between
+the paths you copy the file; no conversion is needed.
 
 **The key files are plain (unencrypted) files: never print them, never commit them.** Back up the owner key:
 
@@ -113,8 +274,10 @@ sh direct/build.sh
 
 ```sh
 git clone https://github.com/sentinel-official/sentinel-solana && git -C sentinel-solana checkout --detach 26de52407c5b722cfecad1772dcbeefd984ef6d0
-make -C sentinel-solana/sentinel-dvpnd build SENTINEL_NETWORK=devnet SENTINEL_PROGRAM_ID=J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs SENTINEL_MINT=Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa
-make -C sentinel-solana/sentinel-dvpn  build SENTINEL_NETWORK=devnet SENTINEL_PROGRAM_ID=J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs SENTINEL_MINT=Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa
+# for each ARCH in amd64 arm64 and each TOOL in sentinel-dvpnd sentinel-dvpn:
+env GOOS=linux GOARCH=$ARCH make -C sentinel-solana/$TOOL build SENTINEL_NETWORK=devnet SENTINEL_PROGRAM_ID=J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs SENTINEL_MINT=Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa
+cp sentinel-solana/$TOOL/bin/$TOOL dist-build/$TOOL-linux-$ARCH
+# then sha256sum dist-build/* and compare each line with direct/SHA256SUMS
 ```
 
 The ids are link-time flags (`-X github.com/sentinel-official/sentinel-go-sdk/v3/version.{Network,ProgramID,Mint}`).
@@ -168,12 +331,22 @@ foreground instead of the service (after step 4): `sudo sentinel-dvpnd run --ins
 ### 3. Funding: one message, both addresses (`fund-request.sh`)
 
 Ask for both at once:
-- owner: tDVPN to spend + 0.01 SOL
+- owner: tDVPN to spend (the ask is 2 × the market p75 price × `UNITS`: 100 tDVPN today; see "Market defaults" in step 5) + 0.01 SOL
 - device: 0.03 SOL
 
 The device needs about 0.0022 SOL per new channel (rent + fee), so 0.03 SOL covers ~12 channels.
-The public tools have no SOL transfer command, so ask your funder for the device SOL directly.
-You do not need a Solana CLI.
+The public Sentinel tools have no SOL transfer command. If your funder sent everything to the owner,
+move the device's share yourself:
+
+```sh
+sh direct/fund-device.sh --sol 0.02          # preview: what it would send (exit 2)
+sh direct/fund-device.sh --sol 0.02 --yes    # {"ok":true,"signature":"…","lamports":20000000,"deviceLamports":…}
+```
+
+`fund-device.sh` builds one System Program transfer from the owner key to the device address the
+daemon reports. It uses only tools already on Ubuntu: `python3 -I` (standard library) to encode it and
+`openssl` to sign it (ed25519). It first checks that the key file's public key matches the owner
+address. Nothing is downloaded, and no Solana CLI is needed.
 
 Read the balances back:
 
@@ -190,13 +363,13 @@ tDVPN has 6 decimals: `1000000` base units = 1 tDVPN. SOL is in lamports: `10000
 
 ```sh
 sentinel-dvpn grant open-grant --grantee <device> --target 11111111111111111111111111111111 \
-  --permissions 788529152 --never-expires --allowance 5000000
-sentinel-dvpn wallet approve-delegate --amount-base-units 5000000
+  --permissions 788529152 --never-expires --allowance 150000000
+sentinel-dvpn wallet approve-delegate --amount-base-units 150000000
 ```
 
 - `--allowance` is in tDVPN base units. It is the most the device can ever lock into channels for you.
   Each new channel's escrow is charged against it, and it is **not** given back when a channel closes.
-  After two 1-tDVPN channels it read 3000000.
+  After two 1-tDVPN channels a 5-tDVPN cap read 3000000. connect.sh opens it at 3 × the price cap (150 tDVPN today).
 - `approve-delegate` lets the program move up to that much from your token account. Set it to the same amount.
 - `788529152` (`0x2f000000`) is the client permission set the daemon's `doctor` asks for.
 - To see what is left: `sentinel-dvpn grant search --granter <owner> --grantee <device>`.
@@ -215,15 +388,34 @@ sentinel-dvpn node search --service wireguard --live      # JSON array; sort by 
 sentinel-dvpn node inspect <node address>                 # verifies signed metadata; "health":{"status":"ok"}
 ```
 
-Prices are in tDVPN base units. The node we used charged 2000/GB (0.002 tDVPN per GB).
+`channel_price_per_gb` is in tDVPN base units per GB. The node we used charged 2000 (0.002 tDVPN per GB).
+`connect.sh` does this pick for you, with the rules below.
+
+**Market defaults (no fixed amounts).** Every amount comes from the live node list
+(`sentinel-dvpn node search --service wireguard --live`, price field `channel_price_per_gb`):
+
+| Number | Rule | Today (2026-11-20, 7 live WireGuard nodes) | Override |
+|---|---|---|---|
+| price cap | p75 of the live prices, after dropping prices above 10 × p50; 50 tDVPN/GB if fewer than 3 nodes; never below `ALLOWANCE` / 10 | 50 tDVPN/GB | `MAX_PRICE=<tDVPN per GB>` |
+| node | the cheapest node at or below the cap | `E5o54jGD…`, 0.002 tDVPN/GB | `NODE=<address>` |
+| escrow (one deposit) | the node's price × `UNITS` (GB, default 1) | 0.002 tDVPN | `ESCROW=<base units>`, `UNITS=<GB>` |
+| grant cap | 3 × the price cap × `UNITS` (a running total: closes do not give it back) | 150 tDVPN | `ALLOWANCE=<base units>` |
+| tDVPN ask (fund-request) | 2 × p75 × `UNITS` | 100 tDVPN | `WANT_DVPN=<base units>` |
+| tDVPN minimum ("funded") | one deposit at the price the node pick would use | 0.002 tDVPN | `MIN_DVPN=<base units>` |
+| SOL | ask owner 0.01, device 0.03; funded at owner 0.005, device 0.01 | | `MIN_OWNER_SOL`, `MIN_DEVICE_SOL` |
+
+When the cheapest node is above the cap, `connect.sh` refuses with `price-cap` (exit 4, money `none`)
+and names the number, for example: `cheapest matching node above the cap: 60 tDVPN/GB (cap 50); set MAX_PRICE=60`,
+with `next` `MAX_PRICE=60 sh direct/connect.sh`.
 
 ### 6. Route exceptions, then connect
 
 ```sh
-GW=$(ip route show default | awk '{print $3; exit}')
-sudo ip route replace <node IP>/32 via $GW dev eth0          # required, see below
-sudo ip route replace <your SSH client IP>/32 via $GW dev eth0  # on a remote box
-sentinel-dvpn client start --instance c1 --node <node> --new-channel --mode voucher --escrow-base-units 1000000
+GW=$(ip route show default | awk '{print $3; exit}')     # your gateway
+DEV=$(ip route show default | awk '{print $5; exit}')    # your interface (eth0 on our VM)
+sudo ip route replace <node IP>/32 via $GW dev $DEV          # required, see below
+sudo ip route replace <your SSH client IP>/32 via $GW dev $DEV  # on a remote box
+sentinel-dvpn client start --instance c1 --node <node> --new-channel --mode voucher --escrow-base-units <node price x GB>
 ```
 
 Expected output (abridged):
@@ -237,7 +429,7 @@ Then `curl -4 https://api.ipify.org` printed `185.241.226.196`, which is the nod
 printed the VM's own IP.
 
 - **Always pass `--escrow-base-units`.** The config default (`escrow_base_units`) is 1000000000 = 1000 tDVPN.
-  1 tDVPN covered our whole test.
+  connect.sh passes the node's price × `UNITS` (1 GB by default); 1 tDVPN covered our whole test.
 - **The node route is required.** Without it, the daemon's calls to the node's API (`https://<node>:<port>`)
   go into the tunnel and time out. The logs then show `issuing voucher failed` / `closing remote session failed`,
   the session ends after ~50 s with `"error":"connection lost"`, and the daemon reconnects in a loop.
@@ -281,7 +473,7 @@ sentinel-dvpn user withdraw-user-balance                             # user bala
 
 | Item | Amount | Comes back? |
 |---|---|---|
-| channel escrow | what you pass (1 tDVPN each) | the unspent part, after close + withdraw |
+| channel escrow | what you pass (connect.sh: the node price × `UNITS`) | the unspent part, after close + withdraw |
 | node charges | what `spent` shows (12 base units for 50 s / 5.5 MB) | no, that is the price |
 | grant allowance | charged per new channel escrow | no; raise it with `grant update-grant` |
 | grant rent (owner) | 1671320 lamports | yes, on `grant close-grant` |
@@ -328,10 +520,12 @@ Raw `sentinel-dvpn` exits with code 1 on every failure, usage errors included, a
 | `open_channel: simulation failed: InvalidAccountForFee` | the device key has 0 SOL | none (simulated) | `device-sol` / 1 | fund the device address (step 3) |
 | doctor `grant` … `holds no grant` | no grant yet | none | | step 4 |
 | `"error":"connection lost"` after ~50 s, reconnect loop | node API routed into the tunnel | the node is paid only for what you used | (selftest `hold`) / 1 | node route (step 6) |
+| your SSH session freezes, then `Connection timed out` / `Broken pipe`, and new `ssh` attempts hang | the kill switch is on (`kill_switch = 'on'`, the upstream default) and its drop-policy chain has no rule for established connections, so your own SSH replies are dropped. Or the tunnel took the default route with no `/32` for your SSH client | none (the session still runs and is paid only for what it uses) | none: the script cannot reach you | from the cloud serial console: `sudo sentinel-dvpnd service stop --instance c1` (stopping the daemon removes its tunnel and chain), or reboot the VM (neither persists). Then `sudo sh direct/install.sh` (sets `kill_switch = 'off'`) and `sh direct/connect.sh` (adds the SSH `/32`). See "Remote box" |
 | `a session is already active` | the daemon allows one session at a time | none | `session-active` / 1 | `sh direct/disconnect.sh` |
 | `rpc error: code = NotFound desc = not found: no active session` | the session already ended (see `client sessions`) | none | `no-session` / 1 | nothing to stop |
 | `start_close_channel: … ConstraintSeeds (2006)` | `--grant` passed while the owner signs | none (simulated) | `wrong-account` / 1 | drop `--grant` |
 | `dial unix /var/lib/sentinel-dvpn/c1/daemon.sock: … no such file` | the daemon is not running | none | `daemon-unavailable` / 1 | `sudo sentinel-dvpnd service start --instance c1` |
+| `429 Too Many Requests` (public RPC) | `api.devnet.solana.com` rate-limits bursts | none on reads; on `client start` a channel may have opened | `rpc-busy` / 6 (1 if money is not `none`) | the scripts retry once after 30 s: a read retries as is; `client start` first checks `channel search` and reuses a channel the first try opened. Otherwise wait 30 s and run the same line again, or set `RPC_URL` and `--rpc.url` to your own endpoint |
 | `user show <owner>`: `account owned by another program` | `user show` wants the user account address | none | | `sentinel-dvpn user search --owner <owner>` |
 
 ### Program errors (client flow)
@@ -449,7 +643,7 @@ Run every step in an **administrator** PowerShell:
 
 1. `kill_switch = 'on'` by default, with no established-connection rule: it locks out SSH on remote boxes.
 2. The node's API address is not excluded from the tunnel: sessions drop after ~50 s unless you add a route.
-3. No SOL transfer and no key import in `sentinel-dvpn`/`sentinel-dvpnd`: the device key must be funded from outside.
+3. No SOL transfer and no key import in `sentinel-dvpn`/`sentinel-dvpnd`: the device key must be funded from outside (`direct/fund-device.sh` does it with python3 + openssl).
 4. The default `escrow_base_units` is 1000 tDVPN.
 5. Windows: the WireGuard interface comes up, but no route is installed through it, so traffic leaves through the
    normal default route (W-1).

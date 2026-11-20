@@ -336,7 +336,7 @@ const AGENT_CODES = [
   'test-running', 'rpc-busy', 'price-changed', 'deposit-unusable', 'deposits-unread',
   'not-confirmed', 'plan-limit', 'busy', 'unsupported', 'network-mismatch',
   'session-active', 'node-gone', 'node-stale', 'node-offline', 'protocol-blocked', 'driver-missing', 'basis-unavailable',
-  'not-enough-tdvpn', 'spending-limit', 'price-cap', 'device-sol', 'preflight', 'kill-switch-held', 'switch-reconnecting', 'switch-offline',
+  'not-enough-tdvpn', 'spending-limit', 'price-cap', 'rpc-ws', 'keyfile-mode', 'device-sol', 'preflight', 'kill-switch-held', 'switch-reconnecting', 'switch-offline',
   'cancelled',
   'waiting-for-network', 'ticket-other-owner', 'approval-revoked', 'service-stopped-connecting', 'node-identity', 'node-ledger',
   'node-price', 'node-error', 'kill-switch-failed', 'tunnel-failed', 'tunnel-dead', 'tunnel-mtu', 'tunnel-closing', 'port-in-use',
@@ -465,4 +465,88 @@ test('S7: vpn_up raise_limit maps to --raise-limit, only when true', () => {
   assert.deepEqual(up.args(checkInput(up, { raise_limit: true, yes: true })), ['agent', 'up', '--raise-limit', '--yes']);
   assert.deepEqual(up.args(checkInput(up, { raise_limit: false, yes: true })), ['agent', 'up', '--yes']);
   assert.throws(() => checkInput(up, { raise_limit: 'yes' }), /raise_limit must be true or false/);
+});
+
+// ─── R5: CLI fields pass through unchanged (stub answers shaped like rc.7 agent-cmd.ts) ───
+const runStub = (tool, input, line, code) => callTool(tool, input, {
+  env: { DEVNET_DVPN_BIN: fakeInstall('linux').bin }, platform: 'linux',
+  spawnFn: fakeSpawn({ stdout: `${line}\n`, code }).fn,
+});
+
+test('R5 failure: isError + error, code, action, money, next, alsoNext, docUrl exactly as the CLI sent them', async () => {
+  const cli = {
+    ok: false,
+    error: 'The deposit (2.4 tDVPN) is above this computer\'s spending limit (1 tDVPN). Nothing was paid.',
+    code: 'spending-limit',
+    action: 'devnet-dvpn agent up --raise-limit --yes',
+    next: 'devnet-dvpn agent up --raise-limit --yes',
+    alsoNext: 'devnet-dvpn agent status',
+    money: 'Nothing was paid. Your tDVPN is still in your wallet.',
+    docUrl: 'https://example.invalid/docs/AGENT-COMMANDS.md#spending-limit',
+  };
+  const line = JSON.stringify(cli);
+  const r = await runStub('vpn_up', { yes: true }, line, 1);
+  assert.equal(r.isError, true);
+  assert.equal(r.structuredContent.isError, true);
+  assert.equal(r.content[0].text, line, 'the text is the CLI line, byte for byte');
+  for (const k of ['error', 'code', 'action', 'money', 'next', 'alsoNext', 'docUrl']) {
+    assert.equal(r.structuredContent[k], cli[k], `${k} unchanged`);
+  }
+  assert.deepEqual(r.structuredContent.result, cli);
+  assert.equal('defaults' in r.structuredContent, false, 'no success fields on a failure');
+});
+
+test('R5 failure: a field the CLI did not send is not invented; null stays null', async () => {
+  const cli = { ok: false, error: 'The network is busy (429). Nothing was paid.', code: 'rpc-busy', action: null, money: 'Nothing was paid.' };
+  const r = await runStub('vpn_agent_status', {}, JSON.stringify(cli), 6);
+  assert.equal(r.isError, true);
+  assert.equal(r.structuredContent.exitCode, 6);
+  assert.equal(r.structuredContent.action, null);
+  assert.equal(r.structuredContent.money, cli.money);
+  for (const k of ['next', 'alsoNext', 'docUrl']) assert.equal(k in r.structuredContent, false, `${k} absent`);
+});
+
+test('R5 failure: exits 4 and 5 lift the same fields', async () => {
+  for (const [exit, code] of [[4, 'operator-needed'], [5, 'kill-switch']]) {
+    const cli = { ok: false, error: `e${exit}`, code, action: 'devnet-dvpn agent status', next: 'devnet-dvpn daemon restore-network', money: `m${exit}` };
+    const r = await runStub('vpn_down', { yes: true }, JSON.stringify(cli), exit);
+    assert.equal(r.isError, true);
+    assert.equal(r.structuredContent.code, code);
+    assert.equal(r.structuredContent.next, cli.next);
+    assert.equal(r.structuredContent.money, cli.money);
+  }
+});
+
+test('R5 success: next, defaults and alsoNext pass through unchanged; failure fields are not lifted', async () => {
+  const defaults = {
+    basis: { value: 'per_gb', from: 'settings' },
+    units: { value: 2, from: 'settings' },
+    maxPrice: { value: '0.5', from: 'market' },
+  };
+  const cli = {
+    ok: true, session: 's-1', node: NODE, protocol: 'v2ray', exitIp: '203.0.113.7', directIp: '198.51.100.2',
+    next: 'devnet-dvpn agent down --yes', alsoNext: 'devnet-dvpn agent status', defaults, code: 'unused-here',
+  };
+  const r = await runStub('vpn_up', { yes: true }, JSON.stringify(cli), 0);
+  assert.equal(r.isError, false);
+  assert.equal(r.structuredContent.isError, false);
+  assert.equal(r.structuredContent.next, cli.next);
+  assert.equal(r.structuredContent.alsoNext, cli.alsoNext);
+  assert.deepEqual(r.structuredContent.defaults, defaults);
+  assert.equal('code' in r.structuredContent, false, 'a success does not lift failure fields');
+  assert.equal(r.content[0].text, JSON.stringify(cli));
+});
+
+test('R5 preview (exit 2): not an error, and its next / defaults pass through', async () => {
+  const cli = { ok: false, needsConfirm: true, what: 'Connect to … Nothing is signed until you pass --yes.', next: 'devnet-dvpn agent up --yes', defaults: { units: { value: 1, from: 'default' } } };
+  const r = await runStub('vpn_up', {}, JSON.stringify(cli), 2);
+  assert.equal(r.isError, false);
+  assert.equal(r.structuredContent.preview, true);
+  assert.equal(r.structuredContent.next, cli.next);
+  assert.deepEqual(r.structuredContent.defaults, cli.defaults);
+});
+
+test('R5 the output schema names every lifted field', async () => {
+  const { OUTPUT_SCHEMA, FAIL_FIELDS, OK_FIELDS } = await import('./server.js');
+  for (const k of [...FAIL_FIELDS, ...OK_FIELDS, 'isError']) assert.ok(OUTPUT_SCHEMA.properties[k], k);
 });

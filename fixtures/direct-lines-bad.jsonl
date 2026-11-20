@@ -1,0 +1,13 @@
+{"ok":false,"step":"connect","code":"rpc-busy","money":"maybe","moneyNote":"x","error":"x","next":"sh direct/refund.sh"}
+{"ok":false,"step":"connect","code":"unknown","money":"none","moneyNote":"x","error":"x"}
+{"ok":false,"needsConfirm":true,"step":"connect","what":"x","next":"sh direct/connect.sh"}
+{"ok":true,"step":"connect","next":"sh direct/disconnect.sh","exitIp":"<node-ip>"}
+{"ok":true,"step":"disconnect","next":"x","session":"s","spent":1,"ip":"x","tunnel":"up"}
+{"ok":true,"step":"nosuchscript","next":"x"}
+{"ok":false,"needsConfirm":true,"step":"fund-device","what":"send 1000000 lamports","next":"sh direct/fund-device.sh --yes"}
+{"ok":false,"needsConfirm":true,"step":"refund","what":"x","payees":[{"role":"gift","to":"x","payer":"owner","baseUnits":0,"tdvpn":"0","lamports":0,"comesBack":"no"}],"feeLamports":0,"feeSource":"fixed: 5000 lamports per signature","rentLamports":0,"rentSource":"x","next":"sh direct/refund.sh --yes"}
+{"ok":true,"step":"faults","fail":0,"log":"faults-20261120T131415Z.log","next":"sh direct/selftest.sh"}
+{"ok":true,"step":"faults","pass":66,"fail":0,"log":"faults-20261120T131415Z.log","next":"sh direct/selftest.sh","extra":1}
+{"ok":true,"step":"build","result":"OK","go":"go1.27.3","commit":"26de52407c5b722cfecad1772dcbeefd984ef6d0","dist":"./dist-build","next":"sudo BUILD=1 sh direct/install.sh"}
+{"ok":true,"step":"build","result":"MATCH","go":"go1.27.3","commit":"26de5240","dist":"./dist-build","next":"sudo BUILD=1 sh direct/install.sh"}
+{"ok":false,"step":"build","code":"checksum-mismatch","next":"x"}

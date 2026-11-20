@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/refund.json",
+  "title": "direct/refund.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "refund"},
+    "next": {"type": "string", "minLength": 1}, "closeAfter": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z$"}, "userBalance": {"type": "integer", "minimum": 0}, "dvpn_base_units": {"type": "integer", "minimum": 0}, "lamports": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false
+}

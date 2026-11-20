@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/build.json",
+  "title": "direct/build.sh last line (a report: ok is false only on MISMATCH, exit 5; it carries no code)",
+  "type": "object",
+  "required": ["ok", "step", "result", "go", "commit", "dist", "next"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "step": {"const": "build"},
+    "result": {"enum": ["MATCH", "MISMATCH", "UNCHECKED"]},
+    "go": {"type": "string", "pattern": "^(go[0-9]+[.][0-9]+([.][0-9]+)?|none)$"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "dist": {"type": "string", "minLength": 1},
+    "next": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

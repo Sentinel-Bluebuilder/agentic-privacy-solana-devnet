@@ -12,7 +12,7 @@ commands those answers tell it to run (`settle`, `device`, `wallet`). One row pe
 - **alsoNext**: the other way out. Only `agent status` prints an `alsoNext` field. On a failure line this
   column is this page's fallback for when **Next** does not work.
 
-Source of truth: the `devnet-dvpn` app at 0.3.0-rc.5 (`afa55c19`), traced from `src/cli/agent-cmd.ts`.
+Source of truth: the `devnet-dvpn` app at 0.3.0-rc.7 (`8f458d71`), traced from `src/cli/agent-cmd.ts`.
 `tools/check-glossary.mjs --src <devnet-dvpn checkout>` fails when a code those paths can return has no
 row here, or when a row's money class differs from `src/cli/money-note.ts`.
 
@@ -25,15 +25,16 @@ whatever the code. The rows below give `action` for when no deposit is open.
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| `no-wallet` | No wallet in this CLI: no key file named, none in the vault. | `none` | `<cli> wallet create --keyfile <path> --yes, then fund the address it prints`. When this computer has a device record: `<cli> wallet import <the key file of <owner>, the wallet that set up this computer's device>, then <cli> agent up --yes (a new wallet would not hold its funds)` | `<cli> agent status` (shows `address: null`) |
-| `keyfile-missing` | The key file that `--keyfile` or `DVPN_KEYFILE` names is gone. Not "no wallet": the funds stay with the lost key. | `none` | `restore the key file named in "error" from your backup (it is the only key to this wallet), then <cli> agent up --yes` | none: never `wallet create` (a new wallet holds none of the funds) |
-| `no-device` | `daemon init` could not create this computer's device key. | `none` | `<cli> daemon doctor` | `<cli> device setup --yes, then <cli> agent up --yes` |
-| `no-subscription` | `--plan` names a subscription this wallet does not hold, or one that is not active. | `none` | `<cli> plans list, then <cli> plans subscribe <plan> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
-| `no-nodes` | No online node matches `--protocol` / `--country` / `--max-price` / `--node` (or the plan's live roster). | `none` | `<cli> nodes list --online --json, then widen --protocol / --country / --max-price` | `<cli> agent up --basis <the other one> --yes` |
-| `not-funded` | The wallet holds less than 0.02 SOL (before its first connect) or less tDVPN than the deposit shown. | `none` | `send at least <n> SOL and/or <n> tDVPN to <address>, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` (a smaller deposit) |
-| `price-cap` | rc.6 and later. With no `--max-price` and no `--plan`, the deposit (price × units) is above the default cap: the Settings spending limit / 10, which is 5 tDVPN by default. This applies to the quick pick and to `--node`. Refused before paying. | `none` | `<cli> agent up --node <node> --basis <b> --units <n> --max-price <its price> --yes (you accept this price), or fewer --units, or another node` | `<cli> agent up --units <fewer> --yes` |
-| `node-refused` | The connect failed with no specific code after the deposit opened (E-37). The node refused after it was paid. It is skipped next time. | `open` | the open-deposit sentence above | `<cli> agent down --yes` (closes it, refunds the unused part) |
-| `connect-failed` | `connect()` failed and gave no code, with no deposit open. | `unclear` | `<cli> agent status` (read `error`) | `<cli> agent down --yes` (closes any deposit that is open) |
+| <a id="code-no-wallet"></a>`no-wallet` | No wallet in this CLI: no key file named, none in the vault. | `none` | `<cli> wallet create --keyfile <path> --yes, then fund the address it prints`. When this computer has a device record: `<cli> wallet import <the key file of <owner>, the wallet that set up this computer's device>, then <cli> agent up --yes (a new wallet would not hold its funds)` | `<cli> agent status` (shows `address: null`) |
+| <a id="code-keyfile-missing"></a>`keyfile-missing` | The key file that `--keyfile` or `DVPN_KEYFILE` names is gone. Not "no wallet": the funds stay with the lost key. | `none` | `restore the key file named in "error" from your backup (it is the only key to this wallet), then <cli> agent up --yes` | none: never `wallet create` (a new wallet holds none of the funds) |
+| <a id="code-keyfile-mode"></a>`keyfile-mode` | rc.7. The key file can be read by other users (its mode is in `error`). Refused before anything is read or paid. Exit 4: a person fixes it. | `none` | `chmod 600 <the key file>, then <cli> agent up --yes` | none |
+| <a id="code-no-device"></a>`no-device` | `daemon init` could not create this computer's device key. | `none` | `<cli> daemon doctor` | `<cli> device setup --yes, then <cli> agent up --yes` |
+| <a id="code-no-subscription"></a>`no-subscription` | `--plan` names a subscription this wallet does not hold, or one that is not active. | `none` | `<cli> plans list, then <cli> plans subscribe <plan> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
+| <a id="code-no-nodes"></a>`no-nodes` | No online node matches `--protocol` / `--country` / `--max-price` / `--node` (or the plan's live roster). Under `--max-price` (rc7) the message names the cheapest matching price above it. | `none` | Under `--max-price` with a match above it (rc7): `<cli> agent up [--protocol <p>] [--country <c>] --basis <b> --units <n> --max-price <the cheapest price> --yes` (runnable as printed). Otherwise: `<cli> nodes list --online --json, then widen --protocol / --country / --max-price` | `<cli> agent up --basis <the other one> --yes` |
+| <a id="code-not-funded"></a>`not-funded` | The wallet holds less than 0.06 SOL (rc7; 0.02 before) before its first connect, or less tDVPN than the deposit shown. rc7 names the exact shortfall and, when larger, a recommended amount that also covers a reconnect. | `none` | `send at least <n> SOL and/or <n> tDVPN (<m> recommended: it also covers a reconnect) to <address>, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` (a smaller deposit) |
+| <a id="code-price-cap"></a>`price-cap` | rc.6 and later. With no `--max-price` and no `--plan`, the deposit (price × units) is above the default cap, `defaults.priceCap` in the preview. rc7: the larger of the spending limit / 10 and the p75 price of the matching online nodes × `--units`, never above the limit; with fewer than 3 priced nodes, the limit / 10 (rc.6: always the limit / 10). The message names the node's price and the `--max-price` that accepts it. This applies to the quick pick and to `--node`. Refused before paying. | `none` | `<cli> agent up --node <node> --basis <b> --units <n> --max-price <its price> --yes (you accept this price), or fewer --units, or another node` | `<cli> agent up --units <fewer> --yes` |
+| <a id="code-node-refused"></a>`node-refused` | The connect failed with no specific code after the deposit opened (E-37). The node refused after it was paid. It is skipped next time. | `open` | the open-deposit sentence above | `<cli> agent down --yes` (closes it, refunds the unused part) |
+| <a id="code-connect-failed"></a>`connect-failed` | `connect()` failed and gave no code, with no deposit open. | `unclear` | `<cli> agent status` (read `error`) | `<cli> agent down --yes` (closes any deposit that is open) |
 
 ## agent up: from connect()
 
@@ -45,86 +46,87 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| `not-confirmed` | The connect was asked without `--yes`. `agent up` itself always passes the confirm, so this comes only from a direct `connect`. | `none` | `<cli> agent up --yes (add --yes: nothing is paid without it)` | none |
-| `wallet-switch-needed` | This computer is set up for another wallet, so the loaded key cannot pay here. Comes from `connect()` only, so `agent up` only. | `none` | `load the key file of the wallet named in "error", or <cli> device switch --yes (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable)` | `<cli> agent status` (names the loaded address) |
-| `clock-skew` | This computer's clock is off by N minutes. Refused before any deposit. | `none` | `set this computer's clock to the right time (it is off by about N minutes), then <cli> agent up --yes` | none |
-| `device-permission` | This computer has no spending permission, or the permission or wallet switch could not be set up. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> daemon doctor` |
-| `plan-limit` | The plan does not allow a new node here. | `none` | `<cli> agent up --plan <subscription> --node <a node you already use> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
-| `busy` | Another connect was already running. | `none` | `<cli> agent up --yes again in a few seconds (another connect was running)` | `<cli> agent status` |
-| `test-running` | A node test holds the VPN service. | `none` | `<cli> test stop, then <cli> agent up --yes` | none |
-| `unsupported` | This system cannot do what was asked. | `none` | `<cli> agent status` (read `error`) | none |
-| `daemon-missing` | The VPN service is not installed. | `none` | Linux/macOS: `<cli> daemon install --yes (administrator/root once: passwordless sudo, or a person types the password), then <cli> agent up --yes`. Windows: `<cli> daemon install --yes from an elevated shell or an administrator SSH login (a normal shell shows a UAC prompt an agent cannot answer), then <cli> agent up --yes` | `<cli> daemon doctor` |
-| `daemon-relogin` | The service does not accept this account yet (Windows: the service pipe has not been granted to this account). | `none` | as `daemon-missing` (Windows: `… once from an elevated shell …`) | `<cli> daemon doctor` |
-| `daemon-restarting` | The VPN service is restarting. | `none` | `<cli> agent up --yes again in a few seconds (the VPN service is restarting); if it keeps failing, <cli> daemon doctor` | `<cli> daemon doctor` |
-| `daemon-unavailable` | The VPN service does not answer. | `none` | `<cli> daemon doctor` | `<cli> daemon install --yes` (administrator once) |
-| `network-mismatch` | The installed service is for another network. | `none` | `<cli> daemon install --yes (administrator once: it installs the service for this network), then <cli> agent up --yes` | none |
+| <a id="code-not-confirmed"></a>`not-confirmed` | The connect was asked without `--yes`. `agent up` itself always passes the confirm, so this comes only from a direct `connect`. | `none` | `<cli> agent up --yes (add --yes: nothing is paid without it)` | none |
+| <a id="code-wallet-switch-needed"></a>`wallet-switch-needed` | This computer is set up for another wallet, so the loaded key cannot pay here. Comes from `connect()` only, so `agent up` only. | `none` | `load the key file of the wallet named in "error", or <cli> device switch --yes (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable)` | `<cli> agent status` (names the loaded address) |
+| <a id="code-clock-skew"></a>`clock-skew` | This computer's clock is off by N minutes. Refused before any deposit. | `none` | `set this computer's clock to the right time (it is off by about N minutes), then <cli> agent up --yes` | none |
+| <a id="code-device-permission"></a>`device-permission` | This computer has no spending permission, or the permission or wallet switch could not be set up. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> daemon doctor` |
+| <a id="code-plan-limit"></a>`plan-limit` | The plan does not allow a new node here. | `none` | `<cli> agent up --plan <subscription> --node <a node you already use> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
+| <a id="code-busy"></a>`busy` | Another connect was already running. | `none` | `<cli> agent up --yes again in a few seconds (another connect was running)` | `<cli> agent status` |
+| <a id="code-test-running"></a>`test-running` | A node test holds the VPN service. | `none` | `<cli> test stop, then <cli> agent up --yes` | none |
+| <a id="code-unsupported"></a>`unsupported` | This system cannot do what was asked. | `none` | `<cli> agent status` (read `error`) | none |
+| <a id="code-daemon-missing"></a>`daemon-missing` | The VPN service is not installed. | `none` | Linux/macOS: `<cli> daemon install --yes (administrator/root once: passwordless sudo, or a person types the password), then <cli> agent up --yes`. Windows: `<cli> daemon install --yes from an elevated shell or an administrator SSH login (a normal shell shows a UAC prompt an agent cannot answer), then <cli> agent up --yes` | `<cli> daemon doctor` |
+| <a id="code-daemon-relogin"></a>`daemon-relogin` | The service does not accept this account yet (Windows: the service pipe has not been granted to this account). | `none` | as `daemon-missing` (Windows: `… once from an elevated shell …`) | `<cli> daemon doctor` |
+| <a id="code-daemon-restarting"></a>`daemon-restarting` | The VPN service is restarting. | `none` | `<cli> agent up --yes again in a few seconds (the VPN service is restarting); if it keeps failing, <cli> daemon doctor` | `<cli> daemon doctor` |
+| <a id="code-daemon-unavailable"></a>`daemon-unavailable` | The VPN service does not answer. | `none` | `<cli> daemon doctor` | `<cli> daemon install --yes` (administrator once) |
+| <a id="code-network-mismatch"></a>`network-mismatch` | The installed service is for another network. | `none` | `<cli> daemon install --yes (administrator once: it installs the service for this network), then <cli> agent up --yes` | none |
 
 ### The check before paying (nothing has been paid for any of these)
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| `session-active` | A VPN session is already running (from the command line or another window). | `none` | `<cli> agent down --yes, then <cli> agent up --yes` | `<cli> agent status` |
-| `node-gone`, `node-stale`, `node-offline` | The node is no longer listed, has not checked in recently, or did not answer its probe. | `none` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent up --yes` (the quick pick skips it for 10 min) |
-| `protocol-blocked` | The kill switch blocks this protocol here. | `none` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <another ready one> --yes` | `<cli> daemon restore-network` |
-| `driver-missing` | A network adapter or protocol program is missing from this computer. | `none` | `<cli> daemon repair-drivers --yes, then <cli> agent up --yes` | `<cli> agent up --protocol <another ready one> --yes` |
-| `basis-unavailable` | The node does not sell per GB, or does not sell per hour. | `none` | `<cli> agent up --basis <the other one: per_gb or per_hour> --yes` | `<cli> agent up --node <another node> --yes` |
-| `not-enough-tdvpn` | The wallet holds too little tDVPN for this deposit. | `none` | `send tDVPN to the wallet address (<cli> agent status shows it), then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
-| `spending-limit` | The spending approval or device limit is below this deposit. | `none` | `<cli> device setup --allowance <N> --yes (N = grant.allowance from "devnet-dvpn device show --json" divided by 1000000, plus the deposit, in tDVPN), then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
-| `device-sol` | The device or wallet is out of SOL for network fees. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | send SOL to the wallet address, then `<cli> agent up --yes` |
-| `preflight` | A blocker with no code of its own. When it carries an app button ("Open diagnostics", "Open settings", "Repair drivers"), `action` is that button's command followed by `, then <cli> agent up --yes`. "Pick another server" gives the `node-gone` command. | `none` | `read "error": it names what to change (nothing was paid), then <cli> agent up --yes` | `<cli> agent status` |
-| `kill-switch-held` | The kill switch still blocks the internet and lets through only the last node. | `none` | `<cli> daemon restore-network, then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `switch-reconnecting` | A node switch was asked while the session is reconnecting. | `none` | `<cli> agent status until "connected" is true, or <cli> agent down --yes first` | `<cli> agent down --yes` |
-| `price-changed` | The node's price rose above the deposit `agent up` showed. | `none` | `<cli> agent up --yes again (nothing was paid; it reads the price fresh)` | `<cli> agent up --max-price <cap> --yes` |
-| `deposit-unusable` | Your open deposit with this node has started closing, so it cannot be used, and a new deposit is never paid without being shown. | `none` | as `price-changed` | `<cli> agent up --node <another node> --yes` |
-| `deposits-unread` | Your open deposits could not be read, so no second deposit was opened beside one you may already have. | `none` | as `price-changed` | `<cli> agent status` (lists `deposits`) |
+| <a id="code-session-active"></a>`session-active` | A VPN session is already running (from the command line or another window). | `none` | `<cli> agent down --yes, then <cli> agent up --yes` | `<cli> agent status` |
+| <a id="code-node-gone"></a><a id="code-node-stale"></a><a id="code-node-offline"></a>`node-gone`, `node-stale`, `node-offline` | The node is no longer listed, has not checked in recently, or did not answer its probe. | `none` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent up --yes` (the quick pick skips it for 10 min) |
+| <a id="code-protocol-blocked"></a>`protocol-blocked` | The kill switch blocks this protocol here. | `none` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <another ready one> --yes` | `<cli> daemon restore-network` |
+| <a id="code-driver-missing"></a>`driver-missing` | A network adapter or protocol program is missing from this computer. | `none` | `<cli> daemon repair-drivers --yes, then <cli> agent up --yes` | `<cli> agent up --protocol <another ready one> --yes` |
+| <a id="code-basis-unavailable"></a>`basis-unavailable` | The node does not sell per GB, or does not sell per hour. | `none` | `<cli> agent up --basis <the other one: per_gb or per_hour> --yes` | `<cli> agent up --node <another node> --yes` |
+| <a id="code-not-enough-tdvpn"></a>`not-enough-tdvpn` | The wallet holds too little tDVPN for this deposit. | `none` | `send tDVPN to the wallet address (<cli> agent status shows it), then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
+| <a id="code-spending-limit"></a>`spending-limit` | The spending approval or device limit is below this deposit. On `agent up --yes` without `--raise-limit` (rc.6 and later) nothing is paid; the message names the limit, the deposit and the raised limit. | `none` | `<cli> agent up --node <node> [--protocol <p>] --basis <b> --units <n> [--max-price <m>] --raise-limit --yes`: your own line, pinned to the node `agent up` picked, every flag you gave kept (E-88). From `connect()` (no `--raise-limit` path): `<cli> device setup --allowance <N> --yes, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
+| <a id="code-device-sol"></a>`device-sol` | The device or wallet is out of SOL for network fees. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | send SOL to the wallet address, then `<cli> agent up --yes` |
+| <a id="code-preflight"></a>`preflight` | A blocker with no code of its own. When it carries an app button ("Open diagnostics", "Open settings", "Repair drivers"), `action` is that button's command followed by `, then <cli> agent up --yes`. "Pick another server" gives the `node-gone` command. | `none` | `read "error": it names what to change (nothing was paid), then <cli> agent up --yes` | `<cli> agent status` |
+| <a id="code-kill-switch-held"></a>`kill-switch-held` | The kill switch still blocks the internet and lets through only the last node. | `none` | `<cli> daemon restore-network, then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-switch-reconnecting"></a>`switch-reconnecting` | A node switch was asked while the session is reconnecting. | `none` | `<cli> agent status until "connected" is true, or <cli> agent down --yes first` | `<cli> agent down --yes` |
+| <a id="code-price-changed"></a>`price-changed` | The node's price rose above the deposit `agent up` showed. | `none` | `<cli> agent up --yes again (nothing was paid; it reads the price fresh)` | `<cli> agent up --max-price <cap> --yes` |
+| <a id="code-deposit-unusable"></a>`deposit-unusable` | Your open deposit with this node has started closing, so it cannot be used, and a new deposit is never paid without being shown. | `none` | as `price-changed` | `<cli> agent up --node <another node> --yes` |
+| <a id="code-deposits-unread"></a>`deposits-unread` | Your open deposits could not be read, so no second deposit was opened beside one you may already have. | `none` | as `price-changed` | `<cli> agent status` (lists `deposits`) |
 
 ### After the start was asked of the service (a deposit may be open)
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| `switch-offline` | A switch failed with the old session gone. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
-| `cancelled` | The connect was stopped before it finished. The unused part of a sent deposit is refunded. | `open` | `<cli> agent up --yes again (it was stopped before it finished)` | `<cli> agent down --yes` |
-| `waiting-for-network` | The service has no network yet. | `open` | `<cli> agent up --yes again in a minute (this computer has no network yet)` | `<cli> agent down --yes` |
-| `ticket-other-owner` | The plan access belongs to another wallet than this computer's. | `open` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `approval-revoked` | This wallet's spending approval for this computer was revoked. | `open` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `service-stopped-connecting` | The service stopped while connecting. With the kill switch on, the internet stays blocked. | `open` | `<cli> quality ip; if it shows no address, <cli> daemon restore-network; then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `node-identity`, `node-ledger` | The node failed its identity check, or billed more than this device measured. | `open` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent down --yes` |
-| `node-price` | The node's price does not match the deposit. | `open` | `<cli> agent down --yes, then <cli> agent up --yes (a new deposit)` | `<cli> agent up --node <another node> --yes` |
-| `node-error` | The node had a problem starting the session. The deposit is kept for the next try. | `open` | `<cli> agent up --yes again in a minute` | `<cli> agent down --yes` |
-| `kill-switch-failed` | The service could not turn on the kill switch, so it stopped. | `open` | `<cli> agent up --yes again, or <cli> daemon set --kill-switch off --yes` | `<cli> agent down --yes` |
-| `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `port-in-use` | The tunnel did not come up, carries no traffic, hits packet-size drops, or its port is taken. | `open` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <another ready one> --yes` | `<cli> agent down --yes` |
-| `tunnel-closing` | The previous node's tunnel is still closing. | `open` | `<cli> agent up --yes again in a few seconds` | `<cli> agent down --yes` |
-| `dns-apply` | The VPN's DNS could not be applied. | `open` | `<cli> daemon set --dns-mode none --yes (the VPN's DNS off), then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `protocol-missing` | The node's protocol program is not on this computer. The deposit is kept. | `open` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <a ready one> --yes; or <cli> daemon repair-drivers --yes` | `<cli> agent down --yes` (refunds it) |
-| `deposit-pending` | The deposit is still being confirmed. It is never paid twice. | `open` | `<cli> agent up --yes again in a few minutes (it never pays twice)` | `<cli> agent status` |
-| `rpc-network`, `rpc-quota` | The network intercepts Solana RPC (login page, proxy, filter), or the service's RPC quota ran out. | `open` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `rpc-timeout` | The service's RPC endpoint did not answer in time. | `open` | `<cli> agent up --yes again in a minute; if it keeps failing, <cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `rpc-busy` | The RPC endpoint is rate-limiting. | `unclear` | `<cli> agent up --yes again in a minute (the network was busy)` | `<cli> agent status` (lists any deposit) |
-| `timeout` | The node did not answer in time. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
-| `chain-encoding` | The network program rejected the payment transaction. | `open` | `<cli> agent up --basis per_hour --yes (pay per hour instead)` | `<cli> agent down --yes` |
+| <a id="code-switch-offline"></a>`switch-offline` | A switch failed with the old session gone. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
+| <a id="code-cancelled"></a>`cancelled` | The connect was stopped before it finished. The unused part of a sent deposit is refunded. | `open` | `<cli> agent up --yes again (it was stopped before it finished)` | `<cli> agent down --yes` |
+| <a id="code-waiting-for-network"></a>`waiting-for-network` | The service has no network yet. | `open` | `<cli> agent up --yes again in a minute (this computer has no network yet)` | `<cli> agent down --yes` |
+| <a id="code-ticket-other-owner"></a>`ticket-other-owner` | The plan access belongs to another wallet than this computer's. | `open` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-approval-revoked"></a>`approval-revoked` | This wallet's spending approval for this computer was revoked. | `open` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-service-stopped-connecting"></a>`service-stopped-connecting` | The service stopped while connecting. With the kill switch on, the internet stays blocked. | `open` | `<cli> quality ip; if it shows no address, <cli> daemon restore-network; then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-node-identity"></a><a id="code-node-ledger"></a>`node-identity`, `node-ledger` | The node failed its identity check, or billed more than this device measured. | `open` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent down --yes` |
+| <a id="code-node-price"></a>`node-price` | The node's price does not match the deposit. | `open` | `<cli> agent down --yes, then <cli> agent up --yes (a new deposit)` | `<cli> agent up --node <another node> --yes` |
+| <a id="code-node-error"></a>`node-error` | The node had a problem starting the session. The deposit is kept for the next try. | `open` | `<cli> agent up --yes again in a minute` | `<cli> agent down --yes` |
+| <a id="code-kill-switch-failed"></a>`kill-switch-failed` | The service could not turn on the kill switch, so it stopped. | `open` | `<cli> agent up --yes again, or <cli> daemon set --kill-switch off --yes` | `<cli> agent down --yes` |
+| <a id="code-tunnel-failed"></a><a id="code-tunnel-dead"></a><a id="code-tunnel-mtu"></a><a id="code-port-in-use"></a>`tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `port-in-use` | The tunnel did not come up, carries no traffic, hits packet-size drops, or its port is taken. | `open` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <another ready one> --yes` | `<cli> agent down --yes` |
+| <a id="code-tunnel-closing"></a>`tunnel-closing` | The previous node's tunnel is still closing. | `open` | `<cli> agent up --yes again in a few seconds` | `<cli> agent down --yes` |
+| <a id="code-dns-apply"></a>`dns-apply` | The VPN's DNS could not be applied. | `open` | `<cli> daemon set --dns-mode none --yes (the VPN's DNS off), then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-protocol-missing"></a>`protocol-missing` | The node's protocol program is not on this computer. The deposit is kept. | `open` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <a ready one> --yes; or <cli> daemon repair-drivers --yes` | `<cli> agent down --yes` (refunds it) |
+| <a id="code-deposit-pending"></a>`deposit-pending` | The deposit is still being confirmed. It is never paid twice. | `open` | `<cli> agent up --yes again in a few minutes (it never pays twice)` | `<cli> agent status` |
+| <a id="code-rpc-network"></a><a id="code-rpc-quota"></a>`rpc-network`, `rpc-quota` | The network intercepts Solana RPC (login page, proxy, filter), or the service's RPC quota ran out. | `open` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-rpc-timeout"></a>`rpc-timeout` | The service's RPC endpoint did not answer in time. | `open` | `<cli> agent up --yes again in a minute; if it keeps failing, <cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-rpc-busy"></a>`rpc-busy` | The RPC endpoint is rate-limiting. | `unclear` | `<cli> agent up --yes again in a minute (the network was busy)` | `<cli> agent status` (lists any deposit) |
+| <a id="code-rpc-ws"></a>`rpc-ws` | rc.7. The service could not keep its Solana websocket (the RPC pair's ws side). Exit 6. | `unclear` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent status` (lists any deposit) |
+| <a id="code-timeout"></a>`timeout` | The node did not answer in time. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
+| <a id="code-chain-encoding"></a>`chain-encoding` | The network program rejected the payment transaction. | `open` | `<cli> agent up --basis per_hour --yes (pay per hour instead)` | `<cli> agent down --yes` |
 
 ### A node's own refusal (it comes after the deposit)
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| `peer_limit_reached`, `terms_rejected` | The node is full, or refused the terms. | `open` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent down --yes` |
-| `credit_exhausted`, `lease_insufficient`, `voucher_exceeds_escrow`, `voucher_signature_invalid` | The deposit ran out or no longer covers the session. | `open` | `<cli> agent down --yes, then <cli> agent up --yes (a new deposit)` | `<cli> agent up --node <another node> --yes` |
-| `subscription_invalid` | The plan subscription is not valid at this node. | `open` | `<cli> plans subscriptions, then <cli> agent up --plan <an active one> --yes, or <cli> agent up --yes without --plan` | `<cli> agent down --yes` |
-| `ticket_request_stale`, `ticket_invalid`, `channel_node_reopened` | A ticket or channel race. Usually passes on a retry. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
-| `provider_unreachable` | The plan provider did not answer. | `open` | `<cli> agent up --yes again in a minute (the plan provider did not answer)` | `<cli> agent down --yes` |
-| `rate_limited` | The node is rate-limiting. | `open` | `<cli> agent up --yes again in a minute` | `<cli> agent up --node <another node> --yes` |
-| `unauthorized` | The node refused the device. A wrong clock causes this too (E-22). | `open` | `<cli> device show --json: if the grant is there and not revoked, set this computer's clock to the right time (a wrong clock makes the node refuse), then <cli> agent up --yes; otherwise <cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
-| `cannot cover the prepay` | The deposit is below the node's minimum. | `open` | `<cli> agent up --units <more> --yes (a deposit large enough for the node's minimum)` | `<cli> agent down --yes` |
-| `mode_not_voucher` | The node does not take per-GB vouchers. | `open` | `<cli> agent up --basis per_hour --yes` | `<cli> agent down --yes` |
-| `mode_not_stream` | The node does not take per-hour streams. | `open` | `<cli> agent up --basis per_gb --yes` | `<cli> agent down --yes` |
+| <a id="code-peer_limit_reached"></a><a id="code-terms_rejected"></a>`peer_limit_reached`, `terms_rejected` | The node is full, or refused the terms. | `open` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent down --yes` |
+| <a id="code-credit_exhausted"></a><a id="code-lease_insufficient"></a><a id="code-voucher_exceeds_escrow"></a><a id="code-voucher_signature_invalid"></a>`credit_exhausted`, `lease_insufficient`, `voucher_exceeds_escrow`, `voucher_signature_invalid` | The deposit ran out or no longer covers the session. | `open` | `<cli> agent down --yes, then <cli> agent up --yes (a new deposit)` | `<cli> agent up --node <another node> --yes` |
+| <a id="code-subscription_invalid"></a>`subscription_invalid` | The plan subscription is not valid at this node. | `open` | `<cli> plans subscriptions, then <cli> agent up --plan <an active one> --yes, or <cli> agent up --yes without --plan` | `<cli> agent down --yes` |
+| <a id="code-ticket_request_stale"></a><a id="code-ticket_invalid"></a><a id="code-channel_node_reopened"></a>`ticket_request_stale`, `ticket_invalid`, `channel_node_reopened` | A ticket or channel race. Usually passes on a retry. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
+| <a id="code-provider_unreachable"></a>`provider_unreachable` | The plan provider did not answer. | `open` | `<cli> agent up --yes again in a minute (the plan provider did not answer)` | `<cli> agent down --yes` |
+| <a id="code-rate_limited"></a>`rate_limited` | The node is rate-limiting. | `open` | `<cli> agent up --yes again in a minute` | `<cli> agent up --node <another node> --yes` |
+| <a id="code-unauthorized"></a>`unauthorized` | The node refused the device. A wrong clock causes this too (E-22). | `open` | `<cli> device show --json: if the grant is there and not revoked, set this computer's clock to the right time (a wrong clock makes the node refuse), then <cli> agent up --yes; otherwise <cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
+| <a id="code-cannot cover the prepay"></a>`cannot cover the prepay` | The deposit is below the node's minimum. | `open` | `<cli> agent up --units <more> --yes (a deposit large enough for the node's minimum)` | `<cli> agent down --yes` |
+| <a id="code-mode_not_voucher"></a>`mode_not_voucher` | The node does not take per-GB vouchers. | `open` | `<cli> agent up --basis per_hour --yes` | `<cli> agent down --yes` |
+| <a id="code-mode_not_stream"></a>`mode_not_stream` | The node does not take per-hour streams. | `open` | `<cli> agent up --basis per_gb --yes` | `<cli> agent down --yes` |
 
 ### Leaving, and the catch-all
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| `stop-failed` | Stopping the previous session failed during a switch. The internet may not work. | `open` | `<cli> daemon doctor, then <cli> agent up --yes` | `<cli> daemon restore-network` |
-| `dns-revert-failed`, `tunnel-left` | DNS or a tunnel was left behind. | `open` | `<cli> daemon restore-network` | `<cli> agent down --yes` |
-| `unknown` | Nothing more specific is known. | `unclear` | `<cli> agent status` (read `error`) | `<cli> agent down --yes` (closes any open deposit) |
+| <a id="code-stop-failed"></a>`stop-failed` | Stopping the previous session failed during a switch. The internet may not work. | `open` | `<cli> daemon doctor, then <cli> agent up --yes` | `<cli> daemon restore-network` |
+| <a id="code-dns-revert-failed"></a><a id="code-tunnel-left"></a>`dns-revert-failed`, `tunnel-left` | DNS or a tunnel was left behind. | `open` | `<cli> daemon restore-network` | `<cli> agent down --yes` |
+| <a id="code-unknown"></a>`unknown` | Nothing more specific is known. | `unclear` | `<cli> agent status` (read `error`) | `<cli> agent down --yes` (closes any open deposit) |
 
 ## agent down
 
@@ -136,11 +138,11 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 | `keyfile-missing` | The named key file is gone. Nothing ran. | `none` | `<cli> disconnect to leave the VPN now; restore the key file named in "error" from your backup (it is the only key to this wallet), then <cli> agent down --yes` | `<cli> disconnect` |
 | `stop-failed` | The disconnect failed with no plainer code. No deposit was closed, and a per-hour deposit keeps billing while the session is up. | `open` | `<cli> daemon doctor, then <cli> agent down --yes again` | `<cli> daemon restore-network` |
 | `dns-revert-failed` | The session **did** stop, but DNS could not be restored. On rc5 the message still begins "Could not disconnect, so no deposit was closed". The first half is wrong; the second is right, because the settle step did not run. rc.6: "The session stopped, but this computer's DNS could not be put back. No deposit was closed yet." | `open` | rc5: `<cli> daemon doctor, then <cli> agent down --yes again` (the second `agent down` finds no session and closes the deposits). rc.6: `<cli> daemon restore-network, then <cli> agent down --yes again (it closes the deposits)` | `<cli> daemon restore-network` (the fix for the DNS) |
-| `service-down`, `service-not-ready`, `rpc-unavailable` | The disconnect failed in the VPN service, or on every RPC endpoint (plain copy; see "Any of the three" below). No deposit was closed. | `none` / `none` / `unclear` | `<cli> daemon doctor, then <cli> agent down --yes again` | `<cli> daemon restore-network` |
+| <a id="code-service-down"></a><a id="code-service-not-ready"></a><a id="code-rpc-unavailable"></a>`service-down`, `service-not-ready`, `rpc-unavailable` | The disconnect failed in the VPN service, or on every RPC endpoint (plain copy; see "Any of the three" below). No deposit was closed. | `none` / `none` / `unclear` | `<cli> daemon doctor, then <cli> agent down --yes again` | `<cli> daemon restore-network` |
 | `approval-revoked`, `not-enough-tdvpn`, `session-active` | Plain copy of a service error. With the disconnect these mean a service fault. No deposit was closed. | `open` / `none` / `none` | `<cli> daemon doctor, then <cli> agent down --yes again` | `<cli> disconnect` |
 | `busy` | Disconnected, but another refund run in this process held the lock, so nothing was closed. A per-hour deposit bills until closed. | `none` | `<cli> settle run --yes` | `<cli> settle list` |
-| `settle-failed` | Disconnected. Some deposits could not be refunded yet; the others are done. | `refund` | `<cli> settle list` | `<cli> settle run --yes` |
-| `daemon-gone` | Disconnected, but the VPN service stopped during the refund. Nothing was lost, and the settle runs again later. | `unclear` on rc5 (unclassified; the true state is refund) · rc.6: `refund` | `<cli> settle list` | `<cli> settle run --yes` |
+| <a id="code-settle-failed"></a>`settle-failed` | Disconnected. Some deposits could not be refunded yet; the others are done. | `refund` | `<cli> settle list` | `<cli> settle run --yes` |
+| <a id="code-daemon-gone"></a>`daemon-gone` | Disconnected, but the VPN service stopped during the refund. Nothing was lost, and the settle runs again later. | `unclear` on rc5 (unclassified; the true state is refund) · rc.6: `refund` | `<cli> settle list` | `<cli> settle run --yes` |
 
 A successful `agent down` whose deposits another device of this wallet opened (E-72) is `ok: true` with `notClosed` and
 `warning`. Its `next` is `<cli> device revoke --device <D> --yes (if it is not revoked yet), then <cli> settle run --device <D> --yes`.
@@ -151,7 +153,7 @@ A successful `agent down` whose deposits another device of this wallet opened (E
 
 | Code | Meaning | Money moved? | Next | alsoNext |
 |---|---|---|---|---|
-| `server-stopped` | The node stopped serving. The exit address is this computer's own, or the daemon ended the session in the last 30 min. `connected: false`. The deposit is safe. | `open` (no `money` field: `ok` is true) | `<cli> agent up --yes` (the dead node is skipped for 10 min). With `blocked`: `<cli> daemon restore-network (lifts the block; then <cli> agent up --yes to reconnect, or <cli> agent down --yes)` | `<cli> agent down --yes` (an `alsoNext` field) |
+| <a id="code-server-stopped"></a>`server-stopped` | The node stopped serving. The exit address is this computer's own, or the daemon ended the session in the last 30 min. `connected: false`. The deposit is safe. | `open` (no `money` field: `ok` is true) | `<cli> agent up --yes` (the dead node is skipped for 10 min). With `blocked`: `<cli> daemon restore-network (lifts the block; then <cli> agent up --yes to reconnect, or <cli> agent down --yes)` | `<cli> agent down --yes` (an `alsoNext` field) |
 
 ## Any of the three: replaced on the way out
 
@@ -182,24 +184,71 @@ These are not `agent` commands, so they carry **no `money` field**. The column g
 | `busy` | `settle run` | Another refund run in this process. | `no field`: nothing closed | none: run `<cli> settle run --yes` again | `<cli> settle list` |
 | `settle-failed` | `settle run` | Some deposits could not be refunded yet; the others are done. | `no field`: refund still held | none: `<cli> settle run --yes` again later | `<cli> settle list` |
 | `daemon-gone` | `settle run` | The VPN service stopped during the refund. Nothing was lost. | `no field`: refund still held | none: `<cli> settle run --yes` again | `<cli> daemon doctor` |
-| `withdraw-failed` | `settle withdraw` | The withdraw transaction failed. A zero balance is not this code: it prints "Nothing to withdraw" with exit 0. | `no field`: balance still held | none: `<cli> settle withdraw --yes` again | `<cli> settle list` |
-| `no-device-key` | `device setup` (rc.6) | `device setup` ran before `daemon init`. On rc5 this was the same sentence with `code: null`. | `no field`: nothing signed | none: the message says `devnet-dvpn daemon init`, then `device setup` again | `<cli> agent status` |
-| `wallet-is-device` | `device setup` | The wallet and the device key are the same key. | `no field`: nothing signed | none: use a separate wallet key | `<cli> device show --json` |
-| `device-setup-failed` | `device setup` | The setup transaction failed. | `no field`: nothing set up (a SOL top-up may have landed) | none: run `device setup --yes` again | `<cli> daemon doctor` |
+| <a id="code-withdraw-failed"></a>`withdraw-failed` | `settle withdraw` | The withdraw transaction failed. A zero balance is not this code: it prints "Nothing to withdraw" with exit 0. | `no field`: balance still held | none: `<cli> settle withdraw --yes` again | `<cli> settle list` |
+| <a id="code-no-device-key"></a>`no-device-key` | `device setup` (rc.6) | `device setup` ran before `daemon init`. On rc5 this was the same sentence with `code: null`. | `no field`: nothing signed | none: the message says `devnet-dvpn daemon init`, then `device setup` again | `<cli> agent status` |
+| <a id="code-wallet-is-device"></a>`wallet-is-device` | `device setup` | The wallet and the device key are the same key. | `no field`: nothing signed | none: use a separate wallet key | `<cli> device show --json` |
+| <a id="code-device-setup-failed"></a>`device-setup-failed` | `device setup` | The setup transaction failed. | `no field`: nothing set up (a SOL top-up may have landed) | none: run `device setup --yes` again | `<cli> daemon doctor` |
 | `device-permission`, `device-sol` | `device switch` | The switch could not finish (read, stage or service step), or the wallet lacks SOL for it. This computer stays set up for the other wallet. | `no field`: nothing paid | the app's button as a command, or none | send SOL, then `<cli> device switch --yes` |
-| `switch-failed` | `device switch` | The switch failed with no code. | `no field`: nothing paid | none | `<cli> daemon doctor` |
-| `revoke-failed` | `device revoke [--device D]` | The revoke transaction failed. | `no field`: nothing changed | none: run it again | `<cli> device show --json` |
-| `bad-device`, `own-device` | `device revoke --device D` | `D` is not a device address, or it is this computer's own device. | `no field`: nothing ran | none: `device revoke` without `--device` for this computer | `<cli> device show --json` |
-| `device-key-unreadable` | `device register` | The service's key folder is admin-only. | `no field`: nothing ran | the `device register <address>` form (no administrator needed) | none |
-| `invalid-address`, `invalid-amount`, `send-failed` | `wallet send` | Bad recipient, bad amount, or a failed transfer. | `no field`: nothing sent (`send-failed`: check the wallet) | none | `<cli> agent status` (balances) |
+| <a id="code-switch-failed"></a>`switch-failed` | `device switch` | The switch failed with no code. | `no field`: nothing paid | none | `<cli> daemon doctor` |
+| <a id="code-revoke-failed"></a>`revoke-failed` | `device revoke [--device D]` | The revoke transaction failed. | `no field`: nothing changed | none: run it again | `<cli> device show --json` |
+| <a id="code-bad-device"></a><a id="code-own-device"></a>`bad-device`, `own-device` | `device revoke --device D` | `D` is not a device address, or it is this computer's own device. | `no field`: nothing ran | none: `device revoke` without `--device` for this computer | `<cli> device show --json` |
+| <a id="code-device-key-unreadable"></a>`device-key-unreadable` | `device register` | The service's key folder is admin-only. | `no field`: nothing ran | the `device register <address>` form (no administrator needed) | none |
+| <a id="code-invalid-address"></a><a id="code-invalid-amount"></a><a id="code-send-failed"></a>`invalid-address`, `invalid-amount`, `send-failed` | `wallet send` | Bad recipient, bad amount, or a failed transfer. | `no field`: nothing sent (`send-failed`: check the wallet) | none | `<cli> agent status` (balances) |
 
 `settle run --device <this computer's device>`, the daemon commands, and (rc5 only) `device setup` with no
 device key yet fail with `code: null` and a plain sentence that names the fix.
 
-## rc.6: built in the app's source, not released yet
+## Other commands: rc.7 codes (every failure has one)
 
-Read this section only when `devnet-dvpn version --json` says `0.3.0-rc.6` or newer. Every row above still
-holds, apart from the changes listed here.
+rc.7 (R2) gives every failure outside `agent` that used to be a bare `code: null` a code and an `action`
+(`cliErr` in `src/cli/cli-fail.ts`). None of them pays, so the class is `none` (money-note.ts) and the exit is 1.
+Only `test` failures print a `money` field; the others carry none.
+
+| Code | From | Meaning | Exit | Money moved? | Next (`action`) |
+|---|---|---|---|---|---|
+| <a id="code-device-home-gone"></a>`device-home-gone` | `device setup` | The VPN service's home folder (its device key and settings) is gone. | 1 | `no field`: nothing paid | `<cli> daemon install --yes` |
+| <a id="code-no-plan"></a>`no-plan` | `plans roster <plan>` | No plan with that id on devnet. | 1 | `no field`: nothing paid | `<cli> plans list` |
+| <a id="code-driver-repair-failed"></a>`driver-repair-failed` | `daemon repair-drivers` | The driver repair did not finish; `error` holds its log. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
+| <a id="code-migrate-failed"></a>`migrate-failed` | `daemon migrate` | The upgrade of the VPN service home stopped at the step named in `error`. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
+| <a id="code-device-not-ready"></a>`device-not-ready` | `daemon install` | The device is not funded and permitted yet, so the service will not start. | 1 | `no field`: nothing paid | `<cli> device setup --yes, then <cli> daemon install --yes` |
+| <a id="code-install-failed"></a>`install-failed` | `daemon install` | The service install failed; `error` says where. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
+| <a id="code-daemon-settings-empty"></a>`daemon-settings-empty` | `daemon set` | The service's settings file is empty. | 1 | `no field`: nothing paid | `<cli> daemon install --yes` |
+| <a id="code-daemon-settings-unreadable"></a>`daemon-settings-unreadable` | `daemon set` | The service's settings file cannot be read (a missing file is `daemon-missing`). | 1 | `no field`: nothing paid | `<cli> daemon install --yes` |
+| <a id="code-dns-no-answer"></a>`dns-no-answer` | `daemon dns-check` | The DNS check got no answer. Exit 1 on purpose, so a script can gate on it. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
+| <a id="code-uninstall-failed"></a>`uninstall-failed` | `daemon uninstall` | The service uninstall failed; `error` says where. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
+| <a id="code-checks-off"></a>`checks-off` | `quality` (ip, dns, …) | Third-party checks are turned off in settings. | 1 | `no field`: nothing paid | `<cli> settings set thirdPartyChecks=true` |
+| <a id="code-test-plan-failed"></a>`test-plan-failed` | `test run` | The test run could not be planned (`error` says why). Nothing was opened. | 1 | `none` | `<cli> test servers` |
+| <a id="code-no-test-run"></a>`no-test-run` | `test show / export [<run>]` | No test run with that id, or none yet. | 1 | `none` | `<cli> test history` |
+| <a id="code-keystore-unavailable"></a>`keystore-unavailable` | `wallet create / import` (Windows) | Windows cannot encrypt a wallet for this logon (no password session, e.g. an SSH key login), or the encryption failed. | 1 | `no field`: nothing paid | `<cli> wallet create --keyfile <path> --yes` |
+| <a id="code-keyfile-read-only"></a>`keyfile-read-only` | `wallet create / import / remove` | A `--keyfile` / `DVPN_KEYFILE` wallet is read-only: this CLI never writes or deletes it. | 1 | `no field`: nothing paid | `unset DVPN_KEYFILE, then run the command again` |
+
+Also coded in rc.7 by `cliErr`, with rows above: `rpc-busy` (`wallet show`), `no-device` (`device switch`),
+`no-device-key` (`device setup`, `daemon init`), `no-wallet` and `daemon-missing` (`daemon install` / `set`), `no-nodes` (`test run`),
+`node-gone` (`nodes show / probe <node>`), `driver-missing` (`daemon drivers`).
+
+## Path B (`direct/*.sh`): codes only the scripts print
+
+The scripts use the app's code names where a twin exists (`docs/DIRECT.md`, the Path B → Path A table).
+These are the codes that exist only on Path B. Their anchors carry `direct-` so they never clash with an app
+code of the same name (`install-failed`, `no-device`). Every line has `money` and `moneyNote`
+(`direct/lib.sh`) and matches `direct/schema/failure.json`.
+
+| Code | Script | Meaning | Exit | Money moved? | Next |
+|---|---|---|---|---|---|
+| <a id="code-direct-download-failed"></a>`download-failed` | `install.sh` | `apt-get update` or the release download (`SHA256SUMS`, a binary) failed. | 6 | `none` | `sleep 60 && sudo sh direct/install.sh` |
+| <a id="code-direct-install-failed"></a>`install-failed` | `install.sh` | A setup step failed: the packages, copying a binary, `sentinel-dvpnd init`, the kill-switch setting, the service, or adding you to the group. `error` names the step. | 1 | `none` | the step's own command, then `sudo sh direct/install.sh` |
+| <a id="code-direct-build-failed"></a>`build-failed` | `install.sh` (`BUILD=1`) | `direct/build.sh` failed. A wrong checksum is `checksum-mismatch`, not this. | 1 | `none` | `sh direct/build.sh` (needs git, make and Go 1.27.3) |
+| <a id="code-direct-no-device"></a>`no-device` | any script after install | The daemon has no device key: `install.sh` did not finish. | 1 | `none` | `sudo sh direct/install.sh` |
+| <a id="code-direct-route-failed"></a>`route-failed` | `connect.sh` | The route that keeps the node's own IP outside the tunnel could not be added (no default route, or `ip route replace` failed). | 1 | `none` | `ip route show default`, or the exact `sudo ip route replace …` line |
+| <a id="code-direct-session-dropped"></a>`session-dropped` | `selftest.sh` | The session dropped during the hold. | 1 | `refund` | `sh direct/disconnect.sh && sh direct/refund.sh` |
+| <a id="code-direct-step-failed"></a>`step-failed` | `selftest.sh` | A script the selftest ran stopped with no JSON line. When the script did print one, the selftest passes on its code instead. | 1 | the step's, else `none` | `sh direct/<script>.sh` |
+| <a id="code-direct-interrupted"></a>`interrupted` | any (lib.sh EXIT backstop) | The script was killed (exit 130 / 143) before it printed its line. | 1 | `MONEY_STATE`: how far it got (`none`, `unclear` before the session starts, `open` after) | the same command again (it is safe to repeat: `docs/DIRECT.md`, "Safe to run again?") |
+| <a id="code-direct-unknown"></a>`unknown` | any (lib.sh EXIT backstop) | A `set -e` stop with no code of its own; `error` names the last command run. | 1 | `MONEY_STATE`, as above | `none`: the failure table in `docs/DIRECT.md`; otherwise `sh direct/refund.sh` |
+
+## rc.6 and later: exit codes and changed answers
+
+This applies when `devnet-dvpn version --json` says `0.3.0-rc.6` or newer (released; rc7 = `8f458d71`). Every row
+above still holds, apart from the changes listed here.
 
 **Exit codes by class** (`src/cli/exit-codes.ts`). The `code` field stays the precise reason.
 
@@ -209,7 +258,7 @@ holds, apart from the changes listed here.
 | 1 | error | any code not listed below, and `code: null`. Includes `rpc-timeout`, `rpc-network`, `rpc-quota` and `timeout`: network codes whose money class is `open` (a deposit may be open) |
 | 2 | needs `--yes` | no code (`needsConfirm: true`) |
 | 3 | wrong usage | no code |
-| 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet` |
+| 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, and since rc7 `keyfile-missing` and `keyfile-mode` (rc.6: exit 1) |
 | 5 | refused for safety | `kill-switch-held` (money `none`), `kill-switch-failed` (money `open`: read `money`), and `kill-switch` |
 | 6 | network or RPC, no deposit possibly open: retry later | `rpc-busy`, `rpc-unavailable` (money `unclear`), and `rpc-ws` |
 
@@ -225,7 +274,8 @@ A network failure after which a deposit may be open exits 1. Exit 5 can still fo
   open: "The node did not start the session after your deposit was paid … The deposit is safe". Without
   one: "Connect failed for a reason this app does not name … Nothing was paid", pointing to `<cli> logs --lines 80`.
 - New code `price-cap` (see its row under "agent up: refused by agent-cmd itself"): a default deposit cap
-  of the Settings limit / 10 when `--max-price` is not given.
+  when `--max-price` is not given; rc.6 = the Settings limit / 10, rc7 = market-sized (`defaults.priceCap`).
+- rc7: every failure carries `next` (the same as `action`) and `docUrl` (this page, `#code-<code>`).
 - `dns-revert-failed` on `agent down`: see its row.
 - `daemon-gone`: money class `refund`.
 - `agent status` with the service down and no device yet (E-84): `next` is the service install

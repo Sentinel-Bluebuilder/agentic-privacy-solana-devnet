@@ -330,68 +330,133 @@ Stream channels skip the wait: `close_channel` directly (`start_close_channel` �
    2026-11-20 `getMinimumBalanceForRentExemption(0)` returned **650 240**, not the 890 880 often quoted
    (890 880 is the classic `3480 lamports/byte-year × 2 years × 128 bytes` figure).
 
-## 9. Program errors the client flow can hit
+## 9. Program errors
 
-A Solana transaction is atomic, so **a failed transaction moves no tokens and creates no account**.
-You still pay the 5 000-lamport fee if you *sent* it; a simulation costs nothing. So "money moved"
-is "no (fee only)" for every row. The column below says what money is *at stake* and how to recover.
-Read the number from the log line `Error Number: N` or from `{"Custom": N}`. Rows marked
-**live** were produced on devnet on 2026-11-20 (§10).
+A Solana transaction is atomic, so **a failed transaction moves no tokens and creates or closes no
+account**. You still pay the 5 000-lamport fee if you *sent* it; a simulation costs nothing. That is
+why every row's "money moved?" is "No". Read the number from the log line `Error Number: N`, from
+`custom program error: 0x…`, or from `{"Custom": N}`. On devnet on 2026-11-20 these were produced
+live: 6033, 6035 and 6049 (§10).
 
-| code | name | where (client flow) | meaning | money moved | fix |
-|---|---|---|---|---|---|
-| 6000 | `Unauthorized` | every gated ix, `update_grant`, `close_grant` | signer is not the owner and no valid grant was passed; grantee == owner; wrong granter | no (fee only) | sign with the owner, or pass the right Grant PDA |
-| 6001 | `OperationPaused` | `open_channel` | `Config.paused_mask` has `PAUSE_CHANNEL_OPENS` (32) set | no (fee only) | wait; read `Config.paused_mask` before opening |
-| 6003 | `ParamOutOfRange` | `open_grant`, `update_grant` | bad grantee, unknown permission bits, `expires_at` in the past | no (fee only) | fix the args |
-| 6015 | `NodeNotListed` | `open_channel` | `node.status != 1` | no (fee only) | pick another node |
-| 6016 | `NodeNotLive` | `open_channel` | `now >= listed_at + node_listing_ttl_seconds` | no (fee only) | filter by liveness (§5) |
-| 6017 | `NodePriceChanged` | `open_channel` (stream) | `expected_rate_per_hour` ≠ node price | no (fee only) | re-read the node, retry with the new price |
-| 6023 | `BalanceZero` | `withdraw_user_balance` | balance is 0 and channels are still open | no (fee only) | close channels first, or nothing to withdraw |
-| 6024 | `AmountExceedsAllowance` | `open_channel`, `fund_channels` (delegated) | escrow > remaining grant allowance | no (fee only) | owner raises it with `update_grant` |
-| 6032 | `ChannelNotOpen` | `fund_channels`, `start_close_channel` | channel is already closing | no (fee only) | open a new channel |
-| 6033 | `ChannelNotClosing` | `close_channel` (voucher) | `start_close_channel` was not called | no (fee only) | call `start_close_channel` first. **live** |
-| 6034 | `VoucherExceedsEscrow` | node's redeem | voucher above escrow (protects you) | no | client: never sign above escrow |
-| 6035 | `GraceNotElapsed` | `close_channel` (voucher) | less than 7200 s since `close_started_at` | no (fee only) | wait until `close_started_at + 7200`. **live** |
-| 6036 | `RedeemableZero` | node's redeem | nothing new to redeem | no | (node side) |
-| 6037 | `ModeNotVoucher` | `start_close_channel` | stream channel | no (fee only) | call `close_channel` directly |
-| 6039 | `InvalidVoucherSignature` | node's redeem | voucher not signed by `voucher_signer` over the §4 step 6 message | no | fix the message bytes or signing key |
-| 6040 | `BatchLengthMismatch` | `fund_channels` | `amounts.len()` ≠ remaining accounts, or 0 | no (fee only) | one amount per channel |
-| 6041 | `BatchNotSorted` | `fund_channels` | remaining channels not strictly ascending by bytes | no (fee only) | sort by `pubkey.toBytes()`, dedupe |
-| 6042 | `NodeReopened` | node's redeem | node closed and reopened since the channel opened | no | close the channel, open a new one |
-| 6043 | `ArithmeticOverflow` | any | u64 overflow (absurd amounts) | no (fee only) | client bug |
-| 6045 | `GrantExpired` | any delegated ix | `now >= grant.expires_at` (≠ 0) | no (fee only) | owner extends it (`update_grant`) |
-| 6046 | `PermissionNotGranted` | any delegated ix | permission bit missing | no (fee only) | owner adds the bit |
-| 6047 | `GrantTargetMismatch` | any delegated ix | grant `target` is not 111…1, the node or the channel | no (fee only) | use a grant with the right target |
-| 6048 | `InvalidVoucherSigner` | `open_channel` (voucher) | `voucher_signer` not a prime-order ed25519 point | no (fee only) | use a real ed25519 public key |
-| 6049 | `MissingRentRecipient` | `open_channel`, `open_grant` | a rent recipient arg is 111…1 | no (fee only) | pass the signer or rent payer. **live** (simulated) |
-| 6050 | `InvalidRentRecipient` | `open_channel`, `open_grant` | rent recipient is neither signer nor rent payer | no (fee only) | same |
+**Decode it in code:** [`ts/errors.ts`](build-your-own-client/ts/errors.ts) turns a failed
+simulation or send into exactly one row of this table, `{ code, name, meaning, moneyMoved, fix }`.
+`open-channel.ts` and `close-channel.ts` print it on every failure.
+[`ts/explain-failure.ts`](build-your-own-client/ts/explain-failure.ts) shows it with no key at all:
+it simulates `close_channel` on a live voucher channel still in its grace, unsigned (§10).
 
-The other IDL errors (6002, 6004–6014, 6018–6022, 6025–6031, 6038, 6044) belong to governance,
-node, provider, plan, lease and subscription instructions. A pure channel client does not hit them.
-`6044 VaultFrozen` is raised only by governance code at 26de5240.
+**What the table covers:**
+- Every IDL error, 6000–6050.
+- Every Anchor framework code the client flow can hit. These numbers are from anchor-lang **1.2.2**,
+  the version in `sentinel-programs/Cargo.lock`, checked against its `lang/error/src/lib.rs`. They
+  are the same 16 codes the Devnet dVPN app decodes.
 
-Anchor framework errors you can also see (standard Anchor numbers, not in the dvpn IDL, none
-observed in this run): 2001 `ConstraintHasOne` (a funded channel is not the owner's), 2006
-`ConstraintSeeds` (wrong PDA), 2012 `ConstraintAddress` (wrong vault, mint, token program or rent
-recipient), 2014/2015 `ConstraintTokenMint`/`ConstraintTokenOwner` (`owner_token` is not the
-owner's Token-2022 account for the mint), 2020 `ConstraintAccountIsNone` (stream close without
-`node`), 3012 `AccountNotInitialized` (no User yet for fund/withdraw), 102
-`InstructionDidNotDeserialize` (args encoded for a different program version).
+`meaning` is the IDL `msg`, followed by where the program raises it (source at 26de5240). A row a
+channel-only client never hits says "governance only" or names the node or provider instruction.
+
+The table is generated from `errors.ts` and the IDL. Regenerate it with `npx tsx gen-error-table.ts`;
+`npx tsx gen-error-table.ts --check BUILD-YOUR-OWN-CLIENT.md` fails when it drifts.
+
+<!-- error-table:start (generated by ts/gen-error-table.ts) -->
+| number | name | meaning | money moved? | fix |
+|---|---|---|---|---|
+| 6000 | `Unauthorized` | signer is not authorized for this action: every owner-or-grantee instruction, update_grant, close_grant: the signer is not the owner and no valid grant names it | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | sign with the owner, or pass the Grant PDA ["grant", owner, signer, target] |
+| 6001 | `OperationPaused` | this operation is paused: open_* instructions: Config.paused_mask has that open paused (channels: bit 32) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | wait; read Config.paused_mask before opening |
+| 6002 | `FeeBpsOutOfRange` | fee bps out of range: governance (set_params): fee_bps above the limit | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6003 | `ParamOutOfRange` | parameter out of range: open_grant / update_grant: grantee is 111…1 or the granter, unknown permission bits, or expires_at not 0 and not in the future; governance: a parameter out of range | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | fix the arguments |
+| 6004 | `MissingPendingAuthority` | pending authority is missing: governance (accept_authority): no pending authority | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6005 | `InvalidMint` | mint is invalid: initialize_config: the mint is not a valid Token-2022 mint | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6006 | `MintExtensionForbidden` | mint has a forbidden extension: initialize_config: the mint has a forbidden extension | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6007 | `MintNotSealed` | mint is not sealed: initialize_config: the mint still has a mint or freeze authority | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6008 | `VaultNotAssociated` | vault is not the config associated token account: governance: the vault is not the Config PDA’s associated token account | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6009 | `VaultNotImmutable` | vault is not immutable-owner: governance: the vault lacks the immutable-owner extension | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6010 | `InvalidTreasury` | treasury may not be the vault or config-owned: governance (set_treasury / initialize_config): the treasury is the vault or Config-owned | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | governance only |
+| 6011 | `BondBelowMinimum` | bond below minimum: open_node / open_provider: the bond is below Config.min_node_bond / min_provider_bond | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | bond at least the minimum |
+| 6012 | `BondPending` | a parked bond is pending for this id: open_node / open_provider: a parked bond for this id is still unbonding | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | withdraw the old bond after the unbonding window, then open |
+| 6013 | `UnbondingNotElapsed` | unbonding window not elapsed: withdraw_node_bond / withdraw_provider_bond: Config.unbonding_seconds has not passed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | wait for the unbonding window |
+| 6014 | `UriTooLong` | uri too long: node / provider instructions: the URI is longer than its 128-byte field | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use a shorter URI |
+| 6015 | `NodeNotListed` | node is not listed: open_channel / open_lease: node.status is not 1 (listed) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pick another node |
+| 6016 | `NodeNotLive` | node is not live: open_channel / open_lease: now >= node.listed_at + Config.node_listing_ttl_seconds | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pick a node listed within the TTL |
+| 6017 | `NodePriceChanged` | node price changed: open_channel / open_lease (stream): expected_rate_per_hour differs from the node’s current price | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | read the node again and retry with its current price |
+| 6018 | `InsufficientRevenue` | insufficient revenue: withdraw_node_revenue / withdraw_provider_revenue: amount above the revenue held | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | withdraw at most the revenue |
+| 6019 | `FeesZero` | fees to sweep are zero: sweep_*_fees: nothing accrued to sweep | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | nothing to do |
+| 6020 | `ProviderNotListed` | provider is not listed: open_lease / open_subscription: the provider is not listed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pick another provider or plan |
+| 6021 | `OpenPlansRemain` | open plans remain: close_provider: the provider still has open plans | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | close its plans first |
+| 6022 | `OpenLeasesRemain` | open leases remain: close_provider: the provider still has open leases | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | close its leases first |
+| 6023 | `BalanceZero` | balance to withdraw is zero: withdraw_user_balance / withdraw_provider_balance: the balance is 0 and positions are still open | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | close the open channels first; there is nothing to withdraw yet |
+| 6024 | `AmountExceedsAllowance` | amount exceeds allowance: delegated open_channel / fund_channels (and leases): escrow above the grant’s remaining allowance | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | the owner raises it with update_grant |
+| 6025 | `PlanNotListed` | plan is not listed: open_subscription: the plan is not listed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pick another plan |
+| 6026 | `PlanNotDelisted` | plan is not delisted: close_plan: the plan is still listed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | delist the plan first |
+| 6027 | `PlanTermsChanged` | plan terms changed: open_subscription: the plan’s terms differ from the ones passed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | read the plan again and retry with its current terms |
+| 6028 | `SubscriptionNotExpired` | subscription not expired: close_subscription by someone who is not the owner, its grantee or the provider: not expired yet | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | wait until it expires |
+| 6029 | `SubscriptionPriceNotZero` | subscription price is not zero: close_subscription by the provider before expiry: allowed only when the subscription price is 0 | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | wait until it expires (a paid subscription) |
+| 6030 | `LeaseNotOpen` | lease is not open: lease instructions: the lease is not open | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | open a new lease |
+| 6031 | `LeaseNotClosing` | lease is not closing: close_lease (voucher): start_close_lease was not called | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | call start_close_lease first |
+| 6032 | `ChannelNotOpen` | channel is not open: fund_channels / start_close_channel: the channel is already closing | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | open a new channel |
+| 6033 | `ChannelNotClosing` | channel is not closing: close_channel (voucher): start_close_channel was not called | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | call start_close_channel first |
+| 6034 | `VoucherExceedsEscrow` | voucher exceeds escrow: redeem_channel_vouchers (node side): the voucher is above the escrow; protects the client | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | never sign a voucher above Channel.escrow |
+| 6035 | `GraceNotElapsed` | grace window not elapsed: close_channel (voucher): less than Config.channel_close_grace_seconds (7200 s) since close_started_at | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | wait until close_started_at + channel_close_grace_seconds |
+| 6036 | `RedeemableZero` | redeemable amount is zero: redeem_* (node side): nothing new to redeem | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | nothing to do |
+| 6037 | `ModeNotVoucher` | position mode is not voucher: start_close_channel / redeem_channel_vouchers on a stream channel | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | stream channel: call close_channel directly, no start_close |
+| 6038 | `ModeNotStream` | position mode is not stream: redeem_*_streams on a voucher position | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use the voucher redeem instead |
+| 6039 | `InvalidVoucherSignature` | voucher signature is invalid: redeem_*_vouchers: not signed by voucher_signer over the 80-byte voucher message | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | sign the exact 80-byte message with the channel’s voucher_signer |
+| 6040 | `BatchLengthMismatch` | batch length mismatch: batch instructions (fund_channels, redeem_*): number of amounts ≠ number of accounts, or none | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass one amount per account, at least one |
+| 6041 | `BatchNotSorted` | batch not sorted: batch instructions: accounts not strictly ascending by pubkey bytes | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | sort by pubkey bytes and remove duplicates |
+| 6042 | `NodeReopened` | position belongs to an earlier incarnation of this node: redeem / stream settle: the node was closed and reopened after the channel opened | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | close the channel (refund) and open a new one |
+| 6043 | `ArithmeticOverflow` | arithmetic overflow: any: a u64 sum or product overflowed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use sane amounts (a client bug) |
+| 6044 | `VaultFrozen` | vault is frozen: governance: the vault is frozen | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | wait; payments are frozen network-wide |
+| 6045 | `GrantExpired` | grant has expired: any delegated instruction: now >= grant.expires_at (not 0) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | the owner extends it with update_grant |
+| 6046 | `PermissionNotGranted` | grant does not include the permission for this action: any delegated instruction: the grant lacks this action’s permission bit | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | the owner adds the bit with update_grant |
+| 6047 | `GrantTargetMismatch` | grant target does not cover this account: any delegated instruction: grant.target is not 111…1, the node or the channel | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use a grant whose target covers the account |
+| 6048 | `InvalidVoucherSigner` | voucher signer is not a valid key: open_channel / open_lease (voucher): voucher_signer is not a prime-order ed25519 point | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use a real ed25519 public key |
+| 6049 | `MissingRentRecipient` | rent recipient is missing: open_channel / open_grant (and other opens): a rent recipient argument is 111…1 | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass the signer or the rent payer |
+| 6050 | `InvalidRentRecipient` | rent recipient is neither the signer nor the rent payer: the same opens: the rent recipient is neither the signer nor the rent payer | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass the signer or the rent payer |
+| 100 | `InstructionMissing` | no 8-byte instruction discriminator in the data | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | encode the instruction with the IDL |
+| 101 | `InstructionFallbackNotFound` | unknown instruction discriminator | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | encode with the IDL of the deployed program |
+| 102 | `InstructionDidNotDeserialize` | the args do not match this program version | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | re-encode with the IDL of the deployed program |
+| 2000 | `ConstraintMut` | an account that must be writable was passed read-only | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | mark it writable (IDL "writable") |
+| 2001 | `ConstraintHasOne` | an account does not belong to the owner it must (e.g. a funded channel of another wallet) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass the owner’s own accounts |
+| 2002 | `ConstraintSigner` | an account that must sign did not | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | add its signature (IDL "signer") |
+| 2003 | `ConstraintRaw` | a custom account constraint failed | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | check the accounts against the IDL |
+| 2006 | `ConstraintSeeds` | a PDA does not match its seeds (also: a grant passed while the owner signs) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | derive the PDA again; pass no grant when the owner signs |
+| 2012 | `ConstraintAddress` | an account is not the one stored on chain (vault, mint, token program, rent recipient) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass Config.vault, Config.mint, Token-2022 and the stored rent_recipient |
+| 2014 | `ConstraintTokenMint` | owner_token is for another mint | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use the owner’s Token-2022 account for Config.mint |
+| 2015 | `ConstraintTokenOwner` | owner_token belongs to another wallet | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | use the owner’s Token-2022 account for Config.mint |
+| 2019 | `ConstraintSpace` | an account was created with the wrong size | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | a client or program bug: report it |
+| 2020 | `ConstraintAccountIsNone` | a required optional account was None (e.g. node on a stream close) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass the account (node on a stream close_channel) |
+| 3005 | `AccountDidNotSerialize` | the program could not write an account | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | a program bug: report it |
+| 3007 | `AccountOwnedByWrongProgram` | an account is owned by another program (e.g. a plain SPL Token account) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | pass the dvpn / Token-2022 account the IDL names |
+| 3012 | `AccountNotInitialized` | an account the instruction reads does not exist yet (e.g. User before the first channel) | No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing. | open a channel first (it creates the User account) |
+<!-- error-table:end -->
 
 ## 10. Examples (run on 2026-11-20)
 
 All runs: Azure VM, Ubuntu 24.04, Node 22.23.5, Go 1.27.3 (via `GOTOOLCHAIN=auto`), public devnet
 RPC, a fresh wallet `<your-wallet-address>` funded with 0.05 SOL and 1 tDVPN.
 
+What each run proves, and where:
+
+| Example | Run | Proof |
+|---|---|---|
+| `ts/read.ts` | live read, no key | the output below (Config, 79 nodes, 36 live) |
+| `ts/open-channel.ts` | real `open_channel` + `start_close`, plus three simulated failures (6049, 6033, 6035) | the output below and the explorer links ([open](https://explorer.solana.com/tx/3D3s6MWY6LLxVgT2eNimyLcS8XfYo8kzWa423gK9UiM386NYm7Cc2znKXQSBM5Nrcb3ngfDK8pEuBisvRy3EAV3d?cluster=devnet), [start_close](https://explorer.solana.com/tx/2pdoKkBLEwvc6G2tq9uc12GeKNbCpQ6wEkG4npZox4Z2AfBr4C6zvkrcyiwcf114EUkVKC5jjMc4PMJmUT7VrHtC?cluster=devnet)) |
+| `ts/close-channel.ts` | real `close_channel` + `withdraw_user_balance` at 10:52Z, after the grace | [hPKsn1mw…](https://explorer.solana.com/tx/hPKsn1mwMb77EVkGn9mfC8eiVCiK8JS2xapBirAW7N3HDueSQ9ET8SQmT4bnuA1eLHsS4EGvT17PRNUkBsrdSMC?cluster=devnet): the full 0.5 tDVPN escrow back |
+| `ts/explain-failure.ts` | live unsigned simulation, no key, second VM | the 6035 output below |
+| `go/main.go` | live read + simulated `open_channel` (no transaction sent) | the Go output below (`units=29683`) |
+
+**Checked on every push** (CI, no wallet, no transaction): `go vet` and `go build` of `go/` against the
+public repo at `26de5240`, and `ts/gen-error-table.ts --check`, which fails when the §9 error table
+drifts from `errors.ts` and the public IDL. The live runs above are not repeated in CI: they need a funded wallet.
+
 ### TypeScript (`@solana/web3.js` 1.98.4 + `@coral-xyz/anchor` 0.31.1 coders + the IDL)
 
-Files: [`build-your-own-client/ts/`](build-your-own-client/ts/) (`common.ts`, `read.ts`,
-`open-channel.ts`, `close-channel.ts`, `package.json`). Put `dvpn.json` from the public repo next to
-them.
+Files: [`build-your-own-client/ts/`](build-your-own-client/ts/) (`common.ts`, `errors.ts`, `read.ts`,
+`open-channel.ts`, `close-channel.ts`, `explain-failure.ts`, `gen-error-table.ts`, `package.json`). Put `dvpn.json` from the
+public repo next to them. All files typecheck with `tsc --strict` (TypeScript 5.9.3).
 
 ```bash
 npm install
 npx tsx read.ts <ownerPubkey>                                   # read
+npx tsx explain-failure.ts                                      # decode a failing close_channel; no key, nothing signed
 npx tsx open-channel.ts wallet.json <node> 500000 --bad-rent     # prove 6049, sends nothing
 npx tsx open-channel.ts wallet.json <node> 500000                # open (sends)
 npx tsx close-channel.ts wallet.json <channel> start             # start_close (sends)
@@ -431,11 +496,28 @@ start:       sent 2pdoKkBLEwvc6G2tq9uc12GeKNbCpQ6wEkG4npZox4Z2AfBr4C6zvkrcyiwcf1
 finish inside grace (simulated):  grace ends at 2026-11-20T10:49:28.000Z  program_error=6035  GraceNotElapsed
 ```
 
+`explain-failure.ts` (run later the same day on a second Ubuntu VM, no wallet, unsigned simulation):
+
+```
+channel <a-closing-channel> (closing, inside its grace) status 1
+{
+  "code": 6035,
+  "name": "GraceNotElapsed",
+  "meaning": "grace window not elapsed: close_channel (voucher): less than Config.channel_close_grace_seconds (7200 s) since close_started_at",
+  "moneyMoved": "No. A sent transaction still pays its 5000-lamport fee; a simulation pays nothing.",
+  "fix": "wait until close_started_at + channel_close_grace_seconds"
+}
+```
+
 What the open transaction moved: wallet −3 418 760 lamports (User rent 1 244 600 + Channel rent
 2 169 160 + fee 5 000); wallet ATA 1 000 000 → 500 000 base units; vault +500 000.
 Explorer: [open](https://explorer.solana.com/tx/3D3s6MWY6LLxVgT2eNimyLcS8XfYo8kzWa423gK9UiM386NYm7Cc2znKXQSBM5Nrcb3ngfDK8pEuBisvRy3EAV3d?cluster=devnet),
 [start_close](https://explorer.solana.com/tx/2pdoKkBLEwvc6G2tq9uc12GeKNbCpQ6wEkG4npZox4Z2AfBr4C6zvkrcyiwcf114EUkVKC5jjMc4PMJmUT7VrHtC?cluster=devnet).
-The `finish` step (close + withdraw) has **not run yet**: it can only run after 10:49:28Z.
+`finish` ran at 10:52Z, after the grace: one transaction with `close_channel` + `withdraw_user_balance`,
+[hPKsn1mw…](https://explorer.solana.com/tx/hPKsn1mwMb77EVkGn9mfC8eiVCiK8JS2xapBirAW7N3HDueSQ9ET8SQmT4bnuA1eLHsS4EGvT17PRNUkBsrdSMC?cluster=devnet).
+No vouchers had been redeemed, so the whole 0.5 tDVPN escrow came back to the wallet's token account.
+The Channel and User accounts closed (`open_channels` was 0), and their rent went to the wallet,
+the stored `rent_recipient`. Afterwards the channel and User addresses read "no account" on the public RPC.
 
 ### Go (public SDK `sentinel-go-sdk/program` + generated `clients/go/dvpn`)
 
@@ -492,5 +574,5 @@ simulation ran the real program against live accounts and succeeded.
 - **Daemon escrow default** is 1 000 tDVPN (`escrow_base_units = 1000000000`) when
   `NewChannel.escrow` is 0 (`sentinel-dvpnd/internal/config/client.go`).
 - **Not run here:** the daemon (`StartSession`), node redemption, `fund_channels`, grants, stream
-  mode, and `close_channel` + `withdraw_user_balance`. Their accounts, args and errors above come from
+  mode. Their accounts, args and errors above come from
   the IDL and program source at 26de5240 only.

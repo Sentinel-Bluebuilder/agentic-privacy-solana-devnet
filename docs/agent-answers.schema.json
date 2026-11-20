@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/blob/main/docs/agent-answers.schema.json",
-  "title": "devnet-dvpn agent answers (v0.3.0-rc6)",
+  "title": "devnet-dvpn agent answers (v0.3.0-rc7)",
   "description": "The one JSON line that `devnet-dvpn agent status|up|down --json` prints on stdout. Exit 0 = a success answer, exits 1, 4, 5, 6 = the error answer (4 needs you or your operator, 5 refused for safety, 6 network with no deposit open; from 0.3.0-rc.6, older releases exit 1), exit 2 = a confirm answer (nothing was signed), exit 3 = no JSON (wrong usage, one line on stderr). Amounts are decimal strings in tDVPN or SOL; from rc6 each has a base-unit twin as a string (`solLamports`, `tdvpnBase`, `heldBase`, `spentBase`, `refundableBase`, `deposit.tdvpnBase`; `deposit.baseUnits` is the older name), and `fromBase`, `toBase` are base units; `readyAt` is Unix seconds. Field by field: docs/AGENT-COMMANDS.md. Fields not listed may be added in a later release.",
   "anyOf": [
     { "$ref": "#/$defs/statusAnswer" },
@@ -25,6 +25,35 @@
     "command": {
       "type": "string",
       "description": "The command (or the funding) to do next, starting with `devnet-dvpn` (or DVPN_CLI_NAME)."
+    },
+    "defaults": {
+      "description": "rc7: agent up's defaults and where they came from (preview and answer).",
+      "type": "object",
+      "properties": {
+        "priceCap": { "type": ["string", "null"], "description": "The default deposit cap in tDVPN, or \"set by --max-price\"." },
+        "priceCapBase": { "anyOf": [{ "$ref": "#/$defs/baseUnits" }, { "type": "null" }], "description": "priceCap in base units; null with --max-price." },
+        "spendingLimit": { "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }] },
+        "spendingLimitRecommended": { "anyOf": [{ "$ref": "#/$defs/amount" }, { "type": "null" }], "description": "The market's suggestion; set with settings set allowanceTdvpn=<n>." },
+        "units": { "type": "number" },
+        "source": { "enum": ["market", "fixed"] },
+        "reason": { "type": "string", "description": "Only when source is fixed: why." },
+        "market": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "p50": { "$ref": "#/$defs/amount" },
+                "p75": { "$ref": "#/$defs/amount" },
+                "nodes": { "type": "integer" },
+                "outliers": { "type": "integer" }
+              },
+              "required": ["p50", "p75", "nodes", "outliers"]
+            },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["priceCap", "spendingLimit", "spendingLimitRecommended", "units", "source", "market"]
     },
     "depositRow": {
       "description": "agent status `deposits`: one open or closing deposit.",
@@ -93,7 +122,8 @@
         },
         "alsoNext": { "$ref": "#/$defs/command" },
         "deposits": { "type": "array", "items": { "$ref": "#/$defs/depositRow" } },
-        "blocked": { "const": true, "description": "Only when no session is live and the internet does not answer." },
+        "blocked": { "const": true, "description": "Only when the internet is blocked: no session, or (rc7) a session reconnecting." },
+        "reconnecting": { "type": "boolean", "description": "rc7 (E-87): the live session is reconnecting under the kill switch." },
         "next": { "$ref": "#/$defs/command" }
       },
       "required": ["ok", "address", "sol", "tdvpn", "held", "device", "service", "connected", "next"],
@@ -167,6 +197,7 @@
           "required": ["node", "code"]
         },
         "replacedNote": { "type": "string" },
+        "defaults": { "$ref": "#/$defs/defaults" },
         "payer": { "type": ["string", "null"], "description": "The wallet that paid the deposit." },
         "payerIsLoaded": { "type": ["boolean", "null"], "description": "true when the payer is the loaded wallet; null when unknown." },
         "payerNote": { "type": ["string", "null"] },
@@ -191,6 +222,7 @@
         "node": { "type": "string" },
         "deposit": { "$ref": "#/$defs/deposit" },
         "switchFrom": { "type": ["string", "null"], "description": "The live node it would leave; null = not connected." },
+        "defaults": { "$ref": "#/$defs/defaults" },
         "skipped": { "description": "Only when nodes that failed recently were left out of the pick." },
         "limitRaise": { "type": "string", "description": "Only when this deposit is above the spending limit: the sentence that says so (it is in `what` too). rc6: raised only with --raise-limit; rc5: --yes raised it." }
       },
@@ -209,6 +241,8 @@
         "refundableBase": { "$ref": "#/$defs/baseUnits", "description": "refundable in base units (rc6)." },
         "readyAt": { "type": ["integer", "null"] },
         "signatures": { "type": "array", "items": { "type": "string" } },
+        "deposited": { "$ref": "#/$defs/amount", "description": "rc7: the deposit of the session it ended." },
+        "depositedBase": { "$ref": "#/$defs/baseUnits" },
         "pending": { "type": "array", "items": { "$ref": "#/$defs/pendingRow" } },
         "notClosed": {
           "type": "array",
@@ -248,6 +282,8 @@
         "error": { "type": "string" },
         "code": { "type": ["string", "null"] },
         "action": { "type": ["string", "null"] },
+        "next": { "type": ["string", "null"], "description": "rc7: the same as action." },
+        "docUrl": { "type": "string", "pattern": "^https://github\\.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/blob/main/docs/CODES\\.md#code-[a-z0-9_-]+$", "description": "rc7: the docs/CODES.md row of this code." },
         "money": {
           "type": "string",
           "description": "Did money move? Present on the failures of agent, connect, switch and test when the code has a class. One of: \"Nothing was paid.\" / \"A deposit may be open: …\" / \"It is not known whether a deposit was opened: …\" / \"No new money was spent; …\"."

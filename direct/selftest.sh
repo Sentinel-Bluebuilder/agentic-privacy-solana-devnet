@@ -12,24 +12,29 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 HOLD=${HOLD:-120}
 
-step() { # step <name> <command...>
+STEP=selftest
+
+# stage <name> <command...>: run one script, print its JSON line; on failure pass its code, money
+# and next through (step-failed when the script printed no JSON line)
+stage() {
   name=$1; shift
   echo "──── $name ────" >&2
-  if ! line=$("$@" | tail -1); then
-    echo "$line"
-    summary false selftest "fix step $name, then rerun sh direct/selftest.sh" "\"failed\":\"$name\""
-    exit 1
-  fi
+  line=$("$@" | tail -1) || true
   echo "$line"
-  case $line in *'"ok":true'*) ;; *) summary false selftest "fix step $name" "\"failed\":\"$name\""; exit 1 ;; esac
+  case $line in *'"ok":true'*) return 0 ;; esac
+  ic=$(printf '%s' "$line" | jq -r '.code // empty' 2>/dev/null) || ic=""
+  im=$(printf '%s' "$line" | jq -r '.money // empty' 2>/dev/null) || im=""
+  inx=$(printf '%s' "$line" | jq -r '.next // empty' 2>/dev/null) || inx=""
+  [ "$name" = connect ] && [ -z "$im" ] && im=unclear
+  fail "$E_OTHER" "${ic:-step-failed}" "selftest stopped at $name: ${ic:-no JSON line}" "${inx:-sh direct/$name.sh}" "${im:-none}"
 }
 
 if [ "${SELFTEST_STAGE:-1}" = 1 ]; then
-  step install sudo sh "$HERE/install.sh"
+  stage install sudo sh "$HERE/install.sh"
 fi
 
-step fund-request sh "$HERE/fund-request.sh" --wait
-step connect sh "$HERE/connect.sh" --yes
+stage fund-request sh "$HERE/fund-request.sh" --wait
+stage connect sh "$HERE/connect.sh" --yes
 NODE_IP=$(dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[] | select(.status == "active")][0].node // empty')
 t=0
 while [ "$t" -lt "$HOLD" ]; do
@@ -37,8 +42,9 @@ while [ "$t" -lt "$HOLD" ]; do
   st=$(dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[] | select(.status == "active")] | length')
   ip=$(curl -s -4 -m 10 https://api.ipify.org || echo unknown)
   echo "hold t=${t}s active=$st exitIp=$ip" >&2
-  [ "$st" = 1 ] || { summary false selftest "session dropped at ${t}s: read docs/DIRECT.md 'connection lost'" "\"failed\":\"hold\",\"node\":\"$NODE_IP\""; exit 1; }
+  [ "$st" = 1 ] || fail "$E_OTHER" session-dropped "the session dropped at ${t}s of ${HOLD}s (node $NODE_IP); see 'connection lost' in docs/DIRECT.md" \
+    "sh direct/disconnect.sh && sh direct/refund.sh" refund
 done
-step disconnect sh "$HERE/disconnect.sh"
-step refund sh "$HERE/refund.sh" --yes
+stage disconnect sh "$HERE/disconnect.sh"
+stage refund sh "$HERE/refund.sh" --yes
 summary true selftest "after the time refund printed: sh direct/refund.sh" "\"held\":$HOLD"

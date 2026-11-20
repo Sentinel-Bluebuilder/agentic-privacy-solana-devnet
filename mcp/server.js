@@ -337,6 +337,19 @@ export const runCli = (argv, { timeoutMs = CLI_TIMEOUT_MS.default, env = process
   });
 });
 
+// ─── R5: the CLI's own fields, lifted to the top of structuredContent, never re-worded ───
+// Failure (non-zero exit, not a preview): what went wrong, what money is at stake, what to run.
+export const FAIL_FIELDS = ['error', 'code', 'action', 'money', 'next', 'alsoNext', 'docUrl'];
+// Success or preview: the next step and the defaults it used.
+export const OK_FIELDS = ['next', 'defaults', 'alsoNext'];
+/** The fields the CLI answered with, same values (same object references), absent ones left out. */
+export const passThrough = (json, fields) => {
+  const out = {};
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return out;
+  for (const k of fields) if (Object.hasOwn(json, k)) out[k] = json[k];
+  return out;
+};
+
 /** Call one tool. Never throws. The CLI's JSON and exit code come back as they are. */
 export const callTool = async (name, input, opts = {}) => {
   const tool = TOOLS.find((t) => t.name === name);
@@ -367,10 +380,15 @@ export const callTool = async (name, input, opts = {}) => {
   // Exit 2 = "needs --yes": a preview, not a failure. Only tools with a `yes` input can get here.
   const preview = r.exitCode === 2 && 'yes' in tool.inputSchema.properties && checked.yes !== true;
   if (preview) content.push({ type: 'text', text: `preview only, nothing was spent; call ${name} again with "yes": true to do it` });
+  const isError = r.exitCode !== 0 && !preview;
+  const lifted = passThrough(parsed?.json, isError ? FAIL_FIELDS : OK_FIELDS);
   return {
     content,
-    structuredContent: { exitCode: r.exitCode, command: `devnet-dvpn ${r.argv.join(' ')}`, result: parsed ? parsed.json : null, ...(preview ? { preview: true } : {}) },
-    isError: r.exitCode !== 0 && !preview,
+    structuredContent: {
+      exitCode: r.exitCode, command: `devnet-dvpn ${r.argv.join(' ')}`, result: parsed ? parsed.json : null,
+      ...(preview ? { preview: true } : {}), ...(r.timedOut ? { timedOut: true } : {}), ...lifted, isError,
+    },
+    isError,
   };
 };
 
@@ -402,6 +420,15 @@ export const OUTPUT_SCHEMA = {
     command: { type: 'string', description: 'the exact devnet-dvpn command line that ran' },
     result: { type: ['object', 'null'], description: 'the CLI JSON answer: {ok:true,…,next} or {ok:false,error,code,action,money?}' },
     preview: { type: 'boolean', description: 'true when nothing was signed (exit 2): call again with yes:true to do it' },
+    isError: { type: 'boolean', description: 'same as the tool result isError: the CLI failed (not a preview)' },
+    error: { type: 'string', description: 'failure only: the CLI error sentence, unchanged' },
+    code: { type: 'string', description: 'failure only: the CLI error code, unchanged (docs/AGENT-COMMANDS.md)' },
+    action: { type: ['string', 'null'], description: 'failure only: what to do, unchanged' },
+    money: { type: 'string', description: 'failure only: what money is at stake, unchanged' },
+    next: { type: ['string', 'null'], description: 'the exact next command the CLI gave, unchanged' },
+    alsoNext: { type: ['string', 'null'], description: 'the other way out the CLI gave, unchanged' },
+    docUrl: { type: 'string', description: 'failure only, when the CLI gives one: the page that explains it' },
+    defaults: { type: 'object', description: 'success or preview of vpn_up: each default used and where it came from, unchanged' },
   },
   required: ['exitCode'],
 };

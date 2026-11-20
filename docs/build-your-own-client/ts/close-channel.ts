@@ -10,6 +10,7 @@ import {
   MINT, PROGRAM_ID, TOKEN_2022, ata, configPda, connection, fetchDecoded, ixCoder,
   loadKeypair, programErrorCode, userPda,
 } from './common.ts';
+import { explain } from './errors.ts';
 
 const [keyPath, channelArg, step] = process.argv.slice(2);
 if (!keyPath || !channelArg || !['start', 'finish'].includes(step)) {
@@ -57,7 +58,7 @@ const tx = new VersionedTransaction(new TransactionMessage({
 tx.sign([wallet]);
 const sim = await connection.simulateTransaction(tx, { sigVerify: false });
 console.log('simulate:', sim.value.err ? `error program_error=${programErrorCode(sim.value.logs)}` : 'ok');
-if (sim.value.err) { console.log((sim.value.logs ?? []).slice(-6).join('\n')); process.exit(1); }
+if (sim.value.err) { console.log(JSON.stringify(explain(sim.value.logs, sim.value.err))); process.exit(1); }
 if (process.argv.includes('--simulate')) process.exit(0);
 const sig = await connection.sendTransaction(tx);
 await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');

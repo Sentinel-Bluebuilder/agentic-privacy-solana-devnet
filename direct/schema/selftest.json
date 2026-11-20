@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/selftest.json",
+  "title": "direct/selftest.sh last line on success",
+  "type": "object",
+  "required": ["ok", "step", "next", "held"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "selftest"},
+    "next": {"type": "string", "minLength": 1}, "held": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false
+}

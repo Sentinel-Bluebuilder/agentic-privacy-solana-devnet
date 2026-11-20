@@ -1,6 +1,6 @@
 # Security model
 
-What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc6.
+What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc7.
 Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 
 ## What we host: nothing
@@ -16,9 +16,11 @@ This repository holds documents, the installers and an MCP server that runs on y
 | **Wallet key** (the key file) | The file `DVPN_KEYFILE` / `--keyfile` names. Or, without a key file, the OS key store (Windows: DPAPI; macOS: the login Keychain). | Everything the wallet can do: send tDVPN and SOL anywhere (`wallet send`), set up and revoke devices, set the spending limit, withdraw. |
 | **Device key** | This computer, made by `daemon init`; used by the VPN service. | Only what the wallet granted it in `device setup`: open, fund, start closing and close deposits with nodes, and open plan subscriptions. It spends tDVPN from your wallet only up to the **spending limit**. It pays its own fees from the **device SOL** (about 0.05 SOL). |
 
-- **Spending limit:** a cap, not a charge. A new device may spend up to 50 tDVPN. `agent up` never raises it by
+- **Spending limit:** a cap, not a charge. A new install may spend up to 150 tDVPN (an existing limit is kept). `agent up` never raises it by
   itself: with a deposit above it, it refuses (`spending-limit`, nothing paid) until you add `--raise-limit`. Without
-  `--max-price` it also refuses a deposit above the limit / 10 (`price-cap`). (rc5 raised the limit by itself and said so:
+  `--max-price` it also refuses a deposit above the default cap (`price-cap`): the larger of the limit / 10 and the
+  p75 price of the matching online nodes times `--units`, never above the limit; `defaults` in the `agent up` answer
+  says which (`source` `market` or `fixed`). (rc5 raised the limit by itself and said so:
   [`OLDER-RELEASES.md`](OLDER-RELEASES.md).) See it:
   `devnet-dvpn device show --json` (`grant.allowance`, base units). Set it: `devnet-dvpn device setup --allowance N --yes`.
 - **Take a device's rights away:** `devnet-dvpn device revoke --device <device> --yes`. Its open deposits stay

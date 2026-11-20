@@ -36,6 +36,11 @@ exact message to send them.
 
 ## Optional
 
+- [CHANGELOG.md](CHANGELOG.md): what changed for an agent per release (rc4 → rc5 → rc6), breaking changes first.
+- [docs/PROVENANCE.md](docs/PROVENANCE.md): every file an agent runs, with its SHA-256, release, source commit, build command and when it was last verified.
+- [docs/INSTALL-BY-HAND.md](docs/INSTALL-BY-HAND.md): install the app without the installer script: download, check against SHA256SUMS, install, per OS (macOS rc4: only here).
+- [docs/CHOICES.md](docs/CHOICES.md): protocol, country, pricing, split tunnelling and the kill switch.
 - [docs/OLDER-RELEASES.md](docs/OLDER-RELEASES.md): v0.3.0-rc2, rc4 and rc5 differences, and the single commands behind `agent up` / `agent down`.
+- [docs/JSON-FIELDS.md](docs/JSON-FIELDS.md): `agent status` fields vs `wallet show` fields, with the units.
 - [docs/PROOF.md](docs/PROOF.md): what has been proven, per OS and release, and the known gaps.
 - [docs/agent-answers.schema.json](docs/agent-answers.schema.json): JSON Schema (draft 2020-12) of every `agent` answer and the error shape.

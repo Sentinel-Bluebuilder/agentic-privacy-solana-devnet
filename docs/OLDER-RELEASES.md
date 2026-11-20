@@ -1,6 +1,6 @@
-# Older releases (v0.3.0-rc2, rc4 and rc5)
+# Older releases (v0.3.0-rc2, rc4, rc5 and rc6)
 
-[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc6** only (macOS: v0.3.0-rc4). Take rc6 if you can. This page keeps what
+[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc7** only (macOS: v0.3.0-rc4). Take rc7 if you can. This page keeps what
 an agent needs on an older release, and the single commands that `agent up` / `agent down` run.
 
 What is proven, per OS and release: [`PROOF.md`](PROOF.md).
@@ -11,12 +11,13 @@ What is proven, per OS and release: [`PROOF.md`](PROOF.md).
 devnet-dvpn version --json
 ```
 
-- `0.3.0-rc.6`: use [`AGENTS.md`](../AGENTS.md), not this page.
+- `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page.
+- `0.3.0-rc.6`: read "v0.3.0-rc6" below.
 - `0.3.0-rc.5`: read "v0.3.0-rc5" below.
-- `0.3.0-rc.4`: the `agent` commands exist; read "v0.3.0-rc4" below.
+- `0.3.0-rc.4`: the `agent` commands exist; read "v0.3.0-rc4" below. macOS: rc4 is the newest macOS build (rc7 for macOS is not built yet).
 - `0.3.0-rc.2`: `agent` answers exit `3`, "unknown command: agent". Use "Step by step" below.
 - Older than rc2 (the release GitHub marks "Latest" can be one): it cannot make a key file.
-  Install rc6 by name (`AGENTS.md`, section 1).
+  Install rc7 by name (`AGENTS.md`, section 1).
 
 ## Step by step (rc2, or on any release if the shortcut fails)
 
@@ -44,8 +45,8 @@ On devnet many nodes ask about 50 tDVPN per GB and one faucet request gives 100:
 `disconnect` says the desktop app starts the refund when it is running; from the command line,
 run the `settle` lines.
 
-`wallet show --json` names the balances differently from `agent status`; the table is in the
-appendix of [`AGENTS.md`](../AGENTS.md).
+`wallet show --json` names the balances differently from `agent status`; the table is in
+[`JSON-FIELDS.md`](JSON-FIELDS.md).
 
 ## v0.3.0-rc2 only
 
@@ -56,9 +57,24 @@ appendix of [`AGENTS.md`](../AGENTS.md).
 - No Windows ARM64 build.
 - Windows over SSH: WireGuard was shown on rc2 (connect, disconnect and the refund).
 
+## v0.3.0-rc6
+
+The page applies, with these differences from rc7:
+
+- Fixed defaults: without `--max-price` the cap is the spending limit / 10 (5 tDVPN), and a new install's
+  spending limit is 50 tDVPN. No `defaults` block in the `agent up` answers. Pass `--max-price`.
+- `no-nodes` under `--max-price` says only "widen the filters": `devnet-dvpn nodes list --online --json` shows the prices.
+- The `spending-limit` action is an `agent up … --raise-limit --yes` line that can drop your `--protocol` /
+  `--max-price` (E-88): read it before you run it.
+- A failure has `action` but no `next` or `docUrl`; `keyfile-missing` exits `1`; RPC failures name no RPC fix.
+- `not-funded` names the shortfall only (no recommended amount). `agent down` has no `deposited`.
+- The step commands (`wallet`, `device`, `settle`, …) print no `next`; `settle run` has no `nextAfter`.
+
+To install it: `DVPN_VERSION=v0.3.0-rc6` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0-rc6'`).
+
 ## v0.3.0-rc5
 
-The page applies, with these differences from rc6:
+The page applies, with the rc6 differences above and these from rc6:
 
 - Every failure exits `1`: there are no exit codes `4`, `5`, `6`. Read `code` and `money`.
 - `agent up --yes` raises this computer's spending limit itself, up to the Settings limit, when a deposit is
@@ -90,5 +106,5 @@ The `agent` commands exist, with these differences from rc5:
   (E-82). Run `devnet-dvpn daemon restore-network` first.
 
 To pin an older release with the installer: `DVPN_VERSION=v0.3.0-rc4` (PowerShell:
-`$env:DVPN_VERSION = 'v0.3.0-rc4'`). By hand, replace `v0.3.0-rc6` with the tag in the
-download lines of `AGENTS.md`, section 1; the file names then carry `0.3.0-rc.4`.
+`$env:DVPN_VERSION = 'v0.3.0-rc4'`). By hand, replace `v0.3.0-rc7` with the tag in the
+download lines of [`INSTALL-BY-HAND.md`](INSTALL-BY-HAND.md); the file names then carry `0.3.0-rc.4`.

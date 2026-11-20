@@ -176,8 +176,11 @@ A `next` or `action` that runs `… agent up`, `… agent down` or `… agent st
 
 ## 5. Results and errors
 
-Every result has `structuredContent = { exitCode, command, result }`:
+Every result has `structuredContent = { exitCode, command, result, isError }`:
 
+- The CLI's own fields are also copied to the top, unchanged and only when the CLI sent them. On a
+  failure that is `error`, `code`, `action`, `money`, `next`, `alsoNext` and `docUrl`. On a success
+  or a preview it is `next`, `defaults` and `alsoNext`. The server never re-words them.
 - `command`: the exact CLI line that ran (no key in it).
 - `result`: the CLI's JSON (`null` if it printed none). The text content is the same JSON line.
 - `exitCode`: `0` ok, `1` error, `2` needs `--yes`, `3` usage. Non-zero sets `isError`, except
@@ -210,10 +213,12 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `daemon-unavailable`, `daemon-restarting` | up | `daemon doctor` |
 | `test-running` | up | `test stop`, then `agent up --yes` |
 | `rpc-busy` | up | `agent up --yes` again in a minute |
+| `rpc-ws` | up | rc7: the RPC websocket address does not answer; it is not known whether a deposit opened (`vpn_status` lists it). Set another RPC (`daemon set --rpc <https url> --yes`), then `vpn_up` again |
 | `price-changed`, `deposit-unusable`, `deposits-unread` | up | `agent up --yes` again: nothing was paid, and it reads the price fresh (`max_price` still caps it). The server's price rose above the deposit shown / your open deposit with it started closing / your open deposits could not be read |
 | `not-confirmed`, `plan-limit`, `busy`, `unsupported`, `network-mismatch` | up | → status: refused before anything started |
 | `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `kill-switch-held`, `switch-reconnecting`, `switch-offline` | up | → status: the check before paying failed; nothing paid |
 | `price-cap` | up | rc6: no `max_price` and the deposit is above the default cap (the spending limit / 10: 5 tDVPN by default); nothing was paid. Call `vpn_up` again with `max_price` (the `action` names the node's price) or fewer `units` |
+| `keyfile-mode` | up | rc7: the key file can be read by other users of this computer; nothing was paid. `chmod 600 <the key file named in error>`, then `vpn_up` again |
 | `cancelled` | up | → status: stopped |
 | `waiting-for-network`, `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding` | up | → status: failed after the start; a deposit already paid stays open until `agent down --yes` |
 | `credit_exhausted`, `peer_limit_reached`, `lease_insufficient`, `subscription_invalid`, `ticket_request_stale`, `provider_unreachable`, `ticket_invalid`, `unauthorized`, `cannot cover the prepay`, `voucher_exceeds_escrow`, `channel_node_reopened`, `terms_rejected`, `rate_limited`, `voucher_signature_invalid`, `mode_not_voucher`, `mode_not_stream` | up | → status: the server refused; pick another with `node` or other filters |
