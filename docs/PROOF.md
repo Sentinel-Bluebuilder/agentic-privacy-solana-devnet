@@ -56,6 +56,13 @@ Linux lines, one paid pass):
 - `device switch` both ways (re-run 2026-11-19 ~21:40Z): the preview names the SOL it moves and says old deposits
   stay refundable; afterwards, the old wallet's deposit is still listed under the new wallet's record and is
   never started by the other wallet's refund run.
+- Closing: every deposit from the window was refunded and every test wallet and device ended at 0
+  (final close 2026-11-20 ~02:00Z, `userOpenChannels` 0 on every key, read back on chain).
+
+Every test wallet from the rc.4 rounds (Linux, Windows, misbehaving node, fresh AI agents) ended with every
+deposit closed and its money returned (last close 2026-11-20 03:12Z). One thing to know: when a wallet's last
+deposit closes, the account rent (about 0.0034 SOL) goes back to the device that opened the account, even if that
+device was already emptied. Only that device's key file can send it on, and the app does not say so.
 
 Known on rc.4, to be fixed in a later release (fixes already in the app's code with tests, not yet released):
 - `agent up` with the wrong wallet loaded asks for funds before it says the wallet is wrong (`connect` gets this
