@@ -27,7 +27,7 @@ they run are proven on their own.
 ## 1. Set the machine up with the CLI first
 
 MCP cannot set the machine up: installing the service needs administrator / root once. Do sections
-1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc8** by name (macOS: v0.3.0-rc4),
+1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc8** by name (macOS: Apple silicon),
 `wallet create --keyfile <path> --yes`, get the address funded (a person sends devnet SOL and
 tDVPN), then `daemon init` → `device setup --yes` → `daemon install --yes`. After that,
 everything below runs as the normal user over MCP.

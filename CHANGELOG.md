@@ -9,6 +9,9 @@ Check which release you have: `devnet-dvpn version --json`.
 
 ## v0.3.0-rc8
 
+Published on Windows and Linux, and (2026-11-20) on macOS for Apple silicon only: Intel Macs stay on v0.3.0-rc4
+([`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md), "Intel Mac").
+
 Breaking: read these before you run an rc7 script on rc8.
 
 - **Usage errors with `--json` are a JSON line on stdout** (exit `3` stays): `{ok:false, code:"usage", error,

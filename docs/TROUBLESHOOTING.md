@@ -1,6 +1,6 @@
 # Troubleshooting: symptom → cause → command
 
-For `devnet-dvpn` v0.3.0-rc8, macOS v0.3.0-rc4 ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
+For `devnet-dvpn` v0.3.0-rc8, macOS Apple silicon included ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
 (meaning, whether money moved, next, the other way out) is in [`CODES.md`](CODES.md), linked from the Code column. Terms:
 [`GLOSSARY.md`](../GLOSSARY.md).
 

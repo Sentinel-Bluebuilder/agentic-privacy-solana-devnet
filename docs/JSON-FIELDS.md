@@ -1,6 +1,6 @@
 # JSON you will read: agent status and wallet show
 
-For `devnet-dvpn` v0.3.0-rc8 (macOS v0.3.0-rc4). Moved here from the appendix of [`AGENTS.md`](../AGENTS.md).
+For `devnet-dvpn` v0.3.0-rc8 (Windows, Linux, macOS Apple silicon). Moved here from the appendix of [`AGENTS.md`](../AGENTS.md).
 
 
 Every answer of the three `agent` commands, as a JSON Schema (draft 2020-12):

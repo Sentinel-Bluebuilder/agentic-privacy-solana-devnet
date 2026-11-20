@@ -8,7 +8,7 @@
 
 Pick one path and read its first file top to bottom once.
 
-- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc8 by name (macOS: v0.3.0-rc4); the first command after install is
+- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc8 by name (macOS: Apple silicon); the first command after install is
   `devnet-dvpn agent status --json`. Every answer carries `next` (the command to run next) or, on failure, `action`.
   Add `--json` for one line of JSON; nothing spends without `--yes` (without it: a preview, exit code 2).
 - **Path B (direct, Linux):** [docs/DIRECT.md](docs/DIRECT.md). The first command is
@@ -40,7 +40,7 @@ exact message to send them.
 
 - [CHANGELOG.md](CHANGELOG.md): what changed for an agent per release (rc4 → rc5 → rc6 → rc7 → rc8), breaking changes first.
 - [docs/PROVENANCE.md](docs/PROVENANCE.md): every file an agent runs, with its SHA-256, release, source commit, build command and when it was last verified.
-- [docs/INSTALL-BY-HAND.md](docs/INSTALL-BY-HAND.md): install the app without the installer script: download, check against SHA256SUMS, install, per OS (macOS rc4: only here).
+- [docs/INSTALL-BY-HAND.md](docs/INSTALL-BY-HAND.md): install the app without the installer script: download, check against SHA256SUMS, install, per OS (macOS: only here).
 - [docs/CHOICES.md](docs/CHOICES.md): protocol, country, pricing, split tunnelling and the kill switch.
 - [docs/OLDER-RELEASES.md](docs/OLDER-RELEASES.md): v0.3.0-rc2, rc4, rc5 and rc6 differences, and the single commands behind `agent up` / `agent down`.
 - [docs/JSON-FIELDS.md](docs/JSON-FIELDS.md): `agent status` fields vs `wallet show` fields, with the units.

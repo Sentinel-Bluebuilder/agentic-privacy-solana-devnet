@@ -10,7 +10,7 @@
 
 Pick one path and read its first file top to bottom once.
 
-- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc8 by name (macOS: v0.3.0-rc4); the first command after install is
+- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc8 by name (macOS: Apple silicon); the first command after install is
   `devnet-dvpn agent status --json`. Every answer carries `next` (the command to run next) or, on failure, `action`.
   Add `--json` for one line of JSON; nothing spends without `--yes` (without it: a preview, exit code 2).
 - **Path B (direct, Linux):** [docs/DIRECT.md](docs/DIRECT.md). The first command is
@@ -42,7 +42,7 @@ exact message to send them.
 
 - [CHANGELOG.md](CHANGELOG.md): what changed for an agent per release (rc4 → rc5 → rc6 → rc7 → rc8), breaking changes first.
 - [docs/PROVENANCE.md](docs/PROVENANCE.md): every file an agent runs, with its SHA-256, release, source commit, build command and when it was last verified.
-- [docs/INSTALL-BY-HAND.md](docs/INSTALL-BY-HAND.md): install the app without the installer script: download, check against SHA256SUMS, install, per OS (macOS rc4: only here).
+- [docs/INSTALL-BY-HAND.md](docs/INSTALL-BY-HAND.md): install the app without the installer script: download, check against SHA256SUMS, install, per OS (macOS: only here).
 - [docs/CHOICES.md](docs/CHOICES.md): protocol, country, pricing, split tunnelling and the kill switch.
 - [docs/OLDER-RELEASES.md](docs/OLDER-RELEASES.md): v0.3.0-rc2, rc4, rc5 and rc6 differences, and the single commands behind `agent up` / `agent down`.
 - [docs/JSON-FIELDS.md](docs/JSON-FIELDS.md): `agent status` fields vs `wallet show` fields, with the units.
@@ -103,17 +103,16 @@ Rules of the tool:
 > Your own code instead of a CLI: [`docs/BUILD-YOUR-OWN-CLIENT.md`](docs/BUILD-YOUR-OWN-CLIENT.md).
 > A script that drives the app: [`docs/examples/agent-loop.mjs`](docs/examples/agent-loop.mjs) (one Node file, no dependencies: checks programId + mint, follows `next`, never pays without `--yes`).
 
-> **Release: `v0.3.0-rc8`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc4`. The same
-> command line on all three. Pin the tag by name, as the lines below do: on macOS the release GitHub marks
-> "Latest" is an older one that cannot make a key file. The download line per OS:
+> **Release: `v0.3.0-rc8`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc8` (Apple silicon; Intel
+> Macs: `docs/OLDER-RELEASES.md`). The same command line on all three. Pin the tag by name, as the lines below do.
+> The download line per OS:
 > - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh`
-> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc4`: rc8 for macOS is not built yet; on rc4 read the rc4 list in `docs/OLDER-RELEASES.md`).
+> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc8`, Apple silicon only).
 > - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc8'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
 >
 > Done when `devnet-dvpn version --json` says `0.3.0-rc.8`, network `devnet`, `programId`
 > `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` and `mint` `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`;
-> any other `programId` or `mint`: stop, wrong build, pay nothing. (macOS: `0.3.0-rc.4`, which prints no
-> `programId` / `mint`: check network `devnet` only.) Another release
+> any other `programId` or `mint`: stop, wrong build, pay nothing. Another release
 > installed: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What is proven, per OS and
 > release: [`docs/PROOF.md`](docs/PROOF.md). Every field and failure code of the three `agent`
 > commands: [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md); as a JSON Schema:
@@ -253,7 +252,7 @@ PATH afterwards:
 ### By hand
 
 No installer script: download, check against `SHA256SUMS` and install yourself, per OS:
-[`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (macOS rc4: only there).
+[`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (macOS: only there).
 
 Then, on every OS: `devnet-dvpn version --json` must say network devnet.
 
@@ -2673,7 +2672,7 @@ an unknown flag, `unknown: agent <x> (up | down | status)`. `agent` with no subc
 
 # Troubleshooting: symptom → cause → command
 
-For `devnet-dvpn` v0.3.0-rc8, macOS v0.3.0-rc4 ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
+For `devnet-dvpn` v0.3.0-rc8, macOS Apple silicon included ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
 (meaning, whether money moved, next, the other way out) is in [`CODES.md`](CODES.md), linked from the Code column. Terms:
 [`GLOSSARY.md`](../GLOSSARY.md).
 
@@ -3137,7 +3136,7 @@ they run are proven on their own.
 ## 1. Set the machine up with the CLI first
 
 MCP cannot set the machine up: installing the service needs administrator / root once. Do sections
-1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc8** by name (macOS: v0.3.0-rc4),
+1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc8** by name (macOS: Apple silicon),
 `wallet create --keyfile <path> --yes`, get the address funded (a person sends devnet SOL and
 tDVPN), then `daemon init` → `device setup --yes` → `daemon install --yes`. After that,
 everything below runs as the normal user over MCP.
@@ -3749,6 +3748,9 @@ Check which release you have: `devnet-dvpn version --json`.
 
 ## v0.3.0-rc8
 
+Published on Windows and Linux, and (2026-11-20) on macOS for Apple silicon only: Intel Macs stay on v0.3.0-rc4
+([`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md), "Intel Mac").
+
 Breaking: read these before you run an rc7 script on rc8.
 
 - **Usage errors with `--json` are a JSON line on stdout** (exit `3` stays): `{ok:false, code:"usage", error,
@@ -3917,9 +3919,9 @@ self-tests and the page checks), because the release tags here hold the release 
 | `devnet-dvpn_0.3.0-rc.8_amd64.deb` (Linux x86_64) | `f53838de45dab4f8d2ed04fd5dfccd7269f34537f6b8e5ba6aea19a71df5ea68` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches the rc8 build's `SHA256SUMS` |
 | `devnet-dvpn-0.3.0-rc.8.x86_64.rpm` (Linux x86_64) | `fd76cb4d90fcadc9714d2af4571ff6c4f241f603738a3c819013236bce1c6e14` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches the rc8 build's `SHA256SUMS` |
 | `Devnet-dVPN-0.3.0-rc.8-x86_64.AppImage` (Linux x86_64) | `36014a992fb26d1249b06c97676c69d92d939d1ef3874c915794ee98bb855d63` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches the rc8 build's `SHA256SUMS` |
-| `Devnet-dVPN-0.3.0-rc.4-arm64.dmg` (macOS Apple silicon) | `b558b8958848024fe947502998867cb41b352973e66bd223551e7d1249f8003d` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | 2026-11-16: release smoke test by the app team; the agent path is not run on macOS ([`PROOF.md`](PROOF.md)) |
-| `Devnet-dVPN-0.3.0-rc.4-x64.dmg` (macOS Intel) | `5441414959e639b7be6931334a3540031f3f88be03215de3967f4f709901c977` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | as above |
-| `Devnet-dVPN-0.3.0-rc.4-arm64-mac.zip` | `5d59d14f585b1e967b87725ca82b64c9ea417ad900e5368d92b32dab43e00644` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | as above |
+| `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` (macOS Apple silicon) | `a4295f29a1849d9b2125b783a7eeb303c4e97448113e7e9811d82f44f3c28505` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-21: hash matches the release's `SHA256SUMS` (rc8); the release build's checks: 17 pass, 6 differ (`PROOF.md`) |
+| `Devnet-dVPN-0.3.0-rc.8-arm64-mac.zip` | `b7bda429810c94116e9004b7c5cc461b26f6be06c8875f55ff029d76b5afd1b9` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | as above |
+| `Devnet-dVPN-0.3.0-rc.4-x64.dmg` (macOS Intel: the newest Intel build) | `5441414959e639b7be6931334a3540031f3f88be03215de3967f4f709901c977` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | 2026-11-16: release smoke test by the app team; the agent path is not run on it ([`PROOF.md`](PROOF.md)) |
 | `Devnet-dVPN-0.3.0-rc.4-x64-mac.zip` | `5e73736763bdf5ae2fec72d033e9ec0c4699ad6bf5d9225f06a341ad5247bb0d` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | as above |
 
 ## Path B: Sentinel's own tools (download or build)
@@ -3943,7 +3945,7 @@ The exact `git` and `make` lines `build.sh` runs, and the expected `sentinel-dvp
 
 | What | Id on devnet | Source | Check |
 |---|---|---|---|
-| dVPN program (`programId`) | `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` | IDL: [`sentinel-programs/idl/dvpn.json` @ 26de5240](https://github.com/sentinel-official/sentinel-solana/blob/26de52407c5b722cfecad1772dcbeefd984ef6d0/sentinel-programs/idl/dvpn.json) (its `address` is a placeholder; the devnet id is set at link time) | Path A: `devnet-dvpn version --json` → `programId` (v0.3.0-rc7; macOS rc4 does not print it). Path B: `sentinel-dvpn version` → `program_id` |
+| dVPN program (`programId`) | `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` | IDL: [`sentinel-programs/idl/dvpn.json` @ 26de5240](https://github.com/sentinel-official/sentinel-solana/blob/26de52407c5b722cfecad1772dcbeefd984ef6d0/sentinel-programs/idl/dvpn.json) (its `address` is a placeholder; the devnet id is set at link time) | Path A: `devnet-dvpn version --json` → `programId` (v0.3.0-rc7 and later; the Intel Mac build, rc4, does not print it). Path B: `sentinel-dvpn version` → `program_id` |
 | tDVPN token (`mint`) | `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa` | the program's settings account holds it ([`GLOSSARY.md`](../GLOSSARY.md), **Config PDA**) | Path A: `version --json` → `mint`. Path B: `sentinel-dvpn version` → `mint` |
 
 Any other `programId` or `mint`: you have the wrong build. Pay nothing.
@@ -3966,7 +3968,7 @@ replace `main` in the URL with a commit id from the commit list above.
 
 # Install by hand (no installer script)
 
-The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc8 (macOS v0.3.0-rc4).
+The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc8 (macOS: Apple silicon; Intel Macs: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 Moved here from [`AGENTS.md`](../AGENTS.md), section 1. Where each file comes from: [`PROVENANCE.md`](PROVENANCE.md).
 
 
@@ -3988,15 +3990,15 @@ sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ".
 Without the update a fresh machine fails with "libsecret-tools … not installable"; without `-y`
 the install waits for an answer you cannot give.
 
-macOS (`x64` = Intel, `arm64` = Apple silicon). An older app in `/Applications` goes first:
+macOS, Apple silicon (`arm64`; v0.3.0-rc8 has no Intel build: Intel Macs use [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). An older app in `/Applications` goes first:
 `sudo -n rm -rf "/Applications/Devnet dVPN.app"` (`ditto` merges into an existing app).
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc4
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc8
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-[ -n "$F" ] || { echo "no $A build in this release"; exit 1; }
+[ -n "$F" ] || { echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md)"; exit 1; }
 curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
@@ -4030,7 +4032,7 @@ Then: `devnet-dvpn version --json` must say network devnet, and (rc6 and later) 
 
 # Choices: protocol, country, pricing, split tunnelling, kill switch
 
-For `devnet-dvpn` v0.3.0-rc8 (macOS v0.3.0-rc4). Moved here from [`AGENTS.md`](../AGENTS.md) to keep that page short; the steps there do not need any of these.
+For `devnet-dvpn` v0.3.0-rc8 (Windows, Linux, macOS Apple silicon). Moved here from [`AGENTS.md`](../AGENTS.md) to keep that page short; the steps there do not need any of these.
 
 **Protocol:** WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2; a node serves one.
 `agent up --protocol <name>`, or `nodes list --online --protocol <name> --json`.
@@ -4079,7 +4081,7 @@ Per-OS details: [`docs/agent-safety.md`](agent-safety.md).
 
 # Older releases (v0.3.0-rc2, rc4, rc5 and rc6)
 
-[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc7** only (macOS: v0.3.0-rc4). Take rc7 if you can. This page keeps what
+[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc8** (macOS: Apple silicon; Intel Macs: "Intel Mac" below). Take rc8 if you can. This page keeps what
 an agent needs on an older release, and the single commands that `agent up` / `agent down` run.
 
 What is proven, per OS and release: [`PROOF.md`](PROOF.md).
@@ -4090,13 +4092,14 @@ What is proven, per OS and release: [`PROOF.md`](PROOF.md).
 devnet-dvpn version --json
 ```
 
-- `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page.
+- `0.3.0-rc.8` or `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page (what rc8 added: [`CHANGELOG.md`](../CHANGELOG.md)).
+- macOS on an Intel Mac: "Intel Mac: v0.3.0-rc4" below.
 - `0.3.0-rc.6`: read "v0.3.0-rc6" below.
 - `0.3.0-rc.5`: read "v0.3.0-rc5" below.
-- `0.3.0-rc.4`: the `agent` commands exist; read "v0.3.0-rc4" below. macOS: rc4 is the newest macOS build (rc7 for macOS is not built yet).
+- `0.3.0-rc.4`: the `agent` commands exist; read "v0.3.0-rc4" below. It is the newest Intel Mac build.
 - `0.3.0-rc.2`: `agent` answers exit `3`, "unknown command: agent". Use "Step by step" below.
 - Older than rc2 (the release GitHub marks "Latest" can be one): it cannot make a key file.
-  Install rc7 by name (`AGENTS.md`, section 1).
+  Install rc8 by name (`AGENTS.md`, section 1).
 
 ## Step by step (rc2, or on any release if the shortcut fails)
 
@@ -4169,6 +4172,24 @@ The page applies, with the rc6 differences above and these from rc6:
 
 To install it: `DVPN_VERSION=v0.3.0-rc5` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0-rc5'`).
 
+## Intel Mac: v0.3.0-rc4
+
+v0.3.0-rc8 for macOS is built for Apple silicon only; the newest Intel (`x64`) build is v0.3.0-rc4 (2026-11-16). On an
+Intel Mac install it by hand, then follow "v0.3.0-rc4" below (it prints no `programId` / `mint`: check network
+`devnet` only). An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
+
+```sh
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc4
+curl -fsSLO "$U/SHA256SUMS"
+F=$(awk '{print $2}' SHA256SUMS | grep -E '^Devnet-dVPN-.*-x64\.dmg$')
+curl -fsSLO "$U/$F"
+grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
+M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
+sudo -n ditto "$M/Devnet dVPN.app" "/Applications/Devnet dVPN.app"
+hdiutil detach -quiet "$M"
+export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
+```
+
 ## v0.3.0-rc4
 
 The `agent` commands exist, with these differences from rc5:
@@ -4192,7 +4213,7 @@ download lines of [`INSTALL-BY-HAND.md`](INSTALL-BY-HAND.md); the file names the
 
 # JSON you will read: agent status and wallet show
 
-For `devnet-dvpn` v0.3.0-rc8 (macOS v0.3.0-rc4). Moved here from the appendix of [`AGENTS.md`](../AGENTS.md).
+For `devnet-dvpn` v0.3.0-rc8 (Windows, Linux, macOS Apple silicon). Moved here from the appendix of [`AGENTS.md`](../AGENTS.md).
 
 
 Every answer of the three `agent` commands, as a JSON Schema (draft 2020-12):
@@ -4263,7 +4284,7 @@ are added as they pass. "rc.1" below is 0.3.0-rc.1 (2026-11-12).
 
 ## Agent path on v0.3.0-rc8 (2026-11-20)
 
-The current release is **v0.3.0-rc8** on Windows and Linux (macOS stays on v0.3.0-rc4). The sections after this one
+The current release is **v0.3.0-rc8** on Windows, Linux and macOS (Apple silicon; Intel Macs stay on v0.3.0-rc4). The sections after this one
 are the earlier record.
 
 - **Published:** Windows `Devnet-dVPN-Setup-0.3.0-rc.8-x64.exe`, Linux `.deb`, `.rpm` and `.AppImage`; each hash is
@@ -4276,6 +4297,10 @@ are the earlier record.
 - **Windows, proven:** usage errors as JSON; `wallet send` refusing more than the balance, a program address, or a
   send that leaves too little SOL; `device plan` refusing an allowance above the wallet, and warning on 0; the settle
   line after `agent down`.
+- **macOS, published 2026-11-20:** `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` and `-arm64-mac.zip` (Apple silicon only; hashes
+  in [`docs/PROVENANCE.md`](PROVENANCE.md)). The release build's own checks: 17 pass, 6 differ from the expected
+  answer. The agent path (`AGENTS.md` from the page) has not been run on a Mac yet. Intel Macs: v0.3.0-rc4, the newest
+  Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 - **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
   macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
   ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being

@@ -17,7 +17,7 @@ are added as they pass. "rc.1" below is 0.3.0-rc.1 (2026-11-12).
 
 ## Agent path on v0.3.0-rc8 (2026-11-20)
 
-The current release is **v0.3.0-rc8** on Windows and Linux (macOS stays on v0.3.0-rc4). The sections after this one
+The current release is **v0.3.0-rc8** on Windows, Linux and macOS (Apple silicon; Intel Macs stay on v0.3.0-rc4). The sections after this one
 are the earlier record.
 
 - **Published:** Windows `Devnet-dVPN-Setup-0.3.0-rc.8-x64.exe`, Linux `.deb`, `.rpm` and `.AppImage`; each hash is
@@ -30,6 +30,10 @@ are the earlier record.
 - **Windows, proven:** usage errors as JSON; `wallet send` refusing more than the balance, a program address, or a
   send that leaves too little SOL; `device plan` refusing an allowance above the wallet, and warning on 0; the settle
   line after `agent down`.
+- **macOS, published 2026-11-20:** `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` and `-arm64-mac.zip` (Apple silicon only; hashes
+  in [`docs/PROVENANCE.md`](PROVENANCE.md)). The release build's own checks: 17 pass, 6 differ from the expected
+  answer. The agent path (`AGENTS.md` from the page) has not been run on a Mac yet. Intel Macs: v0.3.0-rc4, the newest
+  Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 - **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
   macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
   ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being

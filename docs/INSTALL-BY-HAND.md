@@ -1,6 +1,6 @@
 # Install by hand (no installer script)
 
-The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc8 (macOS v0.3.0-rc4).
+The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc8 (macOS: Apple silicon; Intel Macs: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 Moved here from [`AGENTS.md`](../AGENTS.md), section 1. Where each file comes from: [`PROVENANCE.md`](PROVENANCE.md).
 
 
@@ -22,15 +22,15 @@ sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ".
 Without the update a fresh machine fails with "libsecret-tools … not installable"; without `-y`
 the install waits for an answer you cannot give.
 
-macOS (`x64` = Intel, `arm64` = Apple silicon). An older app in `/Applications` goes first:
+macOS, Apple silicon (`arm64`; v0.3.0-rc8 has no Intel build: Intel Macs use [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). An older app in `/Applications` goes first:
 `sudo -n rm -rf "/Applications/Devnet dVPN.app"` (`ditto` merges into an existing app).
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc4
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc8
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-[ -n "$F" ] || { echo "no $A build in this release"; exit 1; }
+[ -n "$F" ] || { echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md)"; exit 1; }
 curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)

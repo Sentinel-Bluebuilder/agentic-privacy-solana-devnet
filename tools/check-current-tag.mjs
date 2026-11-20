@@ -39,6 +39,7 @@ const STRONG = /releases\/(?:download|tag)\/v|DVPN_VERSION\s*=\s*'?v/;
 /** Exact old-tag lines kept on purpose (with why). */
 const ALLOW = [
   'install.ps1: v0.3.0-rc2 on a machine not in a domain', // the rc2-only USERDOMAIN workaround (install.ps1:122-125)
+  'Devnet-dVPN-0.3.0-rc.4-x64', // the Intel Mac build: rc8 for macOS is Apple silicon only, so Intel Macs stay on rc4 (PROVENANCE rows)
 ];
 
 // ─── Read the current tags from the release box ───

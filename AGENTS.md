@@ -50,17 +50,16 @@ Rules of the tool:
 > Your own code instead of a CLI: [`docs/BUILD-YOUR-OWN-CLIENT.md`](docs/BUILD-YOUR-OWN-CLIENT.md).
 > A script that drives the app: [`docs/examples/agent-loop.mjs`](docs/examples/agent-loop.mjs) (one Node file, no dependencies: checks programId + mint, follows `next`, never pays without `--yes`).
 
-> **Release: `v0.3.0-rc8`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc4`. The same
-> command line on all three. Pin the tag by name, as the lines below do: on macOS the release GitHub marks
-> "Latest" is an older one that cannot make a key file. The download line per OS:
+> **Release: `v0.3.0-rc8`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc8` (Apple silicon; Intel
+> Macs: `docs/OLDER-RELEASES.md`). The same command line on all three. Pin the tag by name, as the lines below do.
+> The download line per OS:
 > - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh`
-> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc4`: rc8 for macOS is not built yet; on rc4 read the rc4 list in `docs/OLDER-RELEASES.md`).
+> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc8`, Apple silicon only).
 > - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc8'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
 >
 > Done when `devnet-dvpn version --json` says `0.3.0-rc.8`, network `devnet`, `programId`
 > `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` and `mint` `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`;
-> any other `programId` or `mint`: stop, wrong build, pay nothing. (macOS: `0.3.0-rc.4`, which prints no
-> `programId` / `mint`: check network `devnet` only.) Another release
+> any other `programId` or `mint`: stop, wrong build, pay nothing. Another release
 > installed: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What is proven, per OS and
 > release: [`docs/PROOF.md`](docs/PROOF.md). Every field and failure code of the three `agent`
 > commands: [`docs/AGENT-COMMANDS.md`](docs/AGENT-COMMANDS.md); as a JSON Schema:
@@ -200,7 +199,7 @@ PATH afterwards:
 ### By hand
 
 No installer script: download, check against `SHA256SUMS` and install yourself, per OS:
-[`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (macOS rc4: only there).
+[`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (macOS: only there).
 
 Then, on every OS: `devnet-dvpn version --json` must say network devnet.
 
