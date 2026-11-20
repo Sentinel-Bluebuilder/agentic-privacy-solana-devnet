@@ -11,7 +11,8 @@
     "go": {"type": "string", "pattern": "^(go[0-9]+[.][0-9]+([.][0-9]+)?|none)$"},
     "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "dist": {"type": "string", "minLength": 1},
-    "next": {"type": "string", "minLength": 1}
+    "next": {"type": "string", "minLength": 1},
+    "note": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }

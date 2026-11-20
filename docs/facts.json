@@ -1,0 +1,14 @@
+{
+  "$comment": "The one source for the facts every public page repeats. tools/check-facts.mjs fails when a page says otherwise; tools/check-current-tag.mjs reads release from here. Change a fact here first, then run both.",
+  "release": { "current": "v0.3.0-rc8", "mac": "v0.3.0-rc4" },
+  "solBeforeSetup": "0.06",
+  "defaultSpendingLimitTdvpn": "150",
+  "capRule": "the larger of the spending limit / 10 and the market p75 price x units, never above the spending limit",
+  "settleAfterDown": "settle run --yes after",
+  "closeWaitHours": "2",
+  "voucherBasis": "GB",
+  "streamBasis": "hour",
+  "depositRentSol": ["0.0022", "0.00217"],
+  "exitUsage": "3",
+  "exitNeedsConfirm": "2"
+}

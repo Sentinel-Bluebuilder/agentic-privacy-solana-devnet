@@ -9,6 +9,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -85,9 +86,30 @@ def main():
         return 1
     with open(path) as f:
         schema = json.load(f)
-    err = check(line, schema, name)
+    err = check(line, schema, name) or runnable(line)
     print(err or 'ok')
     return 1 if err else 0
+
+
+PROSE = ('(', ', then', ', or ')
+
+
+def runnable(line):
+    # next / then / each alternative must be ONE command an agent can run as printed: it parses with sh -n,
+    # and it is not prose ("x (preview), then y", "wait until <time>, then ...")
+    cmds = [('next', line.get('next')), ('then', line.get('then'))]
+    cmds += [('alternatives[%d]' % i, a) for i, a in enumerate(line.get('alternatives') or [])]
+    for field, cmd in cmds:
+        if cmd is None:
+            continue
+        if not isinstance(cmd, str):
+            return '%s: not a string' % field
+        for p in PROSE:
+            if p in cmd:
+                return '%s: %r is prose, not one command (contains %r)' % (field, cmd, p)
+        if subprocess.run(['sh', '-n', '-c', cmd], capture_output=True).returncode != 0:
+            return '%s: %r does not parse as a shell command (sh -n)' % (field, cmd)
+    return None
 
 
 if __name__ == '__main__':

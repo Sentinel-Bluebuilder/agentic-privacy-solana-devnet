@@ -36,4 +36,4 @@ if ip -br link | awk -v t="dvpn-$INSTANCE" '$1==t{f=1} END{exit !f}'; then
   fail "$E_OTHER" tunnel-closing "interface dvpn-$INSTANCE is still up after stop" \
     "sudo sentinel-dvpnd service restart --instance $INSTANCE" refund "No new money was spent ($SPENT base units used so far); the unused escrow is still held: sh direct/refund.sh --yes returns it."
 fi
-summary true disconnect "sh direct/refund.sh (to get unspent escrow back), or sh direct/connect.sh" "\"session\":\"$SESSION\",\"spent\":$SPENT,\"ip\":\"$IP\",\"tunnel\":\"down\""
+summary true disconnect "sh direct/refund.sh" "\"alternatives\":[\"sh direct/connect.sh\"],\"note\":\"refund.sh gets the unspent escrow back; connect.sh starts a new session\",\"session\":\"$SESSION\",\"spent\":$SPENT,\"ip\":\"$IP\",\"tunnel\":\"down\""

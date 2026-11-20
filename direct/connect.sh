@@ -7,7 +7,7 @@
 #
 # Steps (each raw command is printed before it runs):
 #   1. grant: the daemon's device key may spend for your owner key only through an on-chain grant.
-#      If none exists, opens one capped at ALLOWANCE (default 3 x the price cap x UNITS) and approves the
+#      If none exists, opens one capped at ALLOWANCE (default 10 deposits at the picked node's price) and approves the
 #      same amount as the token delegate. The cap is the most the device can ever lock in channels
 #   2. node: NODE, or the cheapest live WireGuard node at or below the price cap: MAX_PRICE (tDVPN/GB),
 #      else p75 of the live nodes (50 tDVPN/GB when fewer than 3). Above the cap: price-cap (exit 4)
@@ -22,6 +22,14 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 STEP=connect
 parse_args "$@"
+# settings are checked before anything is read or signed (usage, exit 3)
+case ${ESCROW:-1} in ''|0*|*[!0-9]*) fail "$E_USAGE" usage "ESCROW must be a whole number of base units above 0 (got ${ESCROW:-})" "env -u ESCROW sh direct/connect.sh" none ;; esac
+case ${ALLOWANCE:-1} in ''|0*|*[!0-9]*) fail "$E_USAGE" usage "ALLOWANCE must be a whole number of base units above 0 (got ${ALLOWANCE:-})" "env -u ALLOWANCE sh direct/connect.sh" none ;; esac
+case ${UNITS:-1} in ''|0*|*[!0-9]*) fail "$E_USAGE" usage "UNITS must be a whole number of GB above 0 (got ${UNITS:-})" "env -u UNITS sh direct/connect.sh" none ;; esac
+[ -z "${NODE:-}" ] || printf '%s' "$NODE" | grep -Eq '^[1-9A-HJ-NP-Za-km-z]{32,44}$' \
+  || fail "$E_USAGE" usage "NODE is not a base58 node address: $NODE" "env -u NODE sh direct/connect.sh" none
+[ -z "${MAX_PRICE:-}" ] || printf '%s' "$MAX_PRICE" | grep -Eq '^([0-9]+([.][0-9]{1,6})?|[.][0-9]{1,6})$' && [ "$(base_units "${MAX_PRICE:-1}")" -gt 0 ] \
+  || fail "$E_USAGE" usage "MAX_PRICE must be tDVPN per GB above 0, up to 6 decimals (got $MAX_PRICE)" "env -u MAX_PRICE sh direct/connect.sh" none
 need sentinel-dvpn; need jq; need curl
 
 PERMISSIONS=788529152            # 0x2f000000: the client permissions the daemon's doctor asks for
@@ -35,28 +43,33 @@ OWNER=$(owner_address)
 DEVICE=$(device_address)
 
 # ─── plan (read-only) ───
-ACTIVE=""
+ACTIVE=""; SJ=""
 if daemon_running; then
-  ACTIVE=$(try none dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[] | select(.status == "active")][0].id // empty')
+  SJ=$(try none dclient sessions --instance "$INSTANCE" | jq -c '[.sessions[] | select(.status == "active")][0] // empty')
+  ACTIVE=$(printf '%s' "$SJ" | jq -r '.id // empty')
 fi
-[ -z "$ACTIVE" ] || fail "$E_OTHER" session-active "session $ACTIVE is already active" "sh direct/disconnect.sh" none
+if [ -n "$ACTIVE" ]; then   # already connected: nothing to do, nothing signed (ok, not a failure)
+  EXIT_IP=$(curl -s -4 -m 10 https://api.ipify.org || echo "")
+  summary true connect "sh direct/disconnect.sh" "\"alreadyConnected\":true,\"note\":\"session $ACTIVE was already active; nothing was signed\",\"exitIp\":\"$EXIT_IP\",\"beforeIp\":\"\",\"nodeIp\":\"\",\"node\":\"$(printf '%s' "$SJ" | jq -r '.node // empty')\",\"session\":\"$ACTIVE\",\"channel\":\"$(printf '%s' "$SJ" | jq -r '.channel // empty')\""
+  exit 0
+fi
 
 # market: price cap = MAX_PRICE, else p75 of the live WireGuard nodes (50 tDVPN/GB when < 3 match),
-# never below ALLOWANCE / 10 per unit; grant cap = 3 deposits at that price; escrow = node price x UNITS
+# never below ALLOWANCE / 10 per unit; escrow = node price x UNITS; grant cap = 10 escrows
 NODES=$(try none sentinel-dvpn node search --service wireguard --live)
 market "$NODES"
 if [ -n "${MAX_PRICE:-}" ]; then PRICE_CAP=$(base_units "$MAX_PRICE"); else PRICE_CAP=$P75; fi
 if [ -n "${ALLOWANCE:-}" ] && [ -z "${MAX_PRICE:-}" ] && [ "$PRICE_CAP" -lt $((ALLOWANCE / 10 / UNITS)) ]; then
   PRICE_CAP=$((ALLOWANCE / 10 / UNITS))
 fi
-ALLOWANCE=${ALLOWANCE:-$((3 * PRICE_CAP * UNITS))}
-echo "market: $NMATCH nodes, p50 $(tdvpn "$P50") / p75 $(tdvpn "$P75") tDVPN/GB; cap $(tdvpn "$PRICE_CAP") tDVPN/GB x $UNITS GB; grant cap $(tdvpn "$ALLOWANCE") tDVPN" >&2
+# ALLOWANCE (the grant cap) is set after the node pick: 10 deposits at that node's price
+echo "market: $NMATCH nodes, p50 $(tdvpn "$P50") / p75 $(tdvpn "$P75") tDVPN/GB; cap $(tdvpn "$PRICE_CAP") tDVPN/GB x $UNITS GB" >&2
 
 GRANT=$(try none sentinel-dvpn grant search --granter "$OWNER" --grantee "$DEVICE" | jq -r '.[0].address // empty')
 if [ -n "$GRANT" ]; then
   LEFT=$(try none sentinel-dvpn grant show "$GRANT" | jq -r '.value.allowance')
 else
-  LEFT=$ALLOWANCE
+  LEFT=""   # no grant yet: the new cap, set after the node pick
 fi
 
 if [ -z "${NODE:-}" ]; then
@@ -77,6 +90,9 @@ if [ "$PRICE" -gt "$PRICE_CAP" ]; then
     "MAX_PRICE=$(tdvpn "$PRICE") NODE=$NODE sh direct/connect.sh" none
 fi
 ESCROW=${ESCROW:-$((PRICE * UNITS))}
+ALLOWANCE=${ALLOWANCE:-$((10 * ESCROW))}   # default grant cap: 10 deposits at this price (a running total)
+[ -n "$LEFT" ] || LEFT=$ALLOWANCE
+echo "grant cap $(tdvpn "$ALLOWANCE") tDVPN ($([ -n "$GRANT" ] && echo "grant $GRANT has $(tdvpn "$LEFT") left" || echo "new grant: 10 deposits of $(tdvpn "$ESCROW") tDVPN; ALLOWANCE=<base units> sets another"))" >&2
 HOST=$(echo "$URI" | sed -e 's#^https://##' -e 's#:[0-9]*$##' -e 's#/.*##')
 NODE_IP=$(getent ahostsv4 "$HOST" | awk 'NR==1{print $1}')
 [ -n "$NODE_IP" ] || fail "$E_OTHER" node-offline "cannot resolve node host $HOST" "env -u NODE sh direct/connect.sh" none
@@ -89,7 +105,7 @@ fi
 
 WHAT=""
 if [ -z "$GRANT" ]; then
-  WHAT="open grant cap $ALLOWANCE + delegate $ALLOWANCE base units ($(tdvpn "$ALLOWANCE") tDVPN, a running total that closes do not give back) (owner pays ~0.0017 SOL rent, back on close-grant); "
+  WHAT="open grant cap $ALLOWANCE + delegate $ALLOWANCE base units ($(tdvpn "$ALLOWANCE") tDVPN = 10 deposits at this price, a running total that closes do not give back; ALLOWANCE=<base units> sets another) (owner pays ~0.0017 SOL rent, back on close-grant); "
   payee rent "new grant account (program $PROGRAM_ID)" 0 "$RENT_GRANT" yes owner
   fee_tx 2   # grant open-grant + wallet approve-delegate, both signed by the owner
 fi

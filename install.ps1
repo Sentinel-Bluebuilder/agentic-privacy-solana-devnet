@@ -12,10 +12,10 @@
 # Both forms run in your own shell, so the PATH it sets stays set there.
 #
 # What it does: takes the newest release (pre-releases included) that has the x64 installer and
-# is v0.3 or newer (the guide pins v0.3.0-rc6), downloads it and the release's SHA256SUMS, checks it, runs the silent
+# is v0.3 or newer (the guide pins v0.3.0-rc8), downloads it and the release's SHA256SUMS, checks it, runs the silent
 # install and waits for it, adds devnet-dvpn to this shell's PATH and runs `devnet-dvpn version --json`.
 #
-# Options: $env:DVPN_VERSION = 'v0.3.0-rc6'   use this release tag instead of the newest (AGENTS.md pins it)
+# Options: $env:DVPN_VERSION = 'v0.3.0-rc8'   use this release tag instead of the newest (AGENTS.md pins it)
 #
 # Output: progress on the host; one JSON line as output, on success
 #   {"ok":true,"tag":...,"file":...,"version":{...},"path":"<bin folder added to PATH>","next":...}
@@ -51,7 +51,7 @@ function Install-DevnetDvpn {
   }
   $arch = $env:PROCESSOR_ARCHITEW6432
   if (-not $arch) { $arch = $env:PROCESSOR_ARCHITECTURE }
-  if ($arch -ne 'AMD64') { Stop-Install "this CPU ($arch) has no installer; only x64 is built (v0.3.0-rc6 included)." }
+  if ($arch -ne 'AMD64') { Stop-Install "this CPU ($arch) has no installer; only x64 is built (v0.3.0-rc8 included)." }
 
   $tmp = Join-Path ([IO.Path]::GetTempPath()) ('dvpn-' + [Guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $tmp | Out-Null
@@ -60,10 +60,10 @@ function Install-DevnetDvpn {
     if ($env:DVPN_VERSION) {
       $tag = $env:DVPN_VERSION
       if ($tag -notmatch '^v') { $tag = "v$tag" }
-      if (-not (Test-Tag $tag)) { Stop-Install "release $tag is older than v0.3 and cannot make a key file; use `$env:DVPN_VERSION = 'v0.3.0-rc6'." }
+      if (-not (Test-Tag $tag)) { Stop-Install "release $tag is older than v0.3 and cannot make a key file; use `$env:DVPN_VERSION = 'v0.3.0-rc8'." }
       $base = "https://github.com/$repo/releases/download/$tag"
       try { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile "$tmp\SHA256SUMS" }
-      catch { Stop-Install "release $tag has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc6): $($_.Exception.Message)" }
+      catch { Stop-Install "release $tag has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc8): $($_.Exception.Message)" }
       $file = Get-Content "$tmp\SHA256SUMS" | ForEach-Object { (($_ -split '\s+')[1]) -replace '^\*', '' } |
         Where-Object { $_ -match $pattern } | Select-Object -First 1
       if (-not $file) { Stop-Install "release $tag has no x64 installer." }

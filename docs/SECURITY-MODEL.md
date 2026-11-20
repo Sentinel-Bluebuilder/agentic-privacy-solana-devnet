@@ -1,6 +1,6 @@
 # Security model
 
-What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc7.
+What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc8.
 Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 
 ## What we host: nothing
@@ -54,6 +54,12 @@ This repository holds documents, the installers and an MCP server that runs on y
   a dropped session does not fall back to your own address. `on` and `persist` are the same setting here.
   It can also block your SSH session: from the internet, never turn it on without another way in.
   `devnet-dvpn daemon restore-network` lifts the block; `--kill-switch off` stops it coming back.
+- **Known gap (Windows, v0.3.0-rc7): the block holds only while the VPN service keeps the session.** When a
+  node drops, the block holds while the service reconnects. But if the service ends the session itself
+  (seen ~22 s after the drop), traffic goes direct, from your own address, with no command run. `agent status`
+  then says `server-stopped` with no `blocked`, and `disconnect` says `killSwitchReleased: false`. Until this
+  is fixed, on Windows treat a `server-stopped` status as "not protected": stop sending, and run `agent up --yes` before sending
+  anything private. The service is Sentinel's own `dvpnd`, so this is also an upstream gap.
 - **DNS:** with the kill switch **off**, WireGuard, AmneziaWG, OpenVPN and Hysteria2 can send DNS lookups
   outside the tunnel (a known gap). If DNS privacy matters, keep the kill switch on. V2Ray and Xray resolve
   through the proxy.

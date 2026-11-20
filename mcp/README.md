@@ -4,6 +4,16 @@ A stdio MCP server with no dependencies, in one file: [`server.js`](server.js). 
 **installed** `devnet-dvpn` CLI (from the Devnet dVPN package for your OS) and returns the CLI's
 JSON and exit code unchanged. Solana devnet only: the tokens have no value.
 
+**Quick path (Linux; macOS / Windows install: [`AGENTS.md`](../AGENTS.md)).** Fund the address between steps 2 and 3.
+```sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh
+export DVPN_KEYFILE=$HOME/agent-key.json; devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json   # prints the address
+devnet-dvpn daemon init --yes && devnet-dvpn device setup --yes && devnet-dvpn daemon install --yes
+git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet "$HOME/ap"   # the server: $HOME/ap/mcp/server.js
+```
+Add to the client: `{"mcpServers":{"agentic-privacy":{"command":"node","args":["<HOME>/ap/mcp/server.js"],"env":{"DVPN_KEYFILE":"<HOME>/agent-key.json"}}}}`.
+First three calls: `vpn_agent_status` → `vpn_up {"protocol":"wireguard","basis":"per_gb","max_price":"0.01","yes":true}` → `vpn_down {"yes":true}`.
+
 **Status (2026-11-15, Linux, Node 22):** the unit tests (`node --test mcp/server.test.js`) pass.
 A live check (`node mcp/live-check.mjs`, real server, real CLI, real devnet; it spends nothing)
 passed against the installed v0.3.0-rc2: `initialize`, `tools/list` (9 tools), `vpn_status`,
@@ -17,7 +27,7 @@ they run are proven on their own.
 ## 1. Set the machine up with the CLI first
 
 MCP cannot set the machine up: installing the service needs administrator / root once. Do sections
-1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc6** by name (macOS: v0.3.0-rc4),
+1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc8** by name (macOS: v0.3.0-rc4),
 `wallet create --keyfile <path> --yes`, get the address funded (a person sends devnet SOL and
 tDVPN), then `daemon init` → `device setup --yes` → `daemon install --yes`. After that,
 everything below runs as the normal user over MCP.
@@ -217,7 +227,7 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `price-changed`, `deposit-unusable`, `deposits-unread` | up | `agent up --yes` again: nothing was paid, and it reads the price fresh (`max_price` still caps it). The server's price rose above the deposit shown / your open deposit with it started closing / your open deposits could not be read |
 | `not-confirmed`, `plan-limit`, `busy`, `unsupported`, `network-mismatch` | up | → status: refused before anything started |
 | `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `kill-switch-held`, `switch-reconnecting`, `switch-offline` | up | → status: the check before paying failed; nothing paid |
-| `price-cap` | up | rc6: no `max_price` and the deposit is above the default cap (the spending limit / 10: 5 tDVPN by default); nothing was paid. Call `vpn_up` again with `max_price` (the `action` names the node's price) or fewer `units` |
+| `price-cap` | up | rc6 and later: no `max_price` and the deposit is above the default cap (rc7: the larger of the spending limit / 10 and the market p75 price × units, never above the limit; rc6: the limit / 10); nothing was paid. Call `vpn_up` again with `max_price` (the `action` names the node's price) or fewer `units` |
 | `keyfile-mode` | up | rc7: the key file can be read by other users of this computer; nothing was paid. `chmod 600 <the key file named in error>`, then `vpn_up` again |
 | `cancelled` | up | → status: stopped |
 | `waiting-for-network`, `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding` | up | → status: failed after the start; a deposit already paid stays open until `agent down --yes` |

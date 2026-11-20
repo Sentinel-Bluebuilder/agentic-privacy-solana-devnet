@@ -17,6 +17,8 @@
 # with Go 1.27.3 (do not use those bytes; report it) · 1 the build failed.
 # The last stdout line is JSON: {"ok":…,"step":"build","result":"MATCH"|"MISMATCH"|"UNCHECKED",…}
 set -eu
+# --help / -h: print this header and exit, before anything runs
+for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'; exit 0 ;; esac; done
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 COMMIT=26de52407c5b722cfecad1772dcbeefd984ef6d0
@@ -79,8 +81,12 @@ fi
 
 if [ "$RESULT" = MISMATCH ] && [ "$STRICT" = 0 ]; then RESULT=UNCHECKED; fi
 OK=true; [ "$RESULT" = MISMATCH ] && OK=false
-printf '{"ok":%s,"step":"build","result":"%s","go":"%s","commit":"%s","dist":"%s","next":"%s"}\n' \
-  "$OK" "$RESULT" "$GO_HAVE" "$COMMIT" "$DIST" \
-  "$(case $RESULT in MATCH) echo 'sudo BUILD=1 sh direct/install.sh' ;; UNCHECKED) echo 'install Go 1.27.3 from https://go.dev/dl/, then sh direct/build.sh' ;; *) echo 'do not use these bytes; report the MISMATCH lines above' ;; esac)"
+case $RESULT in
+  MATCH) NX='sudo BUILD=1 sh direct/install.sh'; NOTE='the bytes match direct/SHA256SUMS' ;;
+  UNCHECKED) NX='sh direct/build.sh'; NOTE='install Go 1.27.3 from https://go.dev/dl/ first: another Go gives other bytes' ;;
+  *) NX='sh direct/build.sh'; NOTE='do not use these bytes; report the MISMATCH lines above' ;;
+esac
+printf '{"ok":%s,"step":"build","result":"%s","go":"%s","commit":"%s","dist":"%s","next":"%s","note":"%s"}\n' \
+  "$OK" "$RESULT" "$GO_HAVE" "$COMMIT" "$DIST" "$NX" "$NOTE"
 [ "$RESULT" = MISMATCH ] && exit 5
 exit 0

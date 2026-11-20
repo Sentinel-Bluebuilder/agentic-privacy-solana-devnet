@@ -1,19 +1,9 @@
-{"ok":true,"step":"install","next":"log out and in once (group), then: sh direct/fund-request.sh","owner":"11111111111111111111111111111111","device":"11111111111111111111111111111111","instance":"c1"}
 {"ok":true,"step":"connect","next":"sh direct/disconnect.sh","exitIp":"203.0.113.1","beforeIp":"203.0.113.2","nodeIp":"203.0.113.1","node":"11111111111111111111111111111111","session":"00000000-0000-4000-8000-000000000001","channel":"11111111111111111111111111111111"}
-{"ok":true,"step":"refund","next":"wait until 2026-11-20T10:50:51Z, then run sh direct/refund.sh again","closeAfter":"2026-11-20T10:50:51Z","userBalance":0}
 {"ok":true,"step":"refund","next":"done: nothing left locked","dvpn_base_units":20000000,"lamports":148298680}
 {"ok":true,"step":"refund","next":"done: nothing left locked","dvpn_base_units":20000000,"lamports":149960000}
-{"ok":true,"step":"install","next":"sh direct/fund-request.sh (the daemon starts in connect.sh, once the grant exists; no new login needed: the scripts use sudo for the daemon socket until a NEW ssh session, or newgrp sentinel-dvpn, gives you the group)","owner":"11111111111111111111111111111111","device":"11111111111111111111111111111111","instance":"c1"}
-{"ok":true,"step":"fund-request","next":"sh direct/connect.sh (preview), then sh direct/connect.sh --yes","owner":"11111111111111111111111111111111","device":"11111111111111111111111111111111","funded":true}
 {"ok":true,"step":"connect","next":"sh direct/disconnect.sh","exitIp":"203.0.113.1","beforeIp":"203.0.113.3","nodeIp":"203.0.113.1","node":"11111111111111111111111111111111","session":"00000000-0000-4000-8000-000000000002","channel":"11111111111111111111111111111111"}
-{"ok":true,"step":"disconnect","next":"sh direct/refund.sh (to get unspent escrow back), or sh direct/connect.sh","session":"00000000-0000-4000-8000-000000000002","spent":1,"ip":"203.0.113.3","tunnel":"down"}
-{"ok":true,"step":"refund","next":"wait until 2026-11-20T13:02:50Z, then sh direct/refund.sh --yes","closeAfter":"2026-11-20T13:02:50Z","userBalance":0}
 {"ok":true,"step":"selftest","next":"after the time refund printed: sh direct/refund.sh","held":120}
-{"ok":true,"step":"install","next":"sh direct/fund-request.sh (the daemon starts in connect.sh, once the grant exists; no new login needed: the scripts use sudo for the daemon socket until a NEW ssh session, or newgrp sentinel-dvpn, gives you the group)","owner":"11111111111111111111111111111111","device":"11111111111111111111111111111111","instance":"c1"}
-{"ok":true,"step":"fund-request","next":"sh direct/connect.sh (preview), then sh direct/connect.sh --yes","owner":"11111111111111111111111111111111","device":"11111111111111111111111111111111","funded":true}
 {"ok":true,"step":"connect","next":"sh direct/disconnect.sh","exitIp":"203.0.113.1","beforeIp":"203.0.113.3","nodeIp":"203.0.113.1","node":"11111111111111111111111111111111","session":"00000000-0000-4000-8000-000000000003","channel":"11111111111111111111111111111111"}
-{"ok":true,"step":"disconnect","next":"sh direct/refund.sh (to get unspent escrow back), or sh direct/connect.sh","session":"00000000-0000-4000-8000-000000000003","spent":1,"ip":"203.0.113.3","tunnel":"down"}
-{"ok":true,"step":"refund","next":"wait until 2026-11-20T13:49:29Z, then sh direct/refund.sh --yes","closeAfter":"2026-11-20T13:49:29Z","userBalance":0}
 {"ok":true,"step":"selftest","next":"after the time refund printed: sh direct/refund.sh","held":60}
 {"ok":true,"step":"build","result":"MATCH","go":"go1.27.3","commit":"26de52407c5b722cfecad1772dcbeefd984ef6d0","dist":"./dist-build","next":"sudo BUILD=1 sh direct/install.sh"}
 {"ok":true,"step":"faults","pass":52,"fail":0,"log":"faults-20261120T112810Z.log","next":"sh direct/selftest.sh"}

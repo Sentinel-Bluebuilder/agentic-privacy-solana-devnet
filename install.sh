@@ -9,12 +9,12 @@
 #   sh install.sh
 #
 # What it does: finds your OS, CPU and package type (deb / rpm / pacman; macOS dmg), takes the
-# newest release (pre-releases included) that has that file and is v0.3 or newer (the guide pins v0.3.0-rc6), downloads
+# newest release (pre-releases included) that has that file and is v0.3 or newer (the guide pins v0.3.0-rc8), downloads
 # the file and the release's SHA256SUMS, checks the file, installs it with no questions, and runs
 # `devnet-dvpn version --json`. Needs root or passwordless sudo (`sudo -n true` must work).
 #
 # Options, as environment variables:
-#   DVPN_VERSION=v0.3.0-rc6   use this release tag instead of the newest (AGENTS.md pins it)
+#   DVPN_VERSION=v0.3.0-rc8   use this release tag instead of the newest (AGENTS.md pins it)
 #
 # Output: progress and errors on stderr; on success one JSON line on stdout:
 #   {"ok":true,"tag":…,"file":…,"version":{…},"path":"export PATH=…"|null,"next":…}
@@ -100,9 +100,9 @@ main() {
   if [ -n "${DVPN_VERSION:-}" ]; then
     TAG=$DVPN_VERSION
     case "$TAG" in v*) ;; *) TAG="v$TAG" ;; esac
-    tag_ok "$TAG" || fail "release $TAG is older than v0.3 and cannot make a key file; use DVPN_VERSION=v0.3.0-rc6."
+    tag_ok "$TAG" || fail "release $TAG is older than v0.3 and cannot make a key file; use DVPN_VERSION=v0.3.0-rc8."
     BASE="https://github.com/$REPO/releases/download/$TAG"
-    curl -fsSL -o "$tmp/SHA256SUMS" "$BASE/SHA256SUMS" || fail "release $TAG has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc6)."
+    curl -fsSL -o "$tmp/SHA256SUMS" "$BASE/SHA256SUMS" || fail "release $TAG has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc8)."
     FILE=$(file_from_sums "$tmp/SHA256SUMS" "$PAT") || true
     [ -n "$FILE" ] || fail "release $TAG has no $KIND package for this CPU."
   else

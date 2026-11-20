@@ -114,13 +114,20 @@ jobs:
             "$GITHUB_WORKSPACE/docs/agent-answers.schema.json" \
             "$GITHUB_WORKSPACE/fixtures/agent-answers.jsonl"
 
+      - name: Every install line names the current release tag (from AGENTS.md's release box; planted-miss control)
+        run: node tools/check-current-tag.mjs
+
+      - name: Every page states the facts in docs/facts.json (planted-contradiction control)
+        run: node tools/check-facts.mjs
+
       - name: Glossary and failure-code page (self-controls; codes are skipped without the app source)
         if: hashFiles('tools/check-glossary.mjs') != ''
         run: node tools/check-glossary.mjs
 
-      # Every reachable failure code has a row and an anchor in docs/CODES.md. Off until the repository
-      # variable DVPN_APP_SRC_REF names a ref of the app repo whose src/cli holds agent-cmd.ts
-      # (the v0.3.0-rc6 tag there points at an older tree without it).
+      # Every reachable failure code has a row and an anchor in docs/CODES.md. Off here: the public app
+      # repos' release tags hold release files, not the CLI source, so DVPN_APP_SRC_REF stays unset. The same
+      # check (--require-src) runs against the private source before each release and must exit 0
+      # (docs/PROVENANCE.md, "What is checked against the source").
       - name: Check out the app source at DVPN_APP_SRC_REF
         if: hashFiles('tools/check-glossary.mjs') != '' && vars.DVPN_APP_SRC_REF != ''
         uses: actions/checkout@v4

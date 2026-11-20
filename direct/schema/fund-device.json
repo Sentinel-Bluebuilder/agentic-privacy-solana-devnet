@@ -7,7 +7,10 @@
   "properties": {
     "ok": {"const": true},
     "step": {"const": "fund-device"},
-    "next": {"type": "string", "minLength": 1}, "signature": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,90}$"}, "lamports": {"type": "integer", "minimum": 1}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "deviceLamports": {"type": ["integer", "null"]}
+    "next": {"type": "string", "minLength": 1},
+    "then": {"type": "string", "minLength": 1},
+    "alternatives": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "note": {"type": "string", "minLength": 1}, "signature": {"type": "string", "pattern": "^[1-9A-HJ-NP-Za-km-z]{64,90}$"}, "lamports": {"type": "integer", "minimum": 1}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "deviceLamports": {"type": ["integer", "null"]}
   },
   "additionalProperties": false
 }

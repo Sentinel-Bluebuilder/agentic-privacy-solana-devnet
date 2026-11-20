@@ -150,12 +150,24 @@ export function ownCodes(agentCmd) {
   for (const m of agentCmd.matchAll(new RegExp(`\\bcode \\?\\?\\s*'(${CODE})'`, 'g'))) out.add(m[1]);
   for (const line of agentCmd.split('\n')) {
     if (!/\bfail\(|\bcode\b/.test(line)) continue;
-    for (const m of line.matchAll(new RegExp(`\\? '(${CODE})' :`, 'g'))) out.add(m[1]);
+    // A ternary inside a template `${…}` is printed text (`${n === 1 ? 'does' : 'do'}`, rc.8 no-nodes), not a code.
+    for (const m of line.matchAll(new RegExp(`\\? '(${CODE})' :`, 'g'))) if (!inInterpolation(line, m.index)) out.add(m[1]);
   }
   return out;
 }
 
-const quotedIn = (s) => [...s.replace(/\/\/[^\n]*/g, '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
+/** True when position i of a line is inside a template literal's `${…}` (inner braces counted). */
+function inInterpolation(line, i) {
+  const depth = [];
+  for (let k = 0; k < i; k++) {
+    if (line[k] === '$' && line[k + 1] === '{') { depth.push(0); k++; }
+    else if (line[k] === '{' && depth.length) depth[depth.length - 1]++;
+    else if (line[k] === '}' && depth.length) { if (depth[depth.length - 1]) depth[depth.length - 1]--; else depth.pop(); }
+  }
+  return depth.length > 0;
+}
+
+const quotedIn =(s) => [...s.replace(/\/\/[^\n]*/g, '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
 
 /** CONNECT_CODES of state.ts, with ...PREFLIGHT_CODES expanded; null when the lists are not found. */
 export function connectCodes(state) {
@@ -316,6 +328,7 @@ function codeControl() {
       // Negative control (rc.6 gate false positives): none of these is a code, so none may be extracted.
       "o.print(`Wallet ${owner ?? 'none'}`); const sub = a._[1] ?? 'status'; const ip = r.exitIp ?? 'planted-ip';",
       "const word = wholeDevice ? 'planted-ternary' : 'x';",
+      "fail(`No node${atCap}; ${n} elsewhere ${n === 1 ? 'planted-does' : 'do'}.`, 'no-nodes', next);",
     ].join('\n'),
     'src/core/session/state.ts': "export const PREFLIGHT_CODES = ['pf-a'] as const;\nexport const CONNECT_CODES: readonly string[] = [\n  // a node's own (x)\n  'c-b', ...PREFLIGHT_CODES, 'cannot cover the prepay', 'unknown', 'no-nodes',\n];\n",
     'src/main/services/connection.ts': "export async function disconnect() { return { code: 'dis-c' }; }\n",
@@ -331,7 +344,7 @@ function codeControl() {
   const { codes, broken } = reachableCodes(files);
   const want = ['cannot cover the prepay', 'c-b', 'connect-failed', 'daemon-gone', 'dis-c', 'keyfile-missing', 'no-nodes', 'no-wallet', 'node-refused', 'pf-a', 'planted-ca', 'planted-cb', 'planted-clierr', 'planted-own', 'rpc-unavailable', 'settle-failed', 'stop-failed', 'svc-d', 'switch-failed', 'unknown'].sort();
   const got = [...codes.keys()].sort();
-  const leaked = ['none', 'status', 'planted-ip', 'planted-ternary'].filter((c) => codes.has(c));
+  const leaked = ['none', 'status', 'planted-ip', 'planted-ternary', 'planted-does'].filter((c) => codes.has(c));
   if (leaked.length) { console.error(`FAIL code control: non-codes extracted as codes: ${leaked.join(', ')}`); process.exit(4); }
   if (broken.length || got.join() !== want.join()) {
     console.error(`FAIL code control: extraction wanted ${want.join()}, got ${got.join()}${broken.length ? ` · broken: ${broken.join('; ')}` : ''}`);
@@ -399,7 +412,7 @@ function runCodeCheck(root, opts) {
 }
 
 /** Path B pages checked against GLOSSARY.md (each skipped when absent, so an older tree still runs). */
-const PATH_B_PAGES = ['docs/DIRECT.md', 'docs/BUILD-YOUR-OWN-CLIENT.md'];
+const PATH_B_PAGES = ['docs/DIRECT.md', 'docs/DIRECT-REFERENCE.md', 'docs/BUILD-YOUR-OWN-CLIENT.md'];
 
 /** Other people's tools a Path B page tells you to run or install: names, not terms of ours. */
 const PATH_B_TOOLS = new Set(['openssl', 'jq', 'curl', 'python3', 'usermod', 'resolvectl', 'sha256sum', 'make', 'git', 'go',
@@ -480,11 +493,11 @@ function main() {
   const codesMdText = existsSync(codesMd) ? readFileSync(codesMd, 'utf8').replace(/\r/g, '') : '';
   const allCodes = new Set([...codes, ...pageRows(codesMdText).flatMap((r) => r.codes)]);
   pathBControl(defined, allCodes, codesMdText);
+  // DIRECT.md and DIRECT-REFERENCE.md are one page split in two: a term in any Path B page's own table counts on all
+  const pathBText = new Map(pathB.map((p) => [p, readFileSync(join(root, p), 'utf8').replace(/\r/g, '')]));
+  const pathBTables = new Set([...pathBText.values()].flatMap((t) => [...tableDefined(t)]));
   const pages = [['AGENTS.md', agents, false, codes], ['docs/AGENT-COMMANDS.md', commands, true, codes],
-    ...pathB.map((p) => {
-      const t = readFileSync(join(root, p), 'utf8').replace(/\r/g, '');
-      return [p, t, false, new Set([...allCodes, ...tableDefined(t), ...PATH_B_TOOLS]), true];
-    })];
+    ...pathB.map((p) => [p, pathBText.get(p), false, new Set([...allCodes, ...pathBTables, ...PATH_B_TOOLS]), true])];
   for (const [name, text, stop, known, upstream] of pages) {
     const miss = undefinedTerms(text, stop, defined, known).filter(({ term }) => !(upstream && upstreamName(term)));
     if (miss.length === 0) { console.log(`OK   ${name}`); continue; }

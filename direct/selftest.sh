@@ -42,9 +42,9 @@ while [ "$t" -lt "$HOLD" ]; do
   st=$(dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[] | select(.status == "active")] | length')
   ip=$(curl -s -4 -m 10 https://api.ipify.org || echo unknown)
   echo "hold t=${t}s active=$st exitIp=$ip" >&2
-  [ "$st" = 1 ] || fail "$E_OTHER" session-dropped "the session dropped at ${t}s of ${HOLD}s (node $NODE_IP); see 'connection lost' in docs/DIRECT.md" \
+  [ "$st" = 1 ] || fail "$E_OTHER" session-dropped "the session dropped at ${t}s of ${HOLD}s (node $NODE_IP); see 'connection lost' in docs/DIRECT-REFERENCE.md" \
     "sh direct/disconnect.sh && sh direct/refund.sh" refund
 done
 stage disconnect sh "$HERE/disconnect.sh"
-stage refund sh "$HERE/refund.sh" --yes
-summary true selftest "after the time refund printed: sh direct/refund.sh" "\"held\":$HOLD"
+RL=$(stage refund sh "$HERE/refund.sh" --yes) && echo "$RL"   # its next is the exact wait + rerun
+summary true selftest "$(printf '%s' "$RL" | jq -r .next)" "\"note\":\"the session held; refund started the close: next waits for it, then refunds\",\"held\":$HOLD"

@@ -7,7 +7,7 @@
   "properties": {
     "ok": {"const": true},
     "step": {"const": "connect"},
-    "next": {"type": "string", "minLength": 1}, "exitIp": {"type": "string"}, "beforeIp": {"type": "string"}, "nodeIp": {"type": "string"}, "node": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "session": {"type": "string", "minLength": 1}, "channel": {"type": "string", "minLength": 1}
+    "next": {"type": "string", "minLength": 1}, "alreadyConnected": {"const": true}, "note": {"type": "string", "minLength": 1}, "exitIp": {"type": "string"}, "beforeIp": {"type": "string"}, "nodeIp": {"type": "string"}, "node": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "session": {"type": "string", "minLength": 1}, "channel": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }

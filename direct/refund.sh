@@ -5,7 +5,7 @@
 #   sh direct/refund.sh --yes            # does it, then tells you when to run it again
 #   sh direct/refund.sh --revoke --yes   # also closes the grant and revokes the delegate at the end
 #
-# The money path (docs/DIRECT.md "Refund"):
+# The money path (docs/DIRECT-REFERENCE.md, step 8 "Refund"):
 #   1. start close  : sentinel-dvpn channel start-close-channel --channel <ch>   (open channels)
 #   2. wait         : the program's channel_close_grace_seconds (7200 s = 2 h on devnet), so the
 #                     node can still redeem the vouchers you signed
@@ -18,15 +18,15 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 STEP=refund
-parse_args "$@"
-REVOKE=0; for a in "$@"; do [ "$a" = --revoke ] && REVOKE=1; done
+ARGS_BOOL="--revoke"; parse_args "$@"
+REVOKE=${ARG_revoke:-0}
 need sentinel-dvpn; need jq
 SELF="sh direct/refund.sh"; [ "$REVOKE" = 1 ] && SELF="$SELF --revoke"
 
 OWNER=$(owner_address)
 DEVICE=$(device_address)
 GRACE=$(try none sentinel-dvpn program params | jq -r .channel_close_grace_seconds)
-NOW=$(date +%s)
+NOW=$(chain_now)   # the chain's clock decides when a close is due, not this box's
 
 ACTIVE=0; daemon_running && ACTIVE=$(try none dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[]? | select(.status == "active")] | length')
 [ "$ACTIVE" = 0 ] || fail "$E_OTHER" session-active "a session is active; its channel cannot be closed cleanly" "sh direct/disconnect.sh && $SELF" none
@@ -35,7 +35,7 @@ ACTIVE=0; daemon_running && ACTIVE=$(try none dclient sessions --instance "$INST
 CHANNELS=$(try none sentinel-dvpn channel search --owner "$OWNER")
 TO_START=$(echo "$CHANNELS" | jq -r '.[] | select(.value.status == 0) | .address')
 TO_CLOSE=$(echo "$CHANNELS" | jq -r --argjson now "$NOW" --argjson g "$GRACE" '.[] | select(.value.status == 1 and (.value.close_started_at + $g) <= $now) | .address')
-WAITING=$(echo "$CHANNELS" | jq -r --argjson now "$NOW" --argjson g "$GRACE" '[.[] | select(.value.status == 1 and (.value.close_started_at + $g) > $now) | .value.close_started_at + $g] | max // 0')
+WAITING=$(echo "$CHANNELS" | jq -r --argjson now "$NOW" --argjson g "$GRACE" '[.[] | select(.value.status == 1 and (.value.close_started_at + $g) > $now) | .value.close_started_at + $g] | min // 0')   # the EARLIEST still waiting
 ESCROW_START=$(echo "$CHANNELS" | jq '[.[] | select(.value.status == 0) | .value.escrow - .value.redeemed] | add // 0')
 ESCROW_CLOSE=$(echo "$CHANNELS" | jq --argjson now "$NOW" --argjson g "$GRACE" '[.[] | select(.value.status == 1 and (.value.close_started_at + $g) <= $now) | .value.escrow - .value.redeemed] | add // 0')
 BAL=$(try none sentinel-dvpn user search --owner "$OWNER" | jq -r '.[0].value.balance // 0')
@@ -43,7 +43,17 @@ GRANT=""
 [ "$REVOKE" = 1 ] && GRANT=$(try none sentinel-dvpn grant search --granter "$OWNER" --grantee "$DEVICE" | jq -r '.[0].address // empty')
 
 [ -n "$TO_START" ] && WAIT_UNTIL=$((NOW + GRACE)) || WAIT_UNTIL=0
-[ "$WAITING" -gt "$WAIT_UNTIL" ] && WAIT_UNTIL=$WAITING
+{ [ "$WAITING" -gt 0 ] && { [ "$WAIT_UNTIL" = 0 ] || [ "$WAITING" -lt "$WAIT_UNTIL" ]; }; } && WAIT_UNTIL=$WAITING   # the earliest due
+
+# wait_line: the success line while a close is still in its wait: next sleeps until the EARLIEST due (chain
+# clock + 5 s), then reruns with --yes; channels[] lists every closing channel and when it is due
+wait_line() {
+  WHEN=$(date -u -d "@$WAIT_UNTIL" +%Y-%m-%dT%H:%M:%SZ)
+  CH=$(echo "$CHANNELS" | jq -c --argjson now "$NOW" --argjson g "$GRACE" \
+    '[.[] | select(.value.status <= 1) | {channel: .address, closeAfter: (((if .value.status == 1 then .value.close_started_at else $now end) + $g) | todate)}]')
+  N=$((WAIT_UNTIL - $(chain_now) + 5)); [ "$N" -gt 5 ] || N=5
+  summary true refund "sleep $N && $SELF --yes" "\"closeAfter\":\"$WHEN\",\"channels\":$CH,\"userBalance\":$BAL"
+}
 
 WHAT=""
 for ch in $TO_START; do WHAT="${WHAT}start close $ch; "; done
@@ -55,10 +65,9 @@ for ch in $TO_CLOSE; do WHAT="${WHAT}close $ch; "; done
 
 if [ -z "$WHAT" ]; then
   if [ "$WAIT_UNTIL" -gt 0 ]; then
-    WHEN=$(date -u -d "@$WAIT_UNTIL" +%Y-%m-%dT%H:%M:%SZ)
-    summary true refund "wait until $WHEN, then $SELF" "\"closeAfter\":\"$WHEN\",\"userBalance\":$BAL"
+    wait_line
   else
-    summary true refund "done: nothing left locked" "\"userBalance\":$BAL"
+    summary true refund "sh direct/connect.sh" "\"note\":\"done: nothing left locked\",\"userBalance\":$BAL"
   fi
   exit 0
 fi
@@ -87,8 +96,7 @@ if [ "$BAL" -gt 0 ]; then
 fi
 
 if [ "$WAIT_UNTIL" -gt 0 ]; then
-  WHEN=$(date -u -d "@$WAIT_UNTIL" +%Y-%m-%dT%H:%M:%SZ)
-  summary true refund "wait until $WHEN, then $SELF --yes" "\"closeAfter\":\"$WHEN\",\"userBalance\":$BAL"
+  wait_line
   exit 0
 fi
 
@@ -98,4 +106,4 @@ if [ "$REVOKE" = 1 ]; then
 fi
 
 W=$(try none sentinel-dvpn wallet balance)
-summary true refund "done: nothing left locked" "\"dvpn_base_units\":$(echo "$W" | jq .dvpn_base_units),\"lamports\":$(echo "$W" | jq .lamports)"
+summary true refund "sh direct/connect.sh" "\"note\":\"done: nothing left locked\",\"dvpn_base_units\":$(echo "$W" | jq .dvpn_base_units),\"lamports\":$(echo "$W" | jq .lamports)"

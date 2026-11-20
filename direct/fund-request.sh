@@ -13,12 +13,13 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 STEP=fund-request
+ARGS_BOOL="--wait"; parse_args "$@"
 need sentinel-dvpn; need jq; need curl
 
 # Market numbers (Rule 4), from the live node list; 50 tDVPN/GB when fewer than 3 nodes or no list:
 #   ask      WANT_DVPN = 2 x p75 price x UNITS (100 tDVPN today: room for 2 market deposits)
 #   minimum  MIN_DVPN  = one deposit at the price connect.sh would pick (the cheapest node at or below p75)
-NODES=$(sentinel-dvpn node search --service wireguard --live 2>/dev/null) || NODES='[]'
+NODES=$(try none sentinel-dvpn node search --service wireguard --live)   # a failed read is rpc-busy / rpc-unavailable (exit 6), never not-funded
 market "$NODES"
 PICK=$(cheapest_under "$NODES" "$P75" 2>/dev/null) || PICK=""
 PICK_PRICE=${PICK#* }; [ -n "$PICK" ] || PICK_PRICE=$P75
@@ -47,19 +48,20 @@ check() {
   O=$(try none sentinel-dvpn wallet balance --owner "$OWNER" 2>/dev/null)
   D=$(try none sentinel-dvpn wallet balance --owner "$DEVICE" 2>/dev/null)
   OD=$(echo "$O" | jq -r .dvpn_base_units); OL=$(echo "$O" | jq -r .lamports); DL=$(echo "$D" | jq -r .lamports)
+  for n in "$OD" "$OL" "$DL"; do case $n in ""|*[!0-9]*) fail "$E_NETWORK" rpc-unavailable "could not read the balances (got owner '$O', device '$D')" "sleep 60 && $CMD" none ;; esac; done
   echo "+ sentinel-dvpn wallet balance --owner $OWNER  -> dvpn_base_units=$OD lamports=$OL" >&2
   echo "+ sentinel-dvpn wallet balance --owner $DEVICE -> lamports=$DL" >&2
   [ "$OD" -ge "$MIN_DVPN" ] && [ "$OL" -ge "$MIN_OWNER_SOL" ] && [ "$DL" -ge "$MIN_DEVICE_SOL" ]
 }
 
 if check; then
-  summary true fund-request "sh direct/connect.sh (preview), then sh direct/connect.sh --yes" "\"owner\":\"$OWNER\",\"device\":\"$DEVICE\",\"funded\":true"
+  summary true fund-request "sh direct/connect.sh" "\"then\":\"sh direct/connect.sh --yes\",\"owner\":\"$OWNER\",\"device\":\"$DEVICE\",\"funded\":true"
   exit 0
 fi
-if [ "${1:-}" = --wait ]; then
+if [ "${ARG_wait:-0}" = 1 ]; then
   i=0
   while [ $i -lt 60 ]; do sleep 30; i=$((i + 1)); if check; then
-    summary true fund-request "sh direct/connect.sh (preview), then sh direct/connect.sh --yes" "\"owner\":\"$OWNER\",\"device\":\"$DEVICE\",\"funded\":true"; exit 0; fi
+    summary true fund-request "sh direct/connect.sh" "\"then\":\"sh direct/connect.sh --yes\",\"owner\":\"$OWNER\",\"device\":\"$DEVICE\",\"funded\":true"; exit 0; fi
   done
 fi
 # The owner alone holds enough tDVPN and SOL for both keys: move the device's share yourself

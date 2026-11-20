@@ -7,7 +7,10 @@
   "properties": {
     "ok": {"const": true},
     "step": {"const": "install"},
-    "next": {"type": "string", "minLength": 1}, "owner": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "instance": {"type": "string", "minLength": 1}
+    "next": {"type": "string", "minLength": 1},
+    "then": {"type": "string", "minLength": 1},
+    "alternatives": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "note": {"type": "string", "minLength": 1}, "owner": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "device": {"type":"string","pattern":"^[1-9A-HJ-NP-Za-km-z]{32,44}$"}, "instance": {"type": "string", "minLength": 1}
   },
   "additionalProperties": false
 }

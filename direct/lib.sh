@@ -10,7 +10,7 @@
 # Exit codes (the same as Path A's devnet-dvpn):
 #   0 ok · 1 failed (default) · 2 needs --yes · 3 usage · 4 needs you or your funder: not-funded,
 #   spending-limit, no-wallet · 5 refused for safety · 6 rpc-unavailable AND no deposit can be open
-# "code" uses Path A's kebab-case names where one exists (docs/DIRECT.md has the table).
+# "code" uses Path A's kebab-case names where one exists (docs/DIRECT-REFERENCE.md has the table).
 # "money" is exactly one of (Path A's classes):
 #   none    nothing was paid (a sent, failed transaction costs only its 5000-lamport fee)
 #   open    a deposit (channel escrow) may be open: sentinel-dvpn channel search --owner <owner>
@@ -20,6 +20,8 @@
 
 INSTANCE=${INSTANCE:-c1}
 NODE_RPC=${RPC_URL:-https://api.devnet.solana.com}
+# RPC_URL also steers the upstream CLI (sentinel-dvpn reads SENTINEL_DVPN_RPC_URL), so every read uses the same RPC
+[ -z "${RPC_URL:-}" ] || export SENTINEL_DVPN_RPC_URL="$RPC_URL"
 DEVICE_KEY_NAME=operator
 SOCK=/var/lib/sentinel-dvpn/$INSTANCE/daemon.sock
 
@@ -72,7 +74,7 @@ on_exit() {
   eval "$EXIT_EXTRA"
   if [ "$rc" != 0 ] && [ ! -s "$FAIL_CODE_FILE" ]; then
     last=$(cat "$LAST_RUN_FILE" 2>/dev/null)
-    case $MONEY_STATE in none) nx="grep -n -A14 'If something fails' docs/DIRECT.md" ;; *) nx="sh direct/refund.sh" ;; esac
+    case $MONEY_STATE in none) nx="grep -n -A14 'If something fails' docs/DIRECT-REFERENCE.md" ;; *) nx="sh direct/refund.sh" ;; esac
     case $rc in
       130|143) code=interrupted; msg="stopped by a signal (exit $rc) during: ${last:-start}"; nx="$CMD" ;;
       *) code=unknown; msg="stopped (exit $rc) at: ${last:-start}" ;;
@@ -120,7 +122,32 @@ done
 
 # ─── confirm gate: anything that signs previews first ───
 YES=${YES:-0}
-parse_args() { for a in "$@"; do case $a in --yes|-y) YES=1 ;; esac; done; }
+# parse_args "$@": --yes/-y, plus the script's own ARGS_BOOL (e.g. "--revoke") and ARGS_VAL (e.g. "--sol --to")
+# flags. A value flag takes "--sol 0.02" or "--sol=0.02" and sets ARG_sol. Anything else: usage (exit 3)
+parse_args() {
+  pa_want=""
+  for a in "$@"; do
+    if [ -n "$pa_want" ]; then
+      case $a in -*) fail "$E_USAGE" usage "$pa_want needs a value" "$CMD_BASE --help" none ;; esac
+      eval "ARG_$(printf '%s' "${pa_want#--}" | tr - _)=\$a"; pa_want=""; continue
+    fi
+    case $a in
+      --yes|-y) YES=1 ;;
+      --*=*) pa_f=${a%%=*}
+             case " ${ARGS_VAL:-} " in *" $pa_f "*) ;; *) fail "$E_USAGE" usage "unknown option $pa_f" "$CMD_BASE --help" none ;; esac
+             pa_v=${a#*=}; [ -n "$pa_v" ] || fail "$E_USAGE" usage "$pa_f needs a value" "$CMD_BASE --help" none
+             eval "ARG_$(printf '%s' "${pa_f#--}" | tr - _)=\$pa_v" ;;
+      *) case " ${ARGS_VAL:-} " in
+           *" $a "*) pa_want=$a ;;
+           *) case " ${ARGS_BOOL:-} " in
+                *" $a "*) eval "ARG_$(printf '%s' "${a#--}" | tr - _)=1" ;;
+                *) fail "$E_USAGE" usage "unknown option or argument: $a" "$CMD_BASE --help" none ;;
+              esac ;;
+         esac ;;
+    esac
+  done
+  [ -z "$pa_want" ] || fail "$E_USAGE" usage "$pa_want needs a value" "$CMD_BASE --help" none
+}
 
 # ─── who gets paid: every preview lists it (S6) ───
 # payee <role> <to> <tDVPN base units> <lamports> <comes back: yes|no|unspent-part> <payer: owner|device|program>
@@ -188,7 +215,7 @@ classify() {
     *"accepts "*" arg"*|*"unknown flag"*|*"unknown command"*|*"is required"*|*"required flag"*)
       fail "$E_USAGE" usage "$t" "$CMD_BASE --help" none ;;
     *ConstraintSeeds*|*2006*|*ConstraintAddress*|*2012*)
-      fail "$E_OTHER" wrong-account "$t" "grep -n -A1 wrong-account docs/DIRECT.md" none ;;
+      fail "$E_OTHER" wrong-account "$t" "grep -n -A1 wrong-account docs/DIRECT-REFERENCE.md" none ;;
     *daemon.sock*|*"code = Unavailable"*)
       if [ "$m" = none ]; then
         fail "$E_OTHER" daemon-unavailable "$t" "sudo sentinel-dvpnd service start --instance $INSTANCE && $CMD" none
@@ -208,7 +235,7 @@ classify() {
       fail "$E_OTHER" node-gone "$t" "env -u NODE sh direct/connect.sh" none ;;
     *)
       if [ "$m" = none ]; then
-        fail "$E_OTHER" unknown "$t" "grep -n -A14 'If something fails' docs/DIRECT.md" none
+        fail "$E_OTHER" unknown "$t" "grep -n -A14 'If something fails' docs/DIRECT-REFERENCE.md" none
       fi
       fail "$E_OTHER" unknown "$t" "$CHECK" "$m" ;;
   esac
@@ -317,4 +344,53 @@ device_address() {
   a=$(sudo sentinel-dvpnd key show "$DEVICE_KEY_NAME" --instance "$INSTANCE" 2>/dev/null | jq -r '.public_key // empty') || a=""
   [ -n "$a" ] || fail "$E_OTHER" no-device "no device key in instance $INSTANCE (sentinel-dvpnd key show $DEVICE_KEY_NAME failed)" "sudo sh direct/install.sh" none
   echo "$a"
+}
+
+# ─── own signer: build + sign + send one transaction with python3 -I and openssl only (no Solana CLI, no app) ───
+# sol_rpc <json>: one JSON-RPC call to NODE_RPC
+sol_rpc() { curl -s -m 20 "$NODE_RPC" -H 'content-type: application/json' -d "$1"; }
+# sol_send <keyfile> <signer address> <money if it fails after sending> <describe> <kind> <args...>
+#   kind/args as direct/soltx.py. Sets TX_SIG once the transaction is confirmed; any failure ends the script
+#   with rpc-unavailable / rpc-busy / unknown. The signing key lives only in a mktemp file, deleted after signing.
+sol_send() {
+  ss_key=$1; ss_from=$2; ss_money=$3; ss_what=$4; shift 4
+  ss_work=$(mktemp -d)
+  ss_bh=$(sol_rpc '{"jsonrpc":"2.0","id":1,"method":"getLatestBlockhash","params":[{"commitment":"confirmed"}]}' | jq -r '.result.value.blockhash // empty')
+  [ -n "$ss_bh" ] || { rm -rf "$ss_work"; fail "$E_NETWORK" rpc-unavailable "cannot read a recent blockhash from $NODE_RPC" "sleep 60 && $CMD" none; }
+  ss_pem=$(umask 077; mktemp -p "$ss_work")
+  python3 -I "$HERE/soltx.py" "$ss_key" "$ss_from" "$ss_bh" "$ss_work" "$ss_pem" "$@" >&2 \
+    || { rm -rf "$ss_work"; fail "$E_OTHER" unknown "could not build: $ss_what (see the Python error above)" "sentinel-dvpn key show owner" none; }
+  ss_pub=$(openssl pkey -in "$ss_pem" -pubout -outform DER | tail -c 32 | od -An -tx1 | tr -d ' \n')
+  [ "$ss_pub" = "$(cat "$ss_work/pub.hex")" ] \
+    || { rm -rf "$ss_work"; fail "$E_OTHER" unknown "openssl derived a different public key; not signing" "sentinel-dvpn key show owner" none; }
+  openssl pkeyutl -sign -inkey "$ss_pem" -rawin -in "$ss_work/msg.bin" -out "$ss_work/sig.bin"
+  rm -f "$ss_pem"
+  ss_tx=$( (printf '\001'; cat "$ss_work/sig.bin" "$ss_work/msg.bin") | base64 -w0)
+  rm -rf "$ss_work"
+  printf '+ sendTransaction (%s)\n' "$ss_what" >&2
+  ss_res=$(sol_rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"sendTransaction\",\"params\":[\"$ss_tx\",{\"encoding\":\"base64\",\"preflightCommitment\":\"confirmed\"}]}")
+  TX_SIG=$(echo "$ss_res" | jq -r '.result // empty')
+  if [ -z "$TX_SIG" ]; then
+    ss_err=$(echo "$ss_res" | jq -c '.error // .' | cut -c1-300)
+    case $ss_err in
+      *"429"*|*"Too Many"*) fail "$E_NETWORK" rpc-busy "$ss_err" "sleep 30 && $CMD" none ;;
+      *) fail "$E_OTHER" unknown "sendTransaction refused ($ss_what): $ss_err" "$CMD" none ;;
+    esac
+  fi
+  ss_i=0; ss_st=""
+  while [ $ss_i -lt 30 ]; do
+    ss_st=$(sol_rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getSignatureStatuses\",\"params\":[[\"$TX_SIG\"]]}" | jq -r '.result.value[0].confirmationStatus // empty')
+    case $ss_st in confirmed|finalized) return 0 ;; esac
+    sleep 2; ss_i=$((ss_i + 1))
+  done
+  fail "$E_OTHER" unknown "sent $TX_SIG ($ss_what) but not confirmed within 60 s" "sh direct/fund-request.sh" "$ss_money" \
+    "It is not known whether it landed: read the balances (sh direct/fund-request.sh) before you rerun."
+}
+
+# chain_now: the chain's clock (block time of the latest confirmed slot); the local clock if the RPC has none
+chain_now() {
+  cn_s=$(sol_rpc '{"jsonrpc":"2.0","id":1,"method":"getSlot","params":[{"commitment":"confirmed"}]}' | jq -r '.result // empty' 2>/dev/null) || cn_s=""
+  cn_t=""
+  [ -z "$cn_s" ] || cn_t=$(sol_rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getBlockTime\",\"params\":[$cn_s]}" | jq -r '.result // empty' 2>/dev/null) || cn_t=""
+  case $cn_t in ''|*[!0-9]*) date +%s ;; *) echo "$cn_t" ;; esac
 }

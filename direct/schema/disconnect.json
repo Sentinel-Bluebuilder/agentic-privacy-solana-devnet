@@ -7,7 +7,10 @@
   "properties": {
     "ok": {"const": true},
     "step": {"const": "disconnect"},
-    "next": {"type": "string", "minLength": 1}, "session": {"type": "string"}, "spent": {"type": "integer", "minimum": 0}, "ip": {"type": "string"}, "tunnel": {"const": "down"}
+    "next": {"type": "string", "minLength": 1},
+    "then": {"type": "string", "minLength": 1},
+    "alternatives": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "note": {"type": "string", "minLength": 1}, "session": {"type": "string"}, "spent": {"type": "integer", "minimum": 0}, "ip": {"type": "string"}, "tunnel": {"const": "down"}
   },
   "additionalProperties": false
 }

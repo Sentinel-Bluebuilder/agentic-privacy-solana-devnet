@@ -27,10 +27,10 @@ whatever the code. The rows below give `action` for when no deposit is open.
 |---|---|---|---|---|
 | <a id="code-no-wallet"></a>`no-wallet` | No wallet in this CLI: no key file named, none in the vault. | `none` | `<cli> wallet create --keyfile <path> --yes, then fund the address it prints`. When this computer has a device record: `<cli> wallet import <the key file of <owner>, the wallet that set up this computer's device>, then <cli> agent up --yes (a new wallet would not hold its funds)` | `<cli> agent status` (shows `address: null`) |
 | <a id="code-keyfile-missing"></a>`keyfile-missing` | The key file that `--keyfile` or `DVPN_KEYFILE` names is gone. Not "no wallet": the funds stay with the lost key. | `none` | `restore the key file named in "error" from your backup (it is the only key to this wallet), then <cli> agent up --yes` | none: never `wallet create` (a new wallet holds none of the funds) |
-| <a id="code-keyfile-mode"></a>`keyfile-mode` | rc.7. The key file can be read by other users (its mode is in `error`). Refused before anything is read or paid. Exit 4: a person fixes it. | `none` | `chmod 600 <the key file>, then <cli> agent up --yes` | none |
+| <a id="code-keyfile-mode"></a>`keyfile-mode` | rc.7, Linux and macOS (on Windows the ACL is not checked yet, rc.9). The key file can be read by other users (its mode is in `error`). Refused before anything is signed. Exit 4: a person fixes it. | `none` | `chmod 600 <the key file>, then <cli> agent up --yes` | none |
 | <a id="code-no-device"></a>`no-device` | `daemon init` could not create this computer's device key. | `none` | `<cli> daemon doctor` | `<cli> device setup --yes, then <cli> agent up --yes` |
 | <a id="code-no-subscription"></a>`no-subscription` | `--plan` names a subscription this wallet does not hold, or one that is not active. | `none` | `<cli> plans list, then <cli> plans subscribe <plan> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
-| <a id="code-no-nodes"></a>`no-nodes` | No online node matches `--protocol` / `--country` / `--max-price` / `--node` (or the plan's live roster). Under `--max-price` (rc7) the message names the cheapest matching price above it. | `none` | Under `--max-price` with a match above it (rc7): `<cli> agent up [--protocol <p>] [--country <c>] --basis <b> --units <n> --max-price <the cheapest price> --yes` (runnable as printed). Otherwise: `<cli> nodes list --online --json, then widen --protocol / --country / --max-price` | `<cli> agent up --basis <the other one> --yes` |
+| <a id="code-no-nodes"></a>`no-nodes` | No online node matches `--protocol` / `--country` / `--max-price` / `--node` (or the plan's live roster). Under `--max-price` (rc7) the message names the cheapest matching price above it. From rc.8 it names the real blocker, and its `next` never repeats the failing line: a price above the cap (only from nodes that answer their check, plus how many at or under the cap do not answer); no node in that country but some elsewhere (`next` drops `--country`); only another protocol (`next` drops `--protocol`); with `--node`, why that node is not picked (not on the network, the one in use now, does not offer the protocol, …), keeping `--node` where a retry can work. | `none` | Under `--max-price` with a match above it (rc7): `<cli> agent up [--protocol <p>] [--country <c>] --basis <b> --units <n> --max-price <the cheapest price> --yes` (runnable as printed). Otherwise: `<cli> nodes list --online --json, then widen --protocol / --country / --max-price` | `<cli> agent up --basis <the other one> --yes` |
 | <a id="code-not-funded"></a>`not-funded` | The wallet holds less than 0.06 SOL (rc7; 0.02 before) before its first connect, or less tDVPN than the deposit shown. rc7 names the exact shortfall and, when larger, a recommended amount that also covers a reconnect. | `none` | `send at least <n> SOL and/or <n> tDVPN (<m> recommended: it also covers a reconnect) to <address>, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` (a smaller deposit) |
 | <a id="code-price-cap"></a>`price-cap` | rc.6 and later. With no `--max-price` and no `--plan`, the deposit (price × units) is above the default cap, `defaults.priceCap` in the preview. rc7: the larger of the spending limit / 10 and the p75 price of the matching online nodes × `--units`, never above the limit; with fewer than 3 priced nodes, the limit / 10 (rc.6: always the limit / 10). The message names the node's price and the `--max-price` that accepts it. This applies to the quick pick and to `--node`. Refused before paying. | `none` | `<cli> agent up --node <node> --basis <b> --units <n> --max-price <its price> --yes (you accept this price), or fewer --units, or another node` | `<cli> agent up --units <fewer> --yes` |
 | <a id="code-node-refused"></a>`node-refused` | The connect failed with no specific code after the deposit opened (E-37). The node refused after it was paid. It is skipped next time. | `open` | the open-deposit sentence above | `<cli> agent down --yes` (closes it, refunds the unused part) |
@@ -171,7 +171,12 @@ or the deposit read in `agent down`.
 | `session-active` | A session is already active. | `none` | `devnet-dvpn disconnect` | `<cli> agent down --yes` |
 | (`code: null`) | A throw with no code (e.g. the key store locked over SSH, E-66). | `unclear` | null: read `error` | `<cli> agent status` |
 
-Exit 2 (`needsConfirm: true`) and exit 3 (usage) carry no `code`. See `docs/AGENT-COMMANDS.md`.
+Exit 2 (`needsConfirm: true`) carries no `code`. Exit 3 (wrong usage) is plain text with no `code` up to rc7; from
+rc.8, with `--json` it is a coded answer on stdout (the text output is unchanged). See `docs/AGENT-COMMANDS.md`.
+
+| Code | Meaning | Money moved? | Next | alsoNext |
+|---|---|---|---|---|
+| <a id="code-usage"></a>`usage` | rc.8 and later, with `--json`: wrong usage (an unknown command, flag or value), exit 3. The answer is `{ok:false, code:"usage", error, usage, next, docUrl, money}`; `usage` is the command's usage line. | `none` ("Nothing was sent or signed.") on rc.8 · rc7 has no such code (money-note.ts reads an unknown code as `unclear`) | `devnet-dvpn help` | - |
 
 ## Follow-up commands the answers name
 
@@ -220,11 +225,28 @@ Only `test` failures print a `money` field; the others carry none.
 | <a id="code-test-plan-failed"></a>`test-plan-failed` | `test run` | The test run could not be planned (`error` says why). Nothing was opened. | 1 | `none` | `<cli> test servers` |
 | <a id="code-no-test-run"></a>`no-test-run` | `test show / export [<run>]` | No test run with that id, or none yet. | 1 | `none` | `<cli> test history` |
 | <a id="code-keystore-unavailable"></a>`keystore-unavailable` | `wallet create / import` (Windows) | Windows cannot encrypt a wallet for this logon (no password session, e.g. an SSH key login), or the encryption failed. | 1 | `no field`: nothing paid | `<cli> wallet create --keyfile <path> --yes` |
-| <a id="code-keyfile-read-only"></a>`keyfile-read-only` | `wallet create / import / remove` | A `--keyfile` / `DVPN_KEYFILE` wallet is read-only: this CLI never writes or deletes it. | 1 | `no field`: nothing paid | `unset DVPN_KEYFILE, then run the command again` |
+| <a id="code-keyfile-read-only"></a>`keyfile-read-only` | `wallet create / import / logout` | A `--keyfile` / `DVPN_KEYFILE` wallet is read-only: this CLI never writes or deletes it. | 1 | `no field`: nothing paid | `unset DVPN_KEYFILE, then run the command again` |
 
 Also coded in rc.7 by `cliErr`, with rows above: `rpc-busy` (`wallet show`), `no-device` (`device switch`),
 `no-device-key` (`device setup`, `daemon init`), `no-wallet` and `daemon-missing` (`daemon install` / `set`), `no-nodes` (`test run`),
 `node-gone` (`nodes show / probe <node>`), `driver-missing` (`daemon drivers`).
+
+## rc.8 and later: `wallet send` and `device setup` check before they sign
+
+rc.8 checks a send before the `--yes` preview, so nothing is signed when one of these comes back. The preview
+also carries `feeLamports`, `balanceAfter {lamports, tdvpnBase}` and `notes` (a send to your own address or your
+own device is a note, not a refusal). `device plan` gains `ok`, `solCost`, `next` and a `warning` (`--allowance 0`: "0 blocks every deposit"); `device setup` reports `solSentToDevice` and `feeLamports`. Up to rc7 none of these codes exists.
+
+| Code | From | Meaning | Exit | Money moved? | Next (`action`) |
+|---|---|---|---|---|---|
+| <a id="code-bad-recipient"></a>`bad-recipient` | `wallet send` | `--to` is the system program, this app's program or the tDVPN mint; the message says which. Checked first, before any balance read. | 5 | `none` ("Nothing was sent or signed.") | `<cli> wallet send --to <a wallet address> … --yes` |
+| <a id="code-insufficient-funds"></a>`insufficient-funds` | `wallet send` | The send asks for more than the wallet holds (tDVPN above the balance, or SOL plus the 5000-lamport fee above it). | 4 | `none` ("Nothing was sent or signed.") | `<cli> wallet show --json` |
+| <a id="code-low-sol-after"></a>`low-sol-after` | `wallet send --sol` | The send would leave under 0.01 SOL, too little for the next fees. | 5 | `none` ("Nothing was sent or signed.") | send less, or add `--allow-empty` |
+| <a id="code-allowance-above-balance"></a>`allowance-above-balance` | `device setup` / `device plan` (`--allowance <N>`) | N is more tDVPN than the wallet holds, so the device could be approved for money that is not there. `--force` sets it anyway. | 4 | `none` ("Nothing was sent or signed.") | `<cli> device setup --allowance <at most the wallet balance> --yes` |
+
+`--tdvpn 0` / `--sol 0` is `usage` ("the amount must be more than 0"). From rc.8 `invalid-amount`,
+`invalid-address` and `usage` are money class `none`: `wallet`, `device` and `settle` say "Nothing was sent or
+signed.", `agent` says "Nothing was paid." (rc7 said "It is not known whether the transaction went through").
 
 ## Path B (`direct/*.sh`): codes only the scripts print
 
@@ -237,6 +259,7 @@ code of the same name (`install-failed`, `no-device`). Every line has `money` an
 |---|---|---|---|---|---|
 | <a id="code-direct-download-failed"></a>`download-failed` | `install.sh` | `apt-get update` or the release download (`SHA256SUMS`, a binary) failed. | 6 | `none` | `sleep 60 && sudo sh direct/install.sh` |
 | <a id="code-direct-install-failed"></a>`install-failed` | `install.sh` | A setup step failed: the packages, copying a binary, `sentinel-dvpnd init`, the kill-switch setting, the service, or adding you to the group. `error` names the step. | 1 | `none` | the step's own command, then `sudo sh direct/install.sh` |
+| <a id="code-direct-key-unsafe"></a>`key-unsafe` | `install.sh` (`KEYFILE=`) | The key file given as `KEYFILE=` has a mode other than 600 or 400, so other users can read the secret key. Nothing is copied. | 5 | `none` | `chmod 600 <file> && sudo KEYFILE=<file> sh direct/install.sh` |
 | <a id="code-direct-build-failed"></a>`build-failed` | `install.sh` (`BUILD=1`) | `direct/build.sh` failed. A wrong checksum is `checksum-mismatch`, not this. | 1 | `none` | `sh direct/build.sh` (needs git, make and Go 1.27.3) |
 | <a id="code-direct-no-device"></a>`no-device` | any script after install | The daemon has no device key: `install.sh` did not finish. | 1 | `none` | `sudo sh direct/install.sh` |
 | <a id="code-direct-route-failed"></a>`route-failed` | `connect.sh` | The route that keeps the node's own IP outside the tunnel could not be added (no default route, or `ip route replace` failed). | 1 | `none` | `ip route show default`, or the exact `sudo ip route replace …` line |
@@ -257,7 +280,7 @@ above still holds, apart from the changes listed here.
 | 0 | ok | none |
 | 1 | error | any code not listed below, and `code: null`. Includes `rpc-timeout`, `rpc-network`, `rpc-quota` and `timeout`: network codes whose money class is `open` (a deposit may be open) |
 | 2 | needs `--yes` | no code (`needsConfirm: true`) |
-| 3 | wrong usage | no code |
+| 3 | wrong usage | no code up to rc7; from rc.8 with `--json`: `usage` |
 | 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, and since rc7 `keyfile-missing` and `keyfile-mode` (rc.6: exit 1) |
 | 5 | refused for safety | `kill-switch-held` (money `none`), `kill-switch-failed` (money `open`: read `money`), and `kill-switch` |
 | 6 | network or RPC, no deposit possibly open: retry later | `rpc-busy`, `rpc-unavailable` (money `unclear`), and `rpc-ws` |

@@ -27,9 +27,9 @@ deposit back. Every `devnet-dvpn` command on it exists in the release it names.
 
 ## Get the app
 
-Use release **v0.3.0-rc6** (GitHub "Latest" on Windows and Linux), by name; on macOS v0.3.0-rc4 until rc6
+Use release **v0.3.0-rc8** (GitHub "Latest" on Windows and Linux), by name; on macOS v0.3.0-rc4 until rc8
 is published there. On macOS the release GitHub marks "Latest" is older and cannot create the key file the agent flow uses.
-On an older release: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What changed per release (rc4 → rc5 → rc6, breaking changes first): [`CHANGELOG.md`](CHANGELOG.md).
+On an older release: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What changed per release (rc4 → rc5 → rc6 → rc7 → rc8, breaking changes first): [`CHANGELOG.md`](CHANGELOG.md).
 
 | OS | Releases |
 |---|---|

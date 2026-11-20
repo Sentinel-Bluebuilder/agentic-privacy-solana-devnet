@@ -2,6 +2,7 @@
 # ─── direct/install.sh: install Sentinel's own client tools for Solana devnet (Linux, no app) ───
 #
 #   sudo sh direct/install.sh       # from your normal user; creates your owner key if you have none
+#   sudo KEYFILE=~/owner.json sh direct/install.sh   # use a key file you already have (mode 600)
 #
 # What it does, in order (each command is printed before it runs; safe to run again):
 #   1. checks it runs as root and finds the user who called sudo
@@ -15,7 +16,8 @@
 #   6. registers and starts the systemd service sentinel-dvpnd@c1 (FOREGROUND=1: skip, run it yourself)
 #   7. adds the calling user to the sentinel-dvpn group, so the CLI can reach the daemon socket
 #
-# Env: OWNER=<base58> (default: the calling user's "owner" key), BUILD=1, KILL_SWITCH=on, FOREGROUND=1
+# Env: KEYFILE=<path> (an owner key file you already have, e.g. funded: checked and copied in, see step 0),
+#      OWNER=<base58> (default: the calling user's "owner" key), BUILD=1, KILL_SWITCH=on, FOREGROUND=1
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
@@ -26,6 +28,37 @@ RELEASE_URL=${RELEASE_URL:-https://github.com/Sentinel-Bluebuilder/agentic-priva
 
 [ "$(id -u)" = 0 ] || fail "$E_USAGE" needs-root "run as root" "sudo sh direct/install.sh"
 CALLER=${SUDO_USER:-}
+
+# ─── 0. KEYFILE=<path>: use an owner key file you already have (checked before anything is installed) ───
+# It must be a 64-number Solana keypair array with mode 600 (or 400). It is copied, mode 600, to the calling
+# user's ~/.sentinel-dvpn/keys/owner.json, where sentinel-dvpn reads it (the owner key never enters the daemon).
+# Refused: another owner key already there (it is never overwritten), or OWNER= naming a different address.
+KEYFILE=${KEYFILE:-}
+if [ -n "$KEYFILE" ]; then
+  [ -n "$CALLER" ] || fail "$E_USAGE" usage "KEYFILE= needs sudo from a normal user (not a root shell)" "sudo KEYFILE=$KEYFILE sh direct/install.sh" none
+  [ -f "$KEYFILE" ] || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a file" "ls -l $KEYFILE" none
+  KMODE=$(stat -c %a "$KEYFILE")
+  case $KMODE in 600|400) ;; *) fail "$E_SAFETY" key-unsafe "KEYFILE=$KEYFILE has mode $KMODE: other users can read it (it is a plain secret key)" \
+    "chmod 600 $KEYFILE && sudo KEYFILE=$KEYFILE sh direct/install.sh" none ;; esac
+  KADDR=$(python3 -I "$HERE/soltx.py" pubkey "$KEYFILE" 2>/dev/null) \
+    || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a 64-number Solana keypair array" "head -c 20 $KEYFILE" none
+  [ -z "${OWNER:-}" ] || [ "$OWNER" = "$KADDR" ] \
+    || fail "$E_OTHER" wrong-account "KEYFILE=$KEYFILE is $KADDR, but OWNER=$OWNER" "sudo KEYFILE=$KEYFILE sh direct/install.sh" none
+  CHOME=$(getent passwd "$CALLER" | cut -d: -f6)
+  DEST=$CHOME/.sentinel-dvpn/keys/owner.json
+  if [ -f "$DEST" ]; then
+    HAVE=$(python3 -I "$HERE/soltx.py" pubkey "$DEST" 2>/dev/null) || HAVE=unreadable
+    [ "$HAVE" = "$KADDR" ] || fail "$E_OTHER" wrong-account "$DEST already holds owner $HAVE, not $KADDR; it is never overwritten" \
+      "sentinel-dvpn key show owner" none "Nothing was changed. Move that file away yourself if you mean to replace it."
+    echo "KEYFILE: $DEST already holds $KADDR; keeping it" >&2
+  else
+    step "$E_OTHER" install-failed "sudo KEYFILE=$KEYFILE sh direct/install.sh" none \
+      install -d -m 700 -o "$CALLER" -g "$(id -gn "$CALLER")" "$CHOME/.sentinel-dvpn" "$CHOME/.sentinel-dvpn/keys"
+    step "$E_OTHER" install-failed "sudo KEYFILE=$KEYFILE sh direct/install.sh" none \
+      install -m 600 -o "$CALLER" -g "$(id -gn "$CALLER")" "$KEYFILE" "$DEST"
+  fi
+  OWNER=$KADDR
+fi
 
 # ─── 1. packages ───
 if ! command -v wg >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1; then
@@ -112,5 +145,5 @@ fi
 [ -z "$CALLER" ] || step "$E_OTHER" install-failed "sudo usermod -aG sentinel-dvpn $CALLER" none usermod -aG sentinel-dvpn "$CALLER"
 
 DEVICE=$(device_address)
-if [ "${FOREGROUND:-0}" = 1 ]; then NEXT="sh direct/fund-request.sh; after connect.sh opened the grant, run: sudo sentinel-dvpnd run --instance $INSTANCE (in another shell)"; else NEXT="sh direct/fund-request.sh (the daemon starts in connect.sh, once the grant exists; no new login needed: the scripts use sudo for the daemon socket until a NEW ssh session, or newgrp sentinel-dvpn, gives you the group)"; fi
-summary true install "$NEXT" "\"owner\":\"$OWNER\",\"device\":\"$DEVICE\",\"instance\":\"$INSTANCE\""
+if [ "${FOREGROUND:-0}" = 1 ]; then NOTE="after connect.sh opened the grant, run in another shell: sudo sentinel-dvpnd run --instance $INSTANCE"; else NOTE="the daemon starts in connect.sh, once the grant exists. No new login needed: the scripts use sudo for the daemon socket until a NEW ssh session, or newgrp sentinel-dvpn, gives you the group"; fi
+summary true install "sh direct/fund-request.sh" "\"note\":\"$(jstr "$NOTE")\",\"owner\":\"$OWNER\",\"device\":\"$DEVICE\",\"instance\":\"$INSTANCE\""

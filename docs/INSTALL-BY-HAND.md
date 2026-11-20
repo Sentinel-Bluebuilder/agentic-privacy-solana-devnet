@@ -1,17 +1,17 @@
 # Install by hand (no installer script)
 
-The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc6 (macOS v0.3.0-rc4).
+The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc8 (macOS v0.3.0-rc4).
 Moved here from [`AGENTS.md`](../AGENTS.md), section 1. Where each file comes from: [`PROVENANCE.md`](PROVENANCE.md).
 
 
 The same steps, one release. File names carry the version with a dot, the tag without (tag
-`v0.3.0-rc6` holds `…0.3.0-rc.6…`), so take the name from `SHA256SUMS`.
+`v0.3.0-rc8` holds `…0.3.0-rc.8…`), so take the name from `SHA256SUMS`.
 
 Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; Arch:
 `-x64\.pkg\.tar\.zst$` and `sudo pacman -U --noconfirm`; arm64: `_arm64` / `aarch64`):
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc6
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc8
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
 curl -fsSLO "$U/$F"
@@ -42,7 +42,7 @@ An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devne
 Windows x64, elevated PowerShell:
 
 ```powershell
-$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc6'
+$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc8'
 curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an alias in older PowerShell)
 $l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
 $h, $f = ($l.Line -split '\s+')[0, 1]
@@ -55,4 +55,4 @@ $env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"     # this shell; new shells h
 Use `Start-Process -Wait`: run directly, the installer returns at once. On Windows,
 `daemon uninstall` refuses by design: remove the app in Settings > Apps.
 
-Then: `devnet-dvpn version --json` must say network devnet, and on rc6 the `programId` and `mint` in [`AGENTS.md`](../AGENTS.md).
+Then: `devnet-dvpn version --json` must say network devnet, and (rc6 and later) the `programId` and `mint` in [`AGENTS.md`](../AGENTS.md).

@@ -4,7 +4,7 @@
 #   sh direct/faults.sh            # from the repo root, on an installed box with the daemon running
 #
 # Each case makes one fault happen, runs one script, and checks its last JSON line:
-#   - "code" is the one expected, and it is listed in docs/DIRECT.md's Path B code table
+#   - "code" is the one expected, and it is listed in docs/DIRECT-REFERENCE.md's Path B code table
 #   - the exit matches DIRECT.md's exit table (6 only when money is none, else 1)
 #   - "money" is one of none/open/unclear/refund, and "moneyNote" is not empty
 #   - "next" is not empty, has no <placeholder>, parses as shell, and every command in it exists
@@ -17,15 +17,42 @@
 # `grant update-grant` calls (+1 base unit, then back), 2 fees of 5000 lamports.
 # Prints one line per case, then {"ok":…,"step":"faults","pass":N,"fail":M}. Exit 0 all pass, 1 any fail.
 set -u
+# --help / -h: print this header and exit, before anything runs
+for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'; exit 0 ;; esac; done
 cd "$(dirname "$0")/.."
-DOC=docs/DIRECT.md
-[ -f "$DOC" ] || { echo "run from the repo root (docs/DIRECT.md not found)" >&2; exit 3; }
+DOC=docs/DIRECT-REFERENCE.md   # the exit and code tables
+[ -f "$DOC" ] || { echo "run from the repo root (docs/DIRECT-REFERENCE.md not found)" >&2; exit 3; }
 INSTANCE=${INSTANCE:-c1}
 SOCK=/var/lib/sentinel-dvpn/$INSTANCE/daemon.sock
 FX=$(mktemp -d)
 LOG=${LOG:-faults-$(date -u +%Y%m%dT%H%M%SZ).log}
 PASS=0; FAILN=0
 REAL_DVPN=$(command -v sentinel-dvpn)
+# a --to that holds tDVPN, found at run time, for the close-all previews: the owner of the mint's largest token
+# account, or else the funder (fee payer of the owner key's first transaction). getTokenLargestAccounts is often 429.
+RPCU=${RPC_URL:-https://api.devnet.solana.com}
+jr() { curl -s -m 20 "$RPCU" -H 'content-type: application/json' -d "$1"; }
+HOLDER=""; i=0
+while [ -z "$HOLDER" ] && [ $i -lt 3 ]; do
+  HOLDER_TA=$(jr '{"jsonrpc":"2.0","id":1,"method":"getTokenLargestAccounts","params":["Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa"]}' | jq -r '.result.value[0].address // empty')
+  [ -z "$HOLDER_TA" ] || HOLDER=$(jr "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getAccountInfo\",\"params\":[\"$HOLDER_TA\",{\"encoding\":\"jsonParsed\"}]}" | jq -r '.result.value.data.parsed.info.owner // empty')
+  [ -n "$HOLDER" ] || { i=$((i + 1)); sleep 10; }
+done
+if [ -z "$HOLDER" ]; then
+  FX_OWNER=$("$REAL_DVPN" key show owner | jq -r .public_key)
+  FIRST=$(jr "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getSignaturesForAddress\",\"params\":[\"$FX_OWNER\",{\"limit\":1000}]}" | jq -r '.result[-1].signature // empty')
+  [ -z "$FIRST" ] || HOLDER=$(jr "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getTransaction\",\"params\":[\"$FIRST\",{\"encoding\":\"json\",\"maxSupportedTransactionVersion\":0}]}" | jq -r '.result.transaction.message.accountKeys[0] // empty')
+fi
+[ -n "$HOLDER" ] || { echo "cannot find a tDVPN holder on $RPCU for the close-all cases" >&2; exit 1; }
+echo "close-all cases use --to $HOLDER (found at run time)" >&2
+# a fresh wallet address with no token account, made at run time (openssl ed25519 key, public half only)
+NO_TA=$(openssl genpkey -algorithm ed25519 2>/dev/null | openssl pkey -pubout -outform DER 2>/dev/null | tail -c 32 \
+  | python3 -I -c 'import string, sys
+A = "".join(c for c in string.digits + string.ascii_uppercase + string.ascii_lowercase if c not in "0OIl")
+b = sys.stdin.buffer.read(); n = int.from_bytes(b, "big"); s = ""
+while n: n, r = divmod(n, 58); s = A[r] + s
+print("1" * (len(b) - len(b.lstrip(b"\0"))) + s)')
+[ -n "$NO_TA" ] || { echo "could not make a fresh address (openssl/python3)" >&2; exit 1; }
 OWNER_KEY=$HOME/.sentinel-dvpn/keys/owner.json
 
 [ -w "$SOCK" ] || { echo "the daemon socket $SOCK is not writable by you: start the daemon and log in again" >&2; exit 1; }
@@ -39,6 +66,9 @@ case "\$*" in
     if [ -n "\${FX_START_OUT:-}" ]; then printf '%s\n' "\$FX_START_OUT"; exit 0; fi
     printf '%b\n' "\${FX_START_ERR:-error: faults shim: client start blocked}" >&2; exit 1 ;;
 esac
+if [ -n "\${FX_HANG_MATCH:-}" ]; then
+  case "\$*" in *\$FX_HANG_MATCH*) : > "$FX/hanging"; sleep 30; exit 1 ;; esac
+fi
 if [ -n "\${FX_MATCH:-}" ]; then
   case "\$*" in *\$FX_MATCH*)
     if [ -n "\${FX_OUT:-}" ]; then printf '%s\n' "\$FX_OUT"; exit 0; fi
@@ -153,7 +183,7 @@ ok_case() {
   [ "$rc" = "$wx" ] || why="$why exit=$rc(want $wx);"
   [ -z "$grepfor" ] || grep -q "$grepfor" "$FX/$name.err" || why="$why stderr lacks '$grepfor';"
   last=$(printf '%s\n' "$out" | tail -1)
-  if [ "$name" != help ]; then   # --help prints text, every other case ends with a JSON line
+  if case $name in help*) false ;; *) true ;; esac; then   # --help prints text, every other case ends with a JSON line
     sv=$(python3 -I direct/schema/validate.py "$last" 2>&1) || why="$why schema: $sv;"
   fi
   if [ -z "$why" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL:$why"; fi
@@ -167,7 +197,7 @@ pv() {
   last=$(printf '%s\n' "$out" | tail -1); why=""
   [ "$rc" = 2 ] || why="$why exit=$rc(want 2);"
   sv=$(python3 -I direct/schema/validate.py "$last" 2>&1) || why="$why schema: $sv;"
-  [ "$(printf '%s' "$last" | jq -r "$test" 2>/dev/null)" = true ] || why="$why payees fail: $test;"
+  [ "$(printf '%s' "$last" | jq -r --arg h "$HOLDER" "$test" 2>/dev/null)" = true ] || why="$why payees fail: $test;"
   if [ -z "$why" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL:$why"; fi
   printf '%-22s exit=%s payees=%s fee=%s rent=%s | %s\n' "$name" "$rc" \
     "$(printf '%s' "$last" | jq -c '[.payees[]? | [.role, .payer, .baseUnits, .lamports]]' 2>/dev/null | cut -c1-120)" \
@@ -191,6 +221,8 @@ echo "faults.sh $(date -u +%FT%TZ) on $(hostname -s); node $NODE_OK" | tee "$LOG
 fx  usage-sol            usage        sh direct/fund-device.sh --sol abc
 fx  usage-cli            usage        FX_MATCH='program params' FX_ERR='error: unknown flag: --bogus' sh direct/refund.sh
 ok_case help             0 ''         sh direct/refund.sh --help
+ok_case help-faults      0 ''         sh direct/faults.sh --help   # prints help; must not run the suite
+ok_case help-build       0 ''         sh direct/build.sh --help    # prints help; must not build
 fx  needs-root           needs-root   sh direct/install.sh
 fx  tool-missing         tool-missing PATH="$FX/nojq" sh direct/disconnect.sh
 
@@ -204,6 +236,8 @@ chmod 600 "$OWNER_KEY"
 
 # ─── funding ───
 fx  unfunded-dvpn        not-funded   MIN_DVPN=999000000000 sh direct/fund-request.sh
+fx  fundreq-search-429   rpc-busy     FX_MATCH='node search' FX_ERR="$E429" sh direct/fund-request.sh   # a failed read is never not-funded
+fx  fundreq-balance-down rpc-unavailable FX_MATCH='wallet balance' FX_ERR='error: dial tcp: connection refused' sh direct/fund-request.sh
 fx  unfunded-sol         not-funded   sh direct/fund-device.sh --sol 1 --yes
 fx  device-sol           device-sol   FX_START_ERR='error: Transaction simulation failed: InvalidAccountForFee' sh direct/connect.sh --yes
 
@@ -232,19 +266,35 @@ fx  no-nodes             no-nodes     FX_MATCH='node search' FX_OUT='[]' sh dire
 fx  price-cap-auto       price-cap    MAX_PRICE=0.001 sh direct/connect.sh
 fx  price-cap-node       price-cap    MAX_PRICE=0.001 NODE="$NODE_OK" sh direct/connect.sh
 fx  usage-max-price      usage        MAX_PRICE=abc sh direct/connect.sh
+fx  usage-unknown-flag   usage        sh direct/connect.sh --bogus
+fx  usage-stray-arg      usage        sh direct/refund.sh yes
+fx  usage-bare-sol       usage        sh direct/fund-device.sh --sol
+fx  usage-sol-empty      usage        sh direct/fund-device.sh --sol=
+ok_case sol-equals-form  2 ''         sh direct/fund-device.sh --sol=0.001
+fx  usage-escrow         usage        ESCROW=abc sh direct/connect.sh
+fx  usage-escrow-zero    usage        ESCROW=0 sh direct/connect.sh
+fx  usage-node           usage        NODE=not-a-node sh direct/connect.sh
+fx  usage-units          usage        UNITS=1.5 sh direct/connect.sh
 fx  close-all-no-to      usage        sh direct/close-all.sh
 fx  close-all-bad-to     usage        sh direct/close-all.sh --to nope
-ok_case close-all-dry    2 ''           sh direct/close-all.sh --to SysvarC1ock11111111111111111111111111111111
+ok_case close-all-dry    2 ''           sh direct/close-all.sh --to "$HOLDER"
+fx  close-all-no-ta      no-token-account sh direct/close-all.sh --to "$NO_TA"
+fx  close-all-sysvar     usage        sh direct/close-all.sh --to SysvarC1ock11111111111111111111111111111111
+fx  close-all-program    usage        sh direct/close-all.sh --to J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs
+PDA=$("$REAL_DVPN" channel search --owner "$("$REAL_DVPN" key show owner | jq -r .public_key)" | jq -r '.[0].address // empty')
+[ -z "$PDA" ] || fx close-all-pda usage sh direct/close-all.sh --to "$PDA"   # a channel account: off the curve
 ok_case market-preview   2 'market: ' sh direct/connect.sh
 pv  payees-connect   '(.payees | any(.role == "deposit" and .payer == "owner" and .baseUnits > 0 and .comesBack == "unspent-part")) and (.payees | any(.role == "rent" and .payer == "device" and .lamports == 2169160)) and .feeLamports >= 5000 and .rentLamports >= 2169160'     sh direct/connect.sh
+pv  grant-cap-default '(.payees | map(select(.role == "deposit"))[0].baseUnits) as $e | (.what | contains("open grant cap \($e * 10) + delegate \($e * 10) base units")) and (.payees | any(.role == "rent" and .lamports == 1671320))' \
+    FX_MATCH='grant search' FX_OUT='[]' sh direct/connect.sh
 pv  payees-fund-dev  '.payees == [.payees[0]] and .payees[0].role == "transfer" and .payees[0].payer == "owner" and .payees[0].lamports == 1000000 and .feeLamports == 5000 and .rentLamports == 0'     sh direct/fund-device.sh --sol 0.001
 CH_OPEN="2$(printf "%042d" 0 | tr 0 1)"; CH_DUE="3$(printf "%042d" 0 | tr 0 1)"   # synthetic channels, built at run time
 FX_REFUND_CH="[{\"address\":\"$CH_OPEN\",\"value\":{\"status\":0,\"escrow\":2000,\"redeemed\":0,\"close_started_at\":0}},{\"address\":\"$CH_DUE\",\"value\":{\"status\":1,\"escrow\":1000000,\"redeemed\":12,\"close_started_at\":1}}]"
 pv  payees-refund    '(.payees | any(.role == "refund" and .payer == "program" and .baseUnits == 999988)) and (.payees | any(.role == "refund" and .lamports == 2169160)) and .feeLamports >= 15000 and .rentLamports == 0'     FX_MATCH='channel search' FX_OUT="$FX_REFUND_CH" sh direct/refund.sh
-pv  payees-close-all '(.payees | map(select(.role == "transfer" and .to == "SysvarC1ock11111111111111111111111111111111")) | length) >= 1 and .feeLamports >= 5000'     sh direct/close-all.sh --to SysvarC1ock11111111111111111111111111111111
+pv  payees-close-all '(.payees | map(select(.role == "transfer" and .to == $h)) | length) >= 1 and .feeLamports >= 5000'     sh direct/close-all.sh --to "$HOLDER"
 
 # ─── sessions + tunnel ───
-fx  session-active-conn  session-active FX_MATCH='client sessions' FX_OUT='{"sessions":[{"id":"fx-1","status":"active"}]}' sh direct/connect.sh
+ok_case already-connected 0 '' FX_MATCH='client sessions' FX_OUT="{\"sessions\":[{\"id\":\"fx-1\",\"status\":\"active\",\"node\":\"$NO_TA\",\"channel\":\"$NO_TA\"}]}" sh direct/connect.sh   # connect while connected: ok, alreadyConnected
 fx  session-active-refd  session-active FX_MATCH='client sessions' FX_OUT='{"sessions":[{"id":"fx-1","status":"active"}]}' sh direct/refund.sh
 fx  tunnel-failed        tunnel-failed FX_START_OUT='{"session":{"id":"fx-s","channel":"FaultsShimChannel"}}' sh direct/connect.sh --yes
 ok_case tunnel-cleanup   0 ''         sh direct/disconnect.sh
@@ -257,6 +307,16 @@ kill -TERM "$kp"; wait "$kp"; rc=$?
 check kill-mid-connect   interrupted "$rc" "$(tail -1 "$FX/kill.out")"
 ok_case rerun-after-kill 2 'market: '   sh direct/connect.sh
 ok_case rerun-disconnect 0 ''           sh direct/disconnect.sh
+# kill refund.sh while it signs (start-close-channel hangs), then the rerun finishes the job (S8)
+env PATH="$FX/bin:$PATH" FX_MATCH='channel search' FX_OUT="$FX_REFUND_CH" FX_HANG_MATCH='start-close-channel' \
+  sh direct/refund.sh --yes > "$FX/killr.out" 2> "$FX/killr.err" < /dev/null &
+kp=$!
+rm -f "$FX/hanging"; i=0; while [ $i -lt 60 ] && [ ! -f "$FX/hanging" ]; do sleep 1; i=$((i + 1)); done
+kill -TERM "$kp"; wait "$kp"; rc=$?
+check kill-mid-refund    interrupted "$rc" "$(tail -1 "$FX/killr.out")"
+[ "$(tail -1 "$FX/killr.out" | jq -r '.money + " " + .next' 2>/dev/null)" = "refund sh direct/refund.sh --yes" ] \
+  || { FAILN=$((FAILN + 1)); echo "kill-mid-refund-next   money/next not 'refund sh direct/refund.sh --yes': $(tail -1 "$FX/killr.out" | cut -c1-160) | FAIL" | tee -a "$LOG"; }
+ok_case rerun-after-refund-kill 0 '' FX_MATCH='search --owner' FX_OUT='[]' sh direct/refund.sh --yes   # nothing left due: done
 /usr/bin/sudo ip link add "dvpn-$INSTANCE" type dummy
 fx  tunnel-closing       tunnel-closing sh direct/disconnect.sh
 /usr/bin/sudo ip link del "dvpn-$INSTANCE"
@@ -269,6 +329,22 @@ out=$(/usr/bin/sudo env RELEASE_URL="file://$FX/rel" sh direct/install.sh 2>"$FX
 check checksum-mismatch checksum-mismatch "$rc" "$(printf '%s\n' "$out" | tail -1)"
 out=$(/usr/bin/sudo env PATH="$FX/bin:$PATH" FX_ARCH=riscv64 sh direct/install.sh 2>"$FX/arch.err" </dev/null); rc=$?
 check unsupported-cpu unsupported "$rc" "$(printf '%s\n' "$out" | tail -1)"
+# KEYFILE= (an owner key file you already have): every refusal comes before anything is installed
+(umask 077; cp "$OWNER_KEY" "$FX/k-same.json"; cp "$OWNER_KEY" "$FX/k-644.json"; echo '[1,2]' > "$FX/k-bad.json"
+ python3 -I -c 'import json, os; print(json.dumps(list(os.urandom(64))))' > "$FX/k-other.json")
+chmod 644 "$FX/k-644.json"
+kf() { # kf <case> <want code> <env...>: install.sh as root via sudo (SUDO_USER = you)
+  name=$1; want=$2; shift 2
+  out=$(/usr/bin/sudo env "$@" sh direct/install.sh 2>"$FX/$name.err" </dev/null); rc=$?
+  check "$name" "$want" "$rc" "$(printf '%s\n' "$out" | tail -1)"
+}
+kf  keyfile-mode-644     key-unsafe    KEYFILE="$FX/k-644.json"
+kf  keyfile-not-a-key    usage         KEYFILE="$FX/k-bad.json"
+kf  keyfile-owner-differs wrong-account KEYFILE="$FX/k-same.json" OWNER="$NO_TA"
+kf  keyfile-other-key    wrong-account KEYFILE="$FX/k-other.json"
+ok_case keyfile-same     0 'already holds' /usr/bin/sudo env KEYFILE="$FX/k-same.json" sh direct/install.sh
+shred -u "$FX"/k-*.json
+i=0; while [ $i -lt 30 ] && [ ! -S "$SOCK" ]; do sleep 1; i=$((i + 1)); done
 
 # ─── classify: every program / daemon error row ───
 cl  cl-spending-limit    spending-limit     none    'Error Code: AmountExceedsAllowance. Error Number: 6024'

@@ -7,6 +7,64 @@ Terms: [`GLOSSARY.md`](GLOSSARY.md).
 
 Check which release you have: `devnet-dvpn version --json`.
 
+## v0.3.0-rc8
+
+Breaking: read these before you run an rc7 script on rc8.
+
+- **Usage errors with `--json` are a JSON line on stdout** (exit `3` stays): `{ok:false, code:"usage", error,
+  usage, next:"devnet-dvpn help", docUrl, money:"Nothing was sent or signed."}`. rc7 printed a plain line on
+  stderr and nothing on stdout. Text mode is unchanged.
+- **`no-nodes` names the real blocker**, and its `action` never repeats the failing line: a price above
+  `--max-price` (counted only from nodes that answer their check), no node in that `--country` (the line
+  without it), only another `--protocol` (the line without it), or why the `--node` you gave is not picked
+  (`--node` kept where a retry can work). With every probe failing and no internet, the answer is
+  `kill-switch-held`, `next` = `daemon restore-network` (rc7: a lower price).
+- **`session-active` `next` = `agent status --json`** (rc7: `agent down --yes, then agent up --yes`, which ended
+  the live session). Only one paying `agent up` runs per computer: a second one waits up to 90 s, then
+  answers `reused: true`.
+- **After `agent down`, `agent status` gives the same line as `agent down`:** `settle run --yes after <ISO>, then
+  settle withdraw --yes` (rc7 status said `agent down --yes after <ISO>`).
+- **`clock-skew`** is exit `4`; its `next` is this OS's time-sync command (on Linux it also steps chrony),
+  then `agent up --yes` (rc7: try another node). It no longer names an older deposit as open.
+- **Money text for a value a command cannot read** (`invalid-amount`, `invalid-address`, `usage`) is class
+  `none` for every command: "Nothing was sent or signed." (`agent`: "Nothing was paid."). rc7 said "It is not
+  known whether the transaction went through".
+- **`wallet send` refuses before signing:** `insufficient-funds` (exit `4`), `bad-recipient` (the system program,
+  the app's program or the tDVPN mint; exit `5`), `low-sol-after` (under 0.01 SOL left; exit `5`, `--allow-empty`
+  overrides). `--tdvpn 0` / `--sol 0` is `usage`.
+- **`device plan` / `device setup --allowance <N>` above the wallet's tDVPN** is `allowance-above-balance` (exit `4`;
+  `--force` sets it anyway). `--allowance 0` warns that it blocks every deposit.
+
+Added, not breaking:
+
+- `agent status` names a key file other users can read (`keyfileMode`), and its `next` is the `chmod` line first
+  (a block's `restore-network` stays first).
+- `no-device-key` has one command in `next` (`agent up --yes`, or `daemon install --yes`).
+- A no-flags quick pick widens the default cap to the cheapest node that answers within the spending limit,
+  and says so in `defaults.reason` (rc7 refused at a price above the cap after a node dropped).
+- `agent status` clears `server-stopped` once no session is live, the direct internet answers and no open
+  deposit with that node is left.
+- `daemon doctor` has a clock row (`clockSkewSec`).
+- The `wallet send` preview carries `feeLamports`, `balanceAfter {lamports, tdvpnBase}` and `notes` (your own
+  address, your own device).
+- `device plan` answers `{ok, steps, topUpLamports, approveTo, solCost, next}` (and `warning`); `device setup`
+  reports `solSentToDevice` and `feeLamports`.
+- `docs/AGENT-COMMANDS.md`: the failure shape (with `next`, `docUrl`), exit 6 money, the rc7 cap rule, 0.06 SOL,
+  the `settle run` line, the flags a `spending-limit` action keeps, and the `payer`, `defaults`, `deposited` rows.
+
+Path B (`direct/*.sh`, Sentinel's own tools), in the same update:
+
+- `install.sh` takes an existing key file (`KEYFILE=<file>`); a file other users can read is `key-unsafe` (exit `5`).
+- `connect.sh` opens a grant cap of 10 deposits at the picked node's price (0.02 tDVPN today; was 150);
+  `ALLOWANCE=<base units>` sets another. Connecting again while connected answers `alreadyConnected: true`.
+- Every `next` is one runnable line; `then` / `alternatives` / `note` carry the rest. `--help` and unknown
+  flags print usage and a `usage` line before anything runs. `refund.sh` lists `channels[]`.
+- The tables moved to `docs/DIRECT-REFERENCE.md`; `docs/DIRECT.md` is the quick path.
+
+Known, for rc9: on Windows the kill-switch block holds only while the VPN service keeps the session
+(`docs/SECURITY-MODEL.md`); `rpc set` probe and `rpc reset`; least-privilege `--raise-limit`; clock skew in
+`agent status` and the preview; macOS still on rc4.
+
 ## v0.3.0-rc7
 
 Breaking: read these before you run an rc6 script on rc7.
