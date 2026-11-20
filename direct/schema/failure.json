@@ -6,7 +6,7 @@
   "required": ["ok", "step", "code", "money", "moneyNote", "error", "next"],
   "properties": {
     "ok": {"const": false},
-    "step": {"type": "string", "enum": ["install", "fund-request", "fund-device", "connect", "disconnect", "refund", "selftest", "close-all", "classify", "direct"]},
+    "step": {"type": "string", "enum": ["install", "fund-request", "fund-device", "connect", "disconnect", "refund", "selftest", "close-all", "classify", "direct", "build"]},
     "code": {"type": "string", "pattern": "^[a-z]+(-[a-z]+)*$"},
     "money": {"enum": ["none", "open", "unclear", "refund"]},
     "moneyNote": {"type": "string", "minLength": 1},

@@ -144,6 +144,11 @@ for a in "$@"; do
   esac
 done
 
+# Path B runs on Linux only today (systemd, ip route, apt): on macOS / Windows use the app (Path A)
+[ "$(uname -s)" = Linux ] || fail "$E_OTHER" unsupported-os \
+  "this host is $(uname -s): Path B (direct/) runs on Linux only today; nothing was run. Use the app (Path A)" \
+  "grep -n -A6 'Two paths' AGENTS.md" none
+
 # ─── confirm gate: anything that signs previews first ───
 YES=${YES:-0}
 # parse_args "$@": --yes/-y, plus the script's own ARGS_BOOL (e.g. "--revoke") and ARGS_VAL (e.g. "--sol --to")

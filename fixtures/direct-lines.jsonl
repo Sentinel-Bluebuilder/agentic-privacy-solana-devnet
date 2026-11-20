@@ -21,3 +21,4 @@
 {"ok":false,"step":"connect","code":"insecure-key","money":"none","moneyNote":"Nothing was paid.","error":"owner key file has mode 644","next":"chmod 600 /path/to/your-key.json && sh direct/connect.sh --yes"}
 {"ok":false,"step":"install","code":"keyfile-missing","money":"none","moneyNote":"Nothing was paid.","error":"KEYFILE=/path/to/your-key.json is not a file","next":"ls -l /path/to"}
 {"ok":false,"step":"connect","code":"escrow-too-small","money":"none","moneyNote":"Nothing was paid.","error":"ESCROW=1 base units is below this node's first 100 MB block","next":"ESCROW=200 NODE=SysvarC1ock11111111111111111111111111111111 sh direct/connect.sh"}
+{"ok":false,"step":"build","code":"unsupported-os","money":"none","moneyNote":"Nothing was paid.","error":"this host is Darwin: Path B (direct/) runs on Linux only today, so nothing was built","next":"grep -n -A6 'Two paths' AGENTS.md"}

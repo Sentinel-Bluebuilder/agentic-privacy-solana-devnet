@@ -11,6 +11,11 @@
 #   sh direct/build.sh                      # both arches; prints MATCH or MISMATCH per file
 #   ARCHES=amd64 sh direct/build.sh         # one arch only
 #   OUT=/usr/local/bin sh direct/build.sh   # also installs this machine's arch there
+#   VERIFY_ONLY=1 sh direct/build.sh        # on macOS (or another non-Linux host): build the Linux files and compare only
+#
+# Path B runs on Linux only today. On any other host (macOS, Windows) build.sh refuses with code unsupported-os
+# (exit 1, nothing built) and next shows the app (Path A). VERIFY_ONLY=1 still cross-builds the Linux files there
+# to check their SHA-256 (sha256sum, or shasum -a 256 on macOS); it never installs them.
 #
 # Needs: git, make, Go 1.27.3 on PATH (https://go.dev/dl/; check its SHA-256 on that page). No root.
 # Exit: 0 all MATCH (or Go is not 1.27.3: built, with a warning, not compared strictly) · 5 a MISMATCH
@@ -21,6 +26,17 @@ set -eu
 for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'
   echo '{"ok":true,"step":"help","next":"sh direct/build.sh"}'; exit 0 ;; esac; done
 HERE=$(cd "$(dirname "$0")" && pwd)
+
+# ─── host: Path B runs on Linux only today (macOS / Windows: the app) ───
+OS=$(uname -s)
+APP_NEXT="grep -n -A6 'Two paths' AGENTS.md"   # the two-paths box: the app's install line for this OS
+if [ "$OS" != Linux ] && [ "${VERIFY_ONLY:-0}" != 1 ]; then
+  msg="this host is $OS: Path B (direct/) runs on Linux only today, so nothing was built. Use the app (Path A); VERIFY_ONLY=1 only cross-builds the Linux files to compare their SHA-256"
+  echo "error: $msg" >&2
+  printf '{"ok":false,"step":"build","code":"unsupported-os","money":"none","moneyNote":"Nothing was paid.","error":"%s","next":"%s"}\n' "$msg" "$APP_NEXT"
+  exit 1
+fi
+if command -v sha256sum >/dev/null 2>&1; then sha256() { sha256sum "$@"; }; else sha256() { shasum -a 256 "$@"; }; fi
 
 COMMIT=26de52407c5b722cfecad1772dcbeefd984ef6d0
 REPO=https://github.com/sentinel-official/sentinel-solana
@@ -59,7 +75,7 @@ done
 
 # ─── compare with direct/SHA256SUMS ───
 RESULT=MATCH
-(cd "$DIST" && sha256sum sentinel-dvpn*-linux-*) > "$DIST/SHA256SUMS"
+(cd "$DIST" && sha256 sentinel-dvpn*-linux-*) > "$DIST/SHA256SUMS"
 echo "sha256 of this build (dist-build/SHA256SUMS):" >&2
 cat "$DIST/SHA256SUMS" >&2
 while read -r sum name; do
@@ -73,7 +89,8 @@ while read -r sum name; do
 done < "$DIST/SHA256SUMS"
 
 NATIVE=$(case $(uname -m) in x86_64) echo amd64 ;; aarch64|arm64) echo arm64 ;; *) echo none ;; esac)
-[ -x "$DIST/sentinel-dvpn-linux-$NATIVE" ] && "$DIST/sentinel-dvpn-linux-$NATIVE" version >&2
+[ "$OS" = Linux ] || NATIVE=none   # VERIFY_ONLY on another OS: Linux files cannot run or be installed here
+if [ -x "$DIST/sentinel-dvpn-linux-$NATIVE" ]; then "$DIST/sentinel-dvpn-linux-$NATIVE" version >&2; fi
 
 if [ -n "${OUT:-}" ] && [ -x "$DIST/sentinel-dvpnd-linux-$NATIVE" ]; then
   run install -m 0755 "$DIST/sentinel-dvpnd-linux-$NATIVE" "$OUT/sentinel-dvpnd"
@@ -87,6 +104,9 @@ case $RESULT in
   UNCHECKED) NX='sh direct/build.sh'; NOTE='install Go 1.27.3 from https://go.dev/dl/ first: another Go gives other bytes' ;;
   *) NX='sh direct/build.sh'; NOTE='do not use these bytes; report the MISMATCH lines above' ;;
 esac
+if [ "$OS" != Linux ] && [ "$RESULT" != MISMATCH ]; then
+  NX=$APP_NEXT; NOTE="$NOTE. These are Linux files, checked only: on $OS use the app (Path A)"
+fi
 printf '{"ok":%s,"step":"build","result":"%s","go":"%s","commit":"%s","dist":"%s","next":"%s","note":"%s"}\n' \
   "$OK" "$RESULT" "$GO_HAVE" "$COMMIT" "$DIST" "$NX" "$NOTE"
 [ "$RESULT" = MISMATCH ] && exit 5

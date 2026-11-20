@@ -100,6 +100,7 @@ EOF
 cat > "$FX/bin/uname" <<'EOF'
 #!/bin/sh
 [ "${1:-}" = -m ] && [ -n "${FX_ARCH:-}" ] && { echo "$FX_ARCH"; exit 0; }
+[ "${1:-}" = -s ] && [ -n "${FX_OS:-}" ] && { echo "$FX_OS"; exit 0; }
 exec /usr/bin/uname "$@"
 EOF
 chmod +x "$FX/bin/"*
@@ -227,6 +228,9 @@ ok_case help-install     0 ''         sh direct/install.sh --help  # as a user: 
 ok_case help-connect     0 ''         sh direct/connect.sh --help
 ok_case help-close-all   0 ''         sh direct/close-all.sh --help
 fx  usage-instance       usage        INSTANCE='c1;x' sh direct/connect.sh
+fx  unsupported-os       unsupported-os FX_OS=Darwin sh direct/connect.sh    # Path B is Linux only: the app's next
+fx  build-unsupported-os unsupported-os FX_OS=Darwin sh direct/build.sh      # refused before anything is cloned or built
+ok_case help-on-darwin   0 ''         FX_OS=Darwin sh direct/install.sh --help   # help still works on another OS
 # INSTANCE you set is kept in next (an instance with no device key: no-device, next = install with INSTANCE=)
 out=$(env PATH="$FX/bin:$PATH" INSTANCE=fxzz sh direct/fund-request.sh 2>"$FX/instance-carry.err" </dev/null); rc=$?
 check instance-carry     no-device "$rc" "$(printf '%s\n' "$out" | tail -1)"
