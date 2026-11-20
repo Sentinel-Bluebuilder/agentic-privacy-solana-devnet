@@ -22,13 +22,15 @@ sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ".
 Without the update a fresh machine fails with "libsecret-tools … not installable"; without `-y`
 the install waits for an answer you cannot give.
 
-macOS (`x64` = Intel, `arm64` = Apple silicon):
+macOS (`x64` = Intel, `arm64` = Apple silicon). An older app in `/Applications` goes first:
+`sudo -n rm -rf "/Applications/Devnet dVPN.app"` (`ditto` merges into an existing app).
 
 ```sh
 U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc4
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
+[ -n "$F" ] || { echo "no $A build in this release"; exit 1; }
 curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
@@ -37,7 +39,8 @@ hdiutil detach -quiet "$M"
 export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
 ```
 
-An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
+Downloaded in a browser instead of `curl`: the app is not notarized, so macOS blocks it until
+`xattr -dr com.apple.quarantine "/Applications/Devnet dVPN.app"` (or right-click > Open once).
 
 Windows x64, elevated PowerShell:
 

@@ -98,6 +98,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 Terms added after v0.3.0-rc4; the current release carries all of them.
 
 - **money** (`unclear`) — every failed answer says whether money moved, in one sentence (its class: `none`, `open`, `refund` or `unclear`, the last = not known: run `agent status` first): "Nothing was paid." / "A deposit may be open: `agent down --yes` closes it." / "It is not known whether a deposit was opened: `agent status` lists it." Shows: any failed `--json` answer (`money`).
+- **low-sol-after** (`--allow-empty`) — rc.8: `wallet send --sol` refuses a send that would leave under 0.01 SOL, too little for the next fees (exit 5, nothing sent or signed). Send less, or add `--allow-empty` to empty the wallet on purpose. Row: [`docs/CODES.md`](docs/CODES.md#code-low-sol-after). Shows: a failed `wallet send`.
 - **held** — in `agent status --json`: the tDVPN held for your wallet inside the program (the same number as `userBalance`), which `settle withdraw` moves to the wallet. Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
 - **nodeStopped** — since rc.6 the name of `serverStopped` (see **server stopped**). Shows: `agent status --json`.
 

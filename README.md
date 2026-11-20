@@ -14,6 +14,8 @@ one admin prompt) → [`docs/OPERATOR.md`](docs/OPERATOR.md) · an MCP client �
 > **Cost:** nothing real. Devnet only: SOL and tDVPN come free from two public faucets and have
 > no value. Do not use a wallet that holds real funds.
 >
+> **Proven on v0.3.0-rc8** (Linux and Windows): every `AGENTS.md` block on Linux, and the rc8 refusals and
+> settle line on Windows ([`docs/PROOF.md`](docs/PROOF.md#agent-path-on-v030-rc8-2026-11-20)).
 > **Proven** on earlier releases (v0.3.0-rc2, v0.3.0-rc4): the whole flow on Linux, refund
 > included; on Windows over SSH, install through connect, disconnect and the refund; the macOS
 > install lines on an Intel Mac. What is proven on which release, per OS and step:

@@ -18,7 +18,7 @@ install is which chain program and token it pays: see "Program and mint" below.
 **What is checked against the source.** Before each release, `node tools/check-glossary.mjs --require-src`
 runs against the app's source at the release commit and must exit 0. It checks that every failure code the
 CLI can print has exactly one row and one anchor in [`docs/CODES.md`](CODES.md), the page each failure's
-`docUrl` opens. For `v0.3.0-rc7`: 118 codes, exit 0. Public CI runs the same tool without the source (its
+`docUrl` opens. For `v0.3.0-rc8` (`76b237e2`): 119 codes, exit 0. Public CI runs the same tool without the source (its
 self-tests and the page checks), because the release tags here hold the release files, not the source.
 
 | File | SHA-256 | Release | Source @ commit | Build command | Toolchain | Reproducible? | Last verified |

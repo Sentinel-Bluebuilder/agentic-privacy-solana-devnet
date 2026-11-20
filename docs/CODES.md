@@ -12,7 +12,7 @@ commands those answers tell it to run (`settle`, `device`, `wallet`). One row pe
 - **alsoNext**: the other way out. Only `agent status` prints an `alsoNext` field. On a failure line this
   column is this page's fallback for when **Next** does not work.
 
-Source of truth: the `devnet-dvpn` app at 0.3.0-rc.7 (`8f458d71`), traced from `src/cli/agent-cmd.ts`.
+Source of truth: the `devnet-dvpn` app at 0.3.0-rc.8 (`76b237e2`, 119 reachable codes, every one with a row), traced from `src/cli/agent-cmd.ts`.
 `tools/check-glossary.mjs --src <devnet-dvpn checkout>` fails when a code those paths can return has no
 row here, or when a row's money class differs from `src/cli/money-note.ts`.
 
@@ -48,7 +48,7 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 |---|---|---|---|---|
 | <a id="code-not-confirmed"></a>`not-confirmed` | The connect was asked without `--yes`. `agent up` itself always passes the confirm, so this comes only from a direct `connect`. | `none` | `<cli> agent up --yes (add --yes: nothing is paid without it)` | none |
 | <a id="code-wallet-switch-needed"></a>`wallet-switch-needed` | This computer is set up for another wallet, so the loaded key cannot pay here. Comes from `connect()` only, so `agent up` only. | `none` | `load the key file of the wallet named in "error", or <cli> device switch --yes (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable)` | `<cli> agent status` (names the loaded address) |
-| <a id="code-clock-skew"></a>`clock-skew` | This computer's clock is off by N minutes. Refused before any deposit. | `none` | `set this computer's clock to the right time (it is off by about N minutes), then <cli> agent up --yes` | none |
+| <a id="code-clock-skew"></a>`clock-skew` | This computer's clock is off by N minutes. Refused before any deposit. | `none` | the time-sync line for this OS, then `<cli> agent up --yes`: Linux `sudo timedatectl set-ntp true && (sudo chronyc makestep 2>/dev/null \|\| true)`, macOS `sudo sntp -sS time.apple.com`, Windows `w32tm /resync` (elevated shell). Exit 4 | none |
 | <a id="code-device-permission"></a>`device-permission` | This computer has no spending permission, or the permission or wallet switch could not be set up. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> daemon doctor` |
 | <a id="code-plan-limit"></a>`plan-limit` | The plan does not allow a new node here. | `none` | `<cli> agent up --plan <subscription> --node <a node you already use> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
 | <a id="code-busy"></a>`busy` | Another connect was already running. | `none` | `<cli> agent up --yes again in a few seconds (another connect was running)` | `<cli> agent status` |

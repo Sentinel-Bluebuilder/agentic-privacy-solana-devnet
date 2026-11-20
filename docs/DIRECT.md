@@ -1,5 +1,8 @@
 # Path B: connect with Sentinel's own tools, no app
 
+**Path B: Linux only today (macOS/Windows: use the app).** The scripts need Linux with systemd; on a Mac or a
+Windows PC, use Path A, the app ([AGENTS.md](../AGENTS.md)).
+
 Read this page once, top to bottom. Every code, exit, money class, error message and raw command is in
 [DIRECT-REFERENCE.md](DIRECT-REFERENCE.md); a script's `next` points there when you need it.
 
