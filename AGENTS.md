@@ -17,8 +17,8 @@ Rules of the tool:
 - A command that spends money or changes the system does nothing without `--yes`; without it, it
   only prints what it would do (exit code `2`).
 - Exit codes: `0` ok · `1` error · `2` needs `--yes` · `3` wrong usage · `4` needs you or your operator
-  (`not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `keyfile-mode`, `clock-skew`; nothing was paid) · `5` refused for safety (kill
-  switch; read `action`) · `6` network or RPC (money `unclear`: run `agent status` before you retry, in a minute). Other network codes exit `1`:
+  (`not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `keyfile-mode`, `clock-skew`, `allowance-above-balance`, `insufficient-funds`; nothing was paid) · `5` refused for safety (kill
+  switch, `bad-recipient`, `low-sol-after`; read `action`) · `6` network or RPC (money `unclear`: run `agent status` before you retry, in a minute). Other network codes exit `1`:
   read `money`.
 - Every amount has a twin in base units: `sol` → `solLamports`, `tdvpn` → `tdvpnBase`, `held` → `heldBase`,
   `spent` → `spentBase`, `refundable` → `refundableBase`, `deposit.tdvpn` → `deposit.tdvpnBase`.
@@ -312,6 +312,7 @@ devnet-dvpn daemon doctor --json        # no check may have "level": "fail"
 
 In this order: the service does not start before the device has its spending permission.
 - Spending limit: a new install may spend up to 150 tDVPN from your wallet (a cap, not a charge; an existing limit is kept).
+  A wallet with less: `device setup --yes` refuses (`allowance-above-balance`, nothing signed); run its `next`.
   When a deposit is above it, `agent up --yes` pays nothing and answers `"code":"spending-limit"`
   (exit `4`); its `action` is your line pinned to the node it picked, plus `--raise-limit --yes`. Run it
   to raise the limit for this connect (the answer then carries `limitRaised` and `limitNote`), or set your own:

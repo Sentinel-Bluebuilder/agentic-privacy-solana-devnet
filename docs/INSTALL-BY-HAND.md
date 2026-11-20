@@ -36,11 +36,12 @@ grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: 
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
 sudo -n ditto "$M/Devnet dVPN.app" "/Applications/Devnet dVPN.app"
 hdiutil detach -quiet "$M"
+sudo -n xattr -dr com.apple.quarantine "/Applications/Devnet dVPN.app"   # the app is not notarized
 export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
+brew install wireguard-tools wireguard-go openvpn bash   # as your user, never sudo (or: devnet-dvpn daemon repair-drivers --yes)
 ```
 
-Downloaded in a browser instead of `curl`: the app is not notarized, so macOS blocks it until
-`xattr -dr com.apple.quarantine "/Applications/Devnet dVPN.app"` (or right-click > Open once).
+In the Finder instead of a shell: right-click the app > Open once. V2Ray, Xray and Hysteria2 need no `brew` line.
 
 Windows x64, elevated PowerShell:
 

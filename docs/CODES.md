@@ -285,8 +285,8 @@ above still holds, apart from the changes listed here.
 | 1 | error | any code not listed below, and `code: null`. Includes `rpc-timeout`, `rpc-network`, `rpc-quota` and `timeout`: network codes whose money class is `open` (a deposit may be open) |
 | 2 | needs `--yes` | no code (`needsConfirm: true`) |
 | 3 | wrong usage | no code up to rc7; from rc.8 with `--json`: `usage` |
-| 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, and since rc7 `keyfile-missing` and `keyfile-mode` (rc.6: exit 1) |
-| 5 | refused for safety | `kill-switch-held` (money `none`), `kill-switch-failed` (money `open`: read `money`), and `kill-switch` |
+| 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, and since rc7 `keyfile-missing` and `keyfile-mode` (rc.6: exit 1); since rc.8 `clock-skew`, and `allowance-above-balance` (`device setup` / `plan`) and `insufficient-funds` (`wallet send`) |
+| 5 | refused for safety | `kill-switch-held` (money `none`), `kill-switch-failed` (money `open`: read `money`), and `kill-switch`; since rc.8 `bad-recipient` and `low-sol-after` (`wallet send`, money `none`) |
 | 6 | network or RPC, no deposit possibly open: retry later | `rpc-busy`, `rpc-unavailable` (money `unclear`), and `rpc-ws` |
 
 Exit 6 is given only to a network code whose money class is not `open` (`exitCodeFor`: `moneyOf(code) !== 'open'`).
