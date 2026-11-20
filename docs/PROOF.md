@@ -15,6 +15,76 @@ command line, byte-identical on all three apart from the key store. "rc.3" / "rc
 (one paid WireGuard or V2Ray connect and disconnect per OS, run by the app team) passed; the agent-path rows on rc.4
 are added as they pass. "rc.1" below is 0.3.0-rc.1 (2026-11-12).
 
+## Agent path on v0.3.0-rc4
+
+**Linux** (2026-11-19 18:45Z–19:14Z, Azure Ubuntu 24.04 x64, `devnet-dvpn 0.3.0-rc.4` installed by the `AGENTS.md`
+Linux lines, one paid pass):
+- `agent up --node` on all six protocols (WireGuard, OpenVPN, V2Ray, Xray, Hysteria2, AmneziaWG): connected, the
+  exit address differs from the computer's own, and the loaded wallet paid each time.
+- Network faults (six rows): each ended cleanly, with no new chain transactions from the faults themselves.
+  Interruptions: all seven rows proven. I2 (running the recovery step the app prints) passed on its re-run the same
+  evening, after a test-script fix.
+- A node that misbehaves (our own WireGuard node, run on rc.4's node software). When it stopped mid-session,
+  `agent status` said within about 13 s that the server had stopped, that traffic was NOT going through it and that
+  the deposit is safe, and named both ways out. When it refused the connection after the deposit, `agent up` said
+  so, named the open deposit, and the next `agent up` used another node. Overbilling is checked in the code (the
+  client refuses a node's count above its own); no live run, because the node software has no switch to overbill.
+- Key file missing: refused as `keyfile-missing`, "Nothing was paid.", next is to restore the file (never to make
+  a new wallet). Clock 10 minutes ahead: refused as clock skew before any deposit.
+- A second wallet's key file on a computer set up for another wallet: refused before any write, through both
+  `connect` and `agent up` (the device record and staged settings are byte-identical before and after).
+- `device switch` both ways: the preview names the SOL it moves; afterwards `settle list` still shows all 15
+  deposits made under the old device.
+- Kill switch with a live session (2026-11-20 ~01:00Z):
+  with the kill switch on, `agent up` connected. When the node dropped for 60 s the block held: 28 of 28 address
+  checks found no way out and none showed the computer's own address. `daemon restore-network` lifted the block
+  within 30 s. With the kill switch off, a service restart stayed direct. One gap: during the block, `agent status`
+  said `blocked: true` but its next step was only `agent up --yes`, not `daemon restore-network` (plain `status`
+  names it). Fixed in code, not yet released.
+- Closing: `agent down` ended the session and started closing every deposit. Every refund from the pass is back
+  (final close 2026-11-19 23:47Z, `userOpenChannels` 0, surplus returned).
+
+**Windows** (2026-11-19 19:21Z–19:36Z, Azure Windows 11 Pro x64):
+- Upgrade rc.3 → rc.4 with the silent installer, the download checked against `SHA256SUMS`.
+- `device setup` on a computer whose device had been revoked: rc.4 granted the same device again, and the
+  service was running afterwards.
+- A second wallet's key file on a computer set up for another wallet: refused before any write, through
+  `connect`, `agent up` and `device switch` (the device record and staged settings are byte-identical).
+- Clock 10 minutes ahead: refused as clock skew before any deposit, via both `connect` and `agent up`.
+  Key file missing: `agent status`, `up` and `down` all name the missing file and never offer a new wallet.
+- `agent up --max-price`: it picked a node within the cap and paid it.
+- `device switch` both ways (re-run 2026-11-19 ~21:40Z): the preview names the SOL it moves and says old deposits
+  stay refundable; afterwards, the old wallet's deposit is still listed under the new wallet's record and is
+  never started by the other wallet's refund run.
+
+Known on rc.4, to be fixed in a later release (fixes already in the app's code with tests, not yet released):
+- `agent up` with the wrong wallet loaded asks for funds before it says the wallet is wrong (`connect` gets this
+  right). Nothing is paid, but an agent that follows that advice funds the wrong wallet first. (Both OSes.)
+- Switching back to a wallet makes a new device each time instead of reusing the old one, so about 0.05 SOL of fee
+  SOL is left on each old device. It can be sent back with that device's key file, but the app does not say where
+  that file is. (Both OSes.)
+- A deposit made under a replaced device is closed only after that device is revoked
+  (`device revoke --device D`, then `settle run --device D`). On rc.4 `agent down` answers ok without saying that
+  deposit is still open. Fixed in code.
+- `agent up` raises a spending limit below the deposit to the Settings limit (50 tDVPN) without saying so. A
+  fresh AI agent with a 0.001 tDVPN limit never knew it had been raised. Fixed in code: the preview and the answer
+  now name the raise.
+- With the VPN service stopped, `agent status`'s next step names only a deposit wait, not the service fix. Fixed in
+  code.
+
+**Fresh AI agents (blind round 3, rc.4, 2026-11-19):** three new sessions, each given only `AGENTS.md`, one ssh
+line and the task, on a machine left with one problem.
+- Linux, VPN service stopped (Sonnet): **passed**. It saw `service: false`, ran the page's `daemon install --yes`,
+  connected, proved the node's exit address, disconnected and started the refund, in 1.5 minutes.
+- Linux, spending limit below the deposit (Opus): **failed**. It connected and proved the exit, but rc.4 raised the
+  limit to 50 tDVPN silently, so the agent never learned its limit had been overridden (see above).
+- Windows over SSH, kill switch blocking (Opus): **failed**. It found the block and lifted it with
+  `daemon restore-network`, as the page says. It could not then connect, because our own test setup blocked the
+  cheap nodes and the wallet held less than the 50 tDVPN the other nodes asked. That was the test's fault, not the
+  app's.
+
+**macOS:** not run on rc.4. The only macOS test machine is a cloud snapshot that is out of reach at the moment.
+
 ## Linux
 
 A fresh-machine test run on **v0.3.0-rc2**, 2026-11-15: a clean Ubuntu 24.04 cloud machine, the public
@@ -131,11 +201,12 @@ keeps the wallet and settings. That shows the commands work, not that an agent c
 
 ## Not covered anywhere yet
 
-- A fresh AI agent with only `AGENTS.md` on Windows or macOS (on Linux one did, see above).
+- A fresh AI agent with only `AGENTS.md` connecting on Windows or macOS (on Windows one got out of a blocking kill
+  switch but did not connect, see "Fresh AI agents"; on Linux one did, see above).
 - The kill-switch recovery after a session that had already dropped (`quality ip` shows no
   address → `daemon restore-network`, then `daemon set --kill-switch off --yes`): proven on
-  Windows; not run on Linux or macOS.
-- The `agent up / down / status` commands on v0.3.0-rc4, on each OS: rows are added per OS as they pass.
+  Windows and on Linux rc.4; not run on macOS.
+- The `agent up / down / status` commands on v0.3.0-rc4 on macOS (Linux and Windows: see "Agent path on v0.3.0-rc4").
 - Fixed in v0.3.0-rc4 on all three OSes, not yet re-run on it (rows flip once they have): a plain `connect` above
   the spending limit now raises it like `agent up`; `agent up` picks among the cheapest nodes, not the fastest;
   an empty `--plan` is refused; a node that stopped serving is reported (`server-stopped`) and skipped for 10 minutes.
