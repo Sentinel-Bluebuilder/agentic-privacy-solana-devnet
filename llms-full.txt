@@ -1368,9 +1368,9 @@ names the exact ones):
 | 0 | ok | |
 | 1 | failed (every code not listed below) | `session-active`, `device-sol`, `device-permission`, `node-gone`, `node-stale`, `no-nodes`, `daemon-unavailable`, `tunnel-failed`, `close-wait`, `unknown`, and `rpc-unavailable` when money is not `none` |
 | 2 | needs `--yes` (a preview; nothing was signed) | `needsConfirm` |
-| 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing` |
-| 4 | needs you or your funder; nothing was paid | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `no-token-account` |
-| 5 | refused for safety | `checksum-mismatch`, `key-unsafe` (Path B only; Path A uses 5 for its kill-switch codes) |
+| 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing`, `escrow-too-small` |
+| 4 | needs you or your funder; nothing was paid | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `no-token-account` |
+| 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key` (Path B only; Path A uses 5 for its kill-switch codes) |
 | 6 | network or RPC, and no deposit can be open | `rpc-busy`, `rpc-unavailable` with money `none`, `download-failed` |
 
 Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 13:14Z gave
@@ -1396,6 +1396,7 @@ name; codes with no Path A twin are Path B only:
 | `not-funded`, `device-sol`, `spending-limit`, `price-cap`, `device-permission`, `session-active`, `node-gone`, `node-stale`, `node-offline`, `no-nodes`, `price-changed`, `deposit-unusable`, `service-down`, `daemon-unavailable`, `rpc-busy`, `rpc-unavailable`, `tunnel-failed`, `tunnel-closing`, `no-wallet`, `unsupported`, `unknown` | the same name | as in Path A |
 | `close-wait`, `not-closing`, `nothing-to-withdraw` | (none: Path A's `settle run` does the wait for you) | refund steps run by hand |
 | `no-session`, `wrong-account`, `usage`, `needs-root`, `tool-missing`, `checksum-mismatch`, `no-device`, `install-failed`, `download-failed`, `build-failed`, `route-failed`, `session-dropped`, `step-failed`, `interrupted`, `sweep-incomplete`, `no-token-account`, `key-unsafe` | (none) | raw CLI and install cases (`no-device`: the daemon instance has no device key; run `sudo sh direct/install.sh`) |
+| `insecure-key`, `keyfile-missing`, `escrow-too-small` | (Path A's `keyfile-mode` is exit 4; Path A has no twin for the other two) | `insecure-key`: with `--yes`, the owner key file has a mode other than 600/400 (a preview only warns, in `warnings[]`); `keyfile-missing`: `KEYFILE=` / `OWNER_KEYFILE=` names no file (the default key is never used instead); `escrow-too-small`: `ESCROW` is below the node's first 100 MB block. Nothing is signed in any of them |
 
 ## Step by step (what the scripts run)
 
@@ -2029,6 +2030,9 @@ code of the same name (`install-failed`, `no-device`). Every line has `money` an
 | <a id="code-direct-download-failed"></a>`download-failed` | `install.sh` | `apt-get update` or the release download (`SHA256SUMS`, a binary) failed. | 6 | `none` | `sleep 60 && sudo sh direct/install.sh` |
 | <a id="code-direct-install-failed"></a>`install-failed` | `install.sh` | A setup step failed: the packages, copying a binary, `sentinel-dvpnd init`, the kill-switch setting, the service, or adding you to the group. `error` names the step. | 1 | `none` | the step's own command, then `sudo sh direct/install.sh` |
 | <a id="code-direct-key-unsafe"></a>`key-unsafe` | `install.sh` (`KEYFILE=`) | The key file given as `KEYFILE=` has a mode other than 600 or 400, so other users can read the secret key. Nothing is copied. | 5 | `none` | `chmod 600 <file> && sudo KEYFILE=<file> sh direct/install.sh` |
+| <a id="code-direct-insecure-key"></a>`insecure-key` | any script that signs, with `--yes` | The owner key file (`~/.sentinel-dvpn/keys/owner.json`, or `OWNER_KEYFILE=`) has a mode other than 600 or 400, so other users can read the secret key. Refused before anything is signed. The preview (no `--yes`) only warns, in `warnings[]`. | 5 | `none` | `chmod 600 <file> && <the same command> --yes` |
+| <a id="code-direct-keyfile-missing"></a>`keyfile-missing` | `install.sh` and every script | `KEYFILE=` or `OWNER_KEYFILE=` names no file. Nothing is read or signed, and neither the default key nor a new key is used in its place. | 4 | `none` | `ls -l <its folder>`, then rerun with the right path |
+| <a id="code-direct-escrow-too-small"></a>`escrow-too-small` | `connect.sh` | `ESCROW=` is below the node's first 100 MB block (a tenth of its GB price): the daemon would refuse it after the grant. Checked before anything is signed. | 3 | `none` | `ESCROW=<the minimum> NODE=<node> sh direct/connect.sh` (the `next` gives the numbers) |
 | <a id="code-direct-build-failed"></a>`build-failed` | `install.sh` (`BUILD=1`) | `direct/build.sh` failed. A wrong checksum is `checksum-mismatch`, not this. | 1 | `none` | `sh direct/build.sh` (needs git, make and Go 1.27.3) |
 | <a id="code-direct-no-device"></a>`no-device` | any script after install | The daemon has no device key: `install.sh` did not finish. | 1 | `none` | `sudo sh direct/install.sh` |
 | <a id="code-direct-route-failed"></a>`route-failed` | `connect.sh` | The route that keeps the node's own IP outside the tunnel could not be added (no default route, or `ip route replace` failed). | 1 | `none` | `ip route show default`, or the exact `sudo ip route replace …` line |
@@ -2116,7 +2120,8 @@ CALLER=${SUDO_USER:-}
 KEYFILE=${KEYFILE:-}
 if [ -n "$KEYFILE" ]; then
   [ -n "$CALLER" ] || fail "$E_USAGE" usage "KEYFILE= needs sudo from a normal user (not a root shell)" "sudo KEYFILE=$KEYFILE sh direct/install.sh" none
-  [ -f "$KEYFILE" ] || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a file" "ls -l $KEYFILE" none
+  [ -f "$KEYFILE" ] || fail "$E_OPERATOR" keyfile-missing "KEYFILE=$KEYFILE is not a file; nothing was installed, and no new key is made in its place" \
+    "ls -l $(dirname "$KEYFILE")" none
   KMODE=$(stat -c %a "$KEYFILE")
   case $KMODE in 600|400) ;; *) fail "$E_SAFETY" key-unsafe "KEYFILE=$KEYFILE has mode $KMODE: other users can read it (it is a plain secret key)" \
     "chmod 600 $KEYFILE && sudo KEYFILE=$KEYFILE sh direct/install.sh" none ;; esac
@@ -4248,6 +4253,31 @@ command line, byte-identical on all three apart from the key store. "rc.3" / "rc
 (2026-11-16), "rc2" is v0.3.0-rc2 (2026-11-14); most rows below ran on rc2 or rc.3. On rc.4 the release smoke tests
 (one paid WireGuard or V2Ray connect and disconnect per OS, run by the app team) passed; the agent-path rows on rc.4
 are added as they pass. "rc.1" below is 0.3.0-rc.1 (2026-11-12).
+
+## Agent path on v0.3.0-rc8 (2026-11-20)
+
+The current release is **v0.3.0-rc8** on Windows and Linux (macOS stays on v0.3.0-rc4). The sections after this one
+are the earlier record.
+
+- **Published:** Windows `Devnet-dVPN-Setup-0.3.0-rc.8-x64.exe`, Linux `.deb`, `.rpm` and `.AppImage`; each hash is
+  in [`docs/PROVENANCE.md`](PROVENANCE.md) and matches the release's `SHA256SUMS`. What changed for an agent:
+  [`CHANGELOG.md`](../CHANGELOG.md) "v0.3.0-rc8".
+- **Linux, proven:** every shell block of `AGENTS.md` run from the page on v0.3.0-rc8 over `ssh -T` (a planted broken
+  block failed, as it must). The edge cases that failed on rc7 now pass: usage errors as JSON, no loop at the price
+  cap, one settle line after `agent down`, a key file other users can read named by `agent status`, setup before the
+  device key in one command, the clock-skew time-sync line, and a second `agent up` that joins the first (one deposit).
+- **Windows, proven:** usage errors as JSON; `wallet send` refusing more than the balance, a program address, or a
+  send that leaves too little SOL; `device plan` refusing an allowance above the wallet, and warning on 0; the settle
+  line after `agent down`.
+- **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
+  macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
+  ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being
+  told it needs an administrator. Each is planned for the next release.
+- **Blind tests (on rc7):** three agents that had never seen these pages each did the whole task from `llms.txt`:
+  two on the app, each recovering from a planted fault, and one with Sentinel's own tools and no app. All three
+  passed 5 of 5. They used one model and Linux only.
+- **Path B (`direct/*.sh`):** the scripted fault suite passes (104 of 104) and so do all 54 edge cases, including
+  `--help` output, the input checks and a refusal to sign with an owner key file other users can read.
 
 ## Agent path on v0.3.0-rc4
 

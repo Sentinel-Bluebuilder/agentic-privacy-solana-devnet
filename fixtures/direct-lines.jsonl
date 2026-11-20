@@ -15,3 +15,9 @@
 {"ok":true,"step":"build","result":"MATCH","go":"go1.27.3","commit":"26de52407c5b722cfecad1772dcbeefd984ef6d0","dist":"./dist-build","next":"sudo BUILD=1 sh direct/install.sh"}
 {"ok":false,"step":"build","result":"MISMATCH","go":"go1.27.3","commit":"26de52407c5b722cfecad1772dcbeefd984ef6d0","dist":"./dist-build","next":"sh direct/build.sh","note":"do not use these bytes; report the MISMATCH lines above"}
 {"ok":true,"step":"build","result":"UNCHECKED","go":"none","commit":"26de52407c5b722cfecad1772dcbeefd984ef6d0","dist":"./dist-build","next":"sh direct/build.sh","note":"install Go 1.27.3 from https://go.dev/dl/ first"}
+{"ok":true,"step":"help","next":"sh direct/connect.sh"}
+{"ok":true,"step":"help","next":"INSTANCE=c2 sh direct/refund.sh"}
+{"ok":false,"needsConfirm":true,"step":"connect","what":"deposit 2000 base units","payees":[],"feeLamports":5000,"feeSource":"fixed: 5000 lamports per signature, 1 transaction(s) with one signature each","rentLamports":0,"rentSource":"measured on devnet 2026-11-20","warnings":["owner key /path/to/your-key.json has mode 644: readable by other users (a plain secret key); fix: chmod 600 /path/to/your-key.json; --yes refuses (insecure-key) until then"],"next":"sh direct/connect.sh --yes"}
+{"ok":false,"step":"connect","code":"insecure-key","money":"none","moneyNote":"Nothing was paid.","error":"owner key file has mode 644","next":"chmod 600 /path/to/your-key.json && sh direct/connect.sh --yes"}
+{"ok":false,"step":"install","code":"keyfile-missing","money":"none","moneyNote":"Nothing was paid.","error":"KEYFILE=/path/to/your-key.json is not a file","next":"ls -l /path/to"}
+{"ok":false,"step":"connect","code":"escrow-too-small","money":"none","moneyNote":"Nothing was paid.","error":"ESCROW=1 base units is below this node's first 100 MB block","next":"ESCROW=200 NODE=SysvarC1ock11111111111111111111111111111111 sh direct/connect.sh"}

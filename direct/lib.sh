@@ -18,6 +18,7 @@
 #   refund  no new money spent; unspent escrow is still held: sh direct/refund.sh --yes returns it
 # "moneyNote" is one free-text sentence about the same.
 
+INSTANCE_SET=${INSTANCE:+1}   # you set INSTANCE: every "next" keeps it (see carry)
 INSTANCE=${INSTANCE:-c1}
 NODE_RPC=${RPC_URL:-https://api.devnet.solana.com}
 # RPC_URL also steers the upstream CLI (sentinel-dvpn reads SENTINEL_DVPN_RPC_URL), so every read uses the same RPC
@@ -46,11 +47,20 @@ step() {
 
 jstr() { printf '%s' "$1" | tr '"\n\t' "'  "; }
 
+# carry <command>: when you set INSTANCE, a "next" keeps it: "sh direct/x.sh" -> "INSTANCE=<i> sh direct/x.sh"
+# (also after sudo, env -u and VAR= prefixes). Unchanged when INSTANCE was not set or the command names it already.
+carry() {
+  case ${INSTANCE_SET:-}:$1 in
+    :*|1:*INSTANCE=*) printf '%s' "$1" ;;
+    *) printf '%s' "$1" | sed "s#\(^\|[ &;|(]\)sh direct/#\1INSTANCE=$INSTANCE sh direct/#g" ;;
+  esac
+}
+
 # summary <ok> <step> <next> [extra json fields without braces]
 summary() {
   extra=${4:-}
   [ -n "$extra" ] && extra=",$extra"
-  printf '{"ok":%s,"step":"%s","next":"%s"%s}\n' "$1" "$2" "$(jstr "$3")" "$extra"
+  printf '{"ok":%s,"step":"%s","next":"%s"%s}\n' "$1" "$2" "$(jstr "$(carry "$3")")" "$extra"
 }
 
 # fd 3 = the real stdout, so a failure inside $(...) still reaches you; a failure in a subshell
@@ -80,7 +90,7 @@ on_exit() {
       *) code=unknown; msg="stopped (exit $rc) at: ${last:-start}" ;;
     esac
     printf '{"ok":false,"step":"%s","code":"%s","money":"%s","moneyNote":"%s","error":"%s","next":"%s"}\n' \
-      "${STEP:-direct}" "$code" "$MONEY_STATE" "$(jstr "$(money_note "$MONEY_STATE")")" "$(jstr "$msg")" "$(jstr "$nx")" >&3
+      "${STEP:-direct}" "$code" "$MONEY_STATE" "$(jstr "$(money_note "$MONEY_STATE")")" "$(jstr "$msg")" "$(jstr "$(carry "$nx")")" >&3
     rc=1
   fi
   rm -f "$FAIL_CODE_FILE" "$LAST_RUN_FILE"
@@ -102,7 +112,7 @@ fail() {
   note=${6:-$(money_note "$cls")}
   echo "error: $3" >&2
   printf '{"ok":false,"step":"%s","code":"%s","money":"%s","moneyNote":"%s","error":"%s","next":"%s"}\n' \
-    "${STEP:-direct}" "$2" "$cls" "$(jstr "$note")" "$(jstr "$3")" "$(jstr "$4")" >&3
+    "${STEP:-direct}" "$2" "$cls" "$(jstr "$note")" "$(jstr "$3")" "$(jstr "$(carry "$4")")" >&3
   echo "$1" > "$FAIL_CODE_FILE"
   kill -USR1 "$MAIN_PID" 2>/dev/null || true
   exit "$1"
@@ -115,9 +125,23 @@ CMD_BASE="sh direct/$(basename "$0")"
 CMD="${NODE:+NODE=$NODE }$CMD_BASE"
 for a in "$@"; do case $a in *[!A-Za-z0-9._=/-]*) CMD="$CMD '$a'" ;; *) CMD="$CMD $a" ;; esac; done
 
-# --help / -h on any script: print its header comment and exit 0
+# INSTANCE goes into paths and every "next": letters, digits, - and _ only (usage, exit 3)
+case $INSTANCE in
+  *[!A-Za-z0-9_-]*) INSTANCE_SET=""; fail "$E_USAGE" usage "INSTANCE must be letters, digits, - or _ (got $INSTANCE)" "env -u INSTANCE $CMD" none ;;
+esac
+
+# --help / -h on any script: print its header comment, then one JSON line whose next is the preview to run
 for a in "$@"; do
-  case $a in --help|-h) sed -n '2,/^set -eu/p' "$0" | sed -e '/^set -eu/d' -e 's/^# \{0,1\}//'; exit 0 ;; esac
+  case $a in --help|-h)
+    sed -n '2,/^set -eu/p' "$0" | sed -e '/^set -eu/d' -e 's/^# \{0,1\}//'
+    case $CMD_BASE in
+      *install.sh) hn="sudo $CMD_BASE" ;;
+      *close-all.sh) hn="sh direct/refund.sh" ;;   # close-all needs --to <wallet>; refund.sh previews what is still held
+      *) hn=$CMD_BASE ;;
+    esac
+    printf '{"ok":true,"step":"help","next":"%s"}\n' "$(jstr "$(carry "$hn")")"
+    exit 0 ;;
+  esac
 done
 
 # ─── confirm gate: anything that signs previews first ───
@@ -166,11 +190,13 @@ fee_tx() { FEE_TX=$((FEE_TX + $1)); }
 # confirm <what> <command line to repeat>: the preview line (exit 2) with what, payees, fee and rent
 confirm() {
   [ "$YES" = 1 ] && return 0
-  printf '{"ok":false,"needsConfirm":true,"step":"%s","what":"%s","payees":[%s],"feeLamports":%s,"feeSource":"%s","rentLamports":%s,"rentSource":"%s","next":"%s --yes"}\n' \
+  cw=$(key_mode_problem); cwj=""
+  [ -z "$cw" ] || cwj=",\"warnings\":[\"$(jstr "$cw"); --yes refuses (insecure-key) until then\"]"
+  printf '{"ok":false,"needsConfirm":true,"step":"%s","what":"%s","payees":[%s],"feeLamports":%s,"feeSource":"%s","rentLamports":%s,"rentSource":"%s"%s,"next":"%s --yes"}\n' \
     "${STEP:-direct}" "$(jstr "$1")" "$PAYEES" "$((FEE_TX * 5000))" \
     "fixed: 5000 lamports per signature, $FEE_TX transaction(s) with one signature each${FEE_NOTE:+; $FEE_NOTE}" \
     "$RENT" "measured on devnet 2026-11-20: grant $RENT_GRANT, channel $RENT_CHANNEL, user account $RENT_USER lamports" \
-    "$(jstr "$2")" >&3
+    "$cwj" "$(jstr "$(carry "$2")")" >&3
   echo "$E_CONFIRM" > "$FAIL_CODE_FILE"
   exit "$E_CONFIRM"
 }
@@ -325,18 +351,33 @@ cheapest_under() {
 }
 tdvpn() { awk -v b="$1" 'BEGIN { s = sprintf("%.6f", b / 1000000); sub(/0+$/, "", s); sub(/\.$/, "", s); print s }'; }
 base_units() { awk -v t="$1" 'BEGIN { printf "%d", t * 1000000 + 0.5 }'; }
-# owner_address: the owner key's address; no key -> no-wallet (exit 4). A key file readable by other
-# users is used, with a warning: it is a plain secret file (chmod 600 fixes it)
+# key_mode_problem: empty, or one sentence when the owner key file has a mode other than 600 / 400
+key_mode_problem() {
+  km_f=${OWNER_KEYFILE:-$HOME/.sentinel-dvpn/keys/owner.json}
+  [ -f "$km_f" ] || return 0
+  km_m=$(stat -c %a "$km_f" 2>/dev/null) || return 0
+  case $km_m in 600|400) ;; *) echo "owner key $km_f has mode $km_m: readable by other users (a plain secret key); fix: chmod 600 $km_f" ;; esac
+}
+# owner_address: the owner key's address.
+#   KEYFILE= / OWNER_KEYFILE= naming no file -> keyfile-missing (exit 4); the default key is never used in its place
+#   no key -> no-wallet (exit 4); next imports a key file you already have (install.sh KEYFILE=)
+#   a key file readable by other users: a warning (the preview carries it in warnings[]); with --yes: insecure-key (exit 5)
 owner_address() {
   kf=${OWNER_KEYFILE:-$HOME/.sentinel-dvpn/keys/owner.json}
-  if [ -f "$kf" ]; then
-    case $(stat -c %a "$kf" 2>/dev/null) in
-      600|400) ;;
-      *) echo "warning: $kf is readable by other users (mode $(stat -c %a "$kf")); fix: chmod 600 $kf" >&2 ;;
-    esac
+  for kv in OWNER_KEYFILE KEYFILE; do
+    eval "kp=\${$kv:-}"
+    [ -z "$kp" ] || [ -f "$kp" ] || fail "$E_OPERATOR" keyfile-missing \
+      "$kv=$kp is not a file; nothing was read or signed, and the default owner key is not used in its place" "ls -l $(dirname "$kp")" none
+  done
+  km=$(key_mode_problem)
+  if [ -n "$km" ]; then
+    echo "warning: $km" >&2
+    [ "$YES" != 1 ] || fail "$E_SAFETY" insecure-key "$km. Refused before anything was signed" "chmod 600 $kf && $CMD" none
   fi
   a=$(sentinel-dvpn key show owner 2>/dev/null | jq -r '.public_key // empty') || a=""
-  [ -n "$a" ] || fail "$E_OPERATOR" no-wallet "no owner key ($kf): sentinel-dvpn key show owner failed" "sudo sh direct/install.sh" none
+  [ -n "$a" ] || fail "$E_OPERATOR" no-wallet \
+    "no owner key ($kf). Have a funded key file? next imports it (mode 600; put its path in KEYFILE=). No key at all: sudo sh direct/install.sh makes a new one" \
+    "sudo KEYFILE=/path/to/your-key.json sh direct/install.sh" none
   echo "$a"
 }
 # device_address: the daemon's device key; missing -> no-device (install did not finish)

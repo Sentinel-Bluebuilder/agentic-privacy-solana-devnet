@@ -15,6 +15,31 @@ command line, byte-identical on all three apart from the key store. "rc.3" / "rc
 (one paid WireGuard or V2Ray connect and disconnect per OS, run by the app team) passed; the agent-path rows on rc.4
 are added as they pass. "rc.1" below is 0.3.0-rc.1 (2026-11-12).
 
+## Agent path on v0.3.0-rc8 (2026-11-20)
+
+The current release is **v0.3.0-rc8** on Windows and Linux (macOS stays on v0.3.0-rc4). The sections after this one
+are the earlier record.
+
+- **Published:** Windows `Devnet-dVPN-Setup-0.3.0-rc.8-x64.exe`, Linux `.deb`, `.rpm` and `.AppImage`; each hash is
+  in [`docs/PROVENANCE.md`](PROVENANCE.md) and matches the release's `SHA256SUMS`. What changed for an agent:
+  [`CHANGELOG.md`](../CHANGELOG.md) "v0.3.0-rc8".
+- **Linux, proven:** every shell block of `AGENTS.md` run from the page on v0.3.0-rc8 over `ssh -T` (a planted broken
+  block failed, as it must). The edge cases that failed on rc7 now pass: usage errors as JSON, no loop at the price
+  cap, one settle line after `agent down`, a key file other users can read named by `agent status`, setup before the
+  device key in one command, the clock-skew time-sync line, and a second `agent up` that joins the first (one deposit).
+- **Windows, proven:** usage errors as JSON; `wallet send` refusing more than the balance, a program address, or a
+  send that leaves too little SOL; `device plan` refusing an allowance above the wallet, and warning on 0; the settle
+  line after `agent down`.
+- **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
+  macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
+  ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being
+  told it needs an administrator. Each is planned for the next release.
+- **Blind tests (on rc7):** three agents that had never seen these pages each did the whole task from `llms.txt`:
+  two on the app, each recovering from a planted fault, and one with Sentinel's own tools and no app. All three
+  passed 5 of 5. They used one model and Linux only.
+- **Path B (`direct/*.sh`):** the scripted fault suite passes (104 of 104) and so do all 54 edge cases, including
+  `--help` output, the input checks and a refusal to sign with an owner key file other users can read.
+
 ## Agent path on v0.3.0-rc4
 
 **Linux** (2026-11-19 18:45Z–19:14Z, Azure Ubuntu 24.04 x64, `devnet-dvpn 0.3.0-rc.4` installed by the `AGENTS.md`

@@ -30,6 +30,7 @@
     "feeSource": {"type": "string", "pattern": "^fixed: 5000 lamports per signature"},
     "rentLamports": {"type": "integer", "minimum": 0},
     "rentSource": {"type": "string", "minLength": 1},
+    "warnings": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "next": {"type": "string", "pattern": " --yes$"}
   },
   "additionalProperties": false

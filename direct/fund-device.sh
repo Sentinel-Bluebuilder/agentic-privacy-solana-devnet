@@ -20,9 +20,10 @@ SOL=${ARG_sol:-0.02}
 
 need sentinel-dvpn; need jq; need curl; need python3; need openssl
 
-KEYFILE=${OWNER_KEYFILE:-$HOME/.sentinel-dvpn/keys/owner.json}
-[ -r "$KEYFILE" ] || fail "$E_OPERATOR" no-wallet "owner key file $KEYFILE not found" "sudo sh direct/install.sh" none
-OWNER=$(owner_address)
+OWNER=$(owner_address)   # keyfile-missing, no-wallet and insecure-key (--yes) come first
+OKF=${OWNER_KEYFILE:-$HOME/.sentinel-dvpn/keys/owner.json}   # the file this script signs with
+[ -r "$OKF" ] || fail "$E_OPERATOR" no-wallet "owner key file $OKF not readable: this script signs with that file" \
+  "sudo KEYFILE=/path/to/your-key.json sh direct/install.sh" none
 DEVICE=$(device_address)
 LAMPORTS=$(python3 -I -c 'import sys,decimal; v=decimal.Decimal(sys.argv[1]); assert 0 < v <= 1; print(int(v*1000000000))' "$SOL" 2>/dev/null) \
   || fail "$E_USAGE" usage "--sol must be a number above 0 and at most 1 (got $SOL)" "sh direct/fund-device.sh --sol 0.02" none
@@ -42,7 +43,7 @@ FEE_NOTE="the device is your own key; it spends this SOL on fees and rent"
 confirm "send $LAMPORTS lamports ($SOL SOL) from owner $OWNER to device $DEVICE (fee 5000 lamports)" "sh direct/fund-device.sh --sol $SOL"
 
 # ─── build, sign, send ───
-sol_send "$KEYFILE" "$OWNER" unclear "System transfer $LAMPORTS lamports $OWNER -> $DEVICE" sol "$DEVICE" "$LAMPORTS"
+sol_send "$OKF" "$OWNER" unclear "System transfer $LAMPORTS lamports $OWNER -> $DEVICE" sol "$DEVICE" "$LAMPORTS"
 SIG=$TX_SIG
 DB2=$(balance "$DEVICE")
 summary true fund-device "sh direct/connect.sh" "\"then\":\"sh direct/connect.sh --yes\",\"signature\":\"$SIG\",\"lamports\":$LAMPORTS,\"device\":\"$DEVICE\",\"deviceLamports\":${DB2:-null}"

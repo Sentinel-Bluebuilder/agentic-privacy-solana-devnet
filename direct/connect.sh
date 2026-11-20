@@ -89,6 +89,13 @@ if [ "$PRICE" -gt "$PRICE_CAP" ]; then
   fail "$E_OPERATOR" price-cap "node $NODE costs $(tdvpn "$PRICE") tDVPN/GB, above the cap $(tdvpn "$PRICE_CAP"); set MAX_PRICE=$(tdvpn "$PRICE")" \
     "MAX_PRICE=$(tdvpn "$PRICE") NODE=$NODE sh direct/connect.sh" none
 fi
+# escrow-too-small: the node takes its first block (100 MB = a tenth of the GB price) at connect, and the daemon
+# refuses an escrow under half of it ("channel escrow below node minimum"). Checked here, before anything is signed.
+MIN_ESCROW=$(( (PRICE + 9) / 10 ))
+if [ -n "${ESCROW:-}" ] && [ "$ESCROW" -lt "$MIN_ESCROW" ]; then
+  fail "$E_USAGE" escrow-too-small "ESCROW=$ESCROW base units is below this node's first 100 MB block, $MIN_ESCROW base units ($(tdvpn "$MIN_ESCROW") tDVPN at $(tdvpn "$PRICE") tDVPN/GB); nothing was signed" \
+    "ESCROW=$MIN_ESCROW NODE=$NODE sh direct/connect.sh" none
+fi
 ESCROW=${ESCROW:-$((PRICE * UNITS))}
 ALLOWANCE=${ALLOWANCE:-$((10 * ESCROW))}   # default grant cap: 10 deposits at this price (a running total)
 [ -n "$LEFT" ] || LEFT=$ALLOWANCE

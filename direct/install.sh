@@ -36,7 +36,8 @@ CALLER=${SUDO_USER:-}
 KEYFILE=${KEYFILE:-}
 if [ -n "$KEYFILE" ]; then
   [ -n "$CALLER" ] || fail "$E_USAGE" usage "KEYFILE= needs sudo from a normal user (not a root shell)" "sudo KEYFILE=$KEYFILE sh direct/install.sh" none
-  [ -f "$KEYFILE" ] || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a file" "ls -l $KEYFILE" none
+  [ -f "$KEYFILE" ] || fail "$E_OPERATOR" keyfile-missing "KEYFILE=$KEYFILE is not a file; nothing was installed, and no new key is made in its place" \
+    "ls -l $(dirname "$KEYFILE")" none
   KMODE=$(stat -c %a "$KEYFILE")
   case $KMODE in 600|400) ;; *) fail "$E_SAFETY" key-unsafe "KEYFILE=$KEYFILE has mode $KMODE: other users can read it (it is a plain secret key)" \
     "chmod 600 $KEYFILE && sudo KEYFILE=$KEYFILE sh direct/install.sh" none ;; esac

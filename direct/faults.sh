@@ -18,7 +18,8 @@
 # Prints one line per case, then {"ok":…,"step":"faults","pass":N,"fail":M}. Exit 0 all pass, 1 any fail.
 set -u
 # --help / -h: print this header and exit, before anything runs
-for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'; exit 0 ;; esac; done
+for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'
+  echo '{"ok":true,"step":"help","next":"sh direct/faults.sh"}'; exit 0 ;; esac; done
 cd "$(dirname "$0")/.."
 DOC=docs/DIRECT-REFERENCE.md   # the exit and code tables
 [ -f "$DOC" ] || { echo "run from the repo root (docs/DIRECT-REFERENCE.md not found)" >&2; exit 3; }
@@ -183,9 +184,8 @@ ok_case() {
   [ "$rc" = "$wx" ] || why="$why exit=$rc(want $wx);"
   [ -z "$grepfor" ] || grep -q "$grepfor" "$FX/$name.err" || why="$why stderr lacks '$grepfor';"
   last=$(printf '%s\n' "$out" | tail -1)
-  if case $name in help*) false ;; *) true ;; esac; then   # --help prints text, every other case ends with a JSON line
-    sv=$(python3 -I direct/schema/validate.py "$last" 2>&1) || why="$why schema: $sv;"
-  fi
+  sv=$(python3 -I direct/schema/validate.py "$last" 2>&1) || why="$why schema: $sv;"   # --help too: text, then a help JSON line
+  case $name in help*) [ "$(printf '%s' "$last" | jq -r .step 2>/dev/null)" = help ] || why="$why last line is not the help JSON;" ;; esac
   if [ -z "$why" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL:$why"; fi
   printf '%-22s exit=%s last=%s | %s\n' "$name" "$rc" "$(printf '%s\n' "$out" | tail -1 | cut -c1-120)" "$v" | tee -a "$LOG"
 }
@@ -223,6 +223,17 @@ fx  usage-cli            usage        FX_MATCH='program params' FX_ERR='error: u
 ok_case help             0 ''         sh direct/refund.sh --help
 ok_case help-faults      0 ''         sh direct/faults.sh --help   # prints help; must not run the suite
 ok_case help-build       0 ''         sh direct/build.sh --help    # prints help; must not build
+ok_case help-install     0 ''         sh direct/install.sh --help  # as a user: help, not needs-root
+ok_case help-connect     0 ''         sh direct/connect.sh --help
+ok_case help-close-all   0 ''         sh direct/close-all.sh --help
+fx  usage-instance       usage        INSTANCE='c1;x' sh direct/connect.sh
+# INSTANCE you set is kept in next (an instance with no device key: no-device, next = install with INSTANCE=)
+out=$(env PATH="$FX/bin:$PATH" INSTANCE=fxzz sh direct/fund-request.sh 2>"$FX/instance-carry.err" </dev/null); rc=$?
+check instance-carry     no-device "$rc" "$(printf '%s\n' "$out" | tail -1)"
+case $(printf '%s\n' "$out" | tail -1 | jq -r .next 2>/dev/null) in
+  *INSTANCE=fxzz*) ;;
+  *) FAILN=$((FAILN + 1)); echo "instance-carry-next    next drops INSTANCE=fxzz: $(printf '%s\n' "$out" | tail -1 | cut -c1-160) | FAIL" | tee -a "$LOG" ;;
+esac
 fx  needs-root           needs-root   sh direct/install.sh
 fx  tool-missing         tool-missing PATH="$FX/nojq" sh direct/disconnect.sh
 
@@ -230,8 +241,18 @@ fx  tool-missing         tool-missing PATH="$FX/nojq" sh direct/disconnect.sh
 mkdir -p "$FX/nohome"
 fx  no-key               no-wallet    HOME="$FX/nohome" sh direct/fund-request.sh
 fx  no-device            no-device    FX_MATCH='sentinel-dvpnd key show' FX_ERR='error: key "operator" not found' sh direct/fund-request.sh
+nk=$(env PATH="$FX/bin:$PATH" HOME="$FX/nohome" sh direct/connect.sh 2>/dev/null </dev/null | tail -1 | jq -r .next 2>/dev/null)
+case $nk in   # no-wallet: next imports the key file you have (install.sh KEYFILE=), it does not make a new key
+  *KEYFILE=*install.sh*) PASS=$((PASS + 1)); echo "no-key-next            next=$nk | PASS" | tee -a "$LOG" ;;
+  *) FAILN=$((FAILN + 1)); echo "no-key-next            next is not a KEYFILE= install: $nk | FAIL" | tee -a "$LOG" ;;
+esac
+fx  keyfile-missing     keyfile-missing OWNER_KEYFILE="$FX/none.json" sh direct/fund-request.sh
+fx  keyfile-missing-kf   keyfile-missing KEYFILE="$FX/none.json" sh direct/connect.sh
 chmod 644 "$OWNER_KEY"
 ok_case key-mode-644     0 'readable by other users' MIN_DVPN=1 MIN_OWNER_SOL=1 MIN_DEVICE_SOL=1 sh direct/fund-request.sh
+pv  key-644-warnings '(.warnings | length) == 1 and (.warnings[0] | contains("chmod 600"))'     sh direct/connect.sh
+fx  insecure-key         insecure-key sh direct/connect.sh --yes
+fx  insecure-key-fund    insecure-key sh direct/fund-device.sh --sol 0.001 --yes
 chmod 600 "$OWNER_KEY"
 
 # ─── funding ───
@@ -273,6 +294,7 @@ fx  usage-sol-empty      usage        sh direct/fund-device.sh --sol=
 ok_case sol-equals-form  2 ''         sh direct/fund-device.sh --sol=0.001
 fx  usage-escrow         usage        ESCROW=abc sh direct/connect.sh
 fx  usage-escrow-zero    usage        ESCROW=0 sh direct/connect.sh
+fx  escrow-too-small     escrow-too-small ESCROW=1 NODE="$NODE_OK" sh direct/connect.sh   # below the node's first 100 MB block, before anything signs
 fx  usage-node           usage        NODE=not-a-node sh direct/connect.sh
 fx  usage-units          usage        UNITS=1.5 sh direct/connect.sh
 fx  close-all-no-to      usage        sh direct/close-all.sh
@@ -340,6 +362,7 @@ kf() { # kf <case> <want code> <env...>: install.sh as root via sudo (SUDO_USER 
 }
 kf  keyfile-mode-644     key-unsafe    KEYFILE="$FX/k-644.json"
 kf  keyfile-not-a-key    usage         KEYFILE="$FX/k-bad.json"
+kf  keyfile-install-none keyfile-missing KEYFILE="$FX/k-none.json"
 kf  keyfile-owner-differs wrong-account KEYFILE="$FX/k-same.json" OWNER="$NO_TA"
 kf  keyfile-other-key    wrong-account KEYFILE="$FX/k-other.json"
 ok_case keyfile-same     0 'already holds' /usr/bin/sudo env KEYFILE="$FX/k-same.json" sh direct/install.sh

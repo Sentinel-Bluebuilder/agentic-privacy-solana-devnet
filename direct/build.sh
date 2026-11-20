@@ -18,7 +18,8 @@
 # The last stdout line is JSON: {"ok":…,"step":"build","result":"MATCH"|"MISMATCH"|"UNCHECKED",…}
 set -eu
 # --help / -h: print this header and exit, before anything runs
-for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'; exit 0 ;; esac; done
+for a in "$@"; do case $a in --help|-h) sed -n '2,/^set -/p' "$0" | sed -e '/^set -/d' -e 's/^# \{0,1\}//'
+  echo '{"ok":true,"step":"help","next":"sh direct/build.sh"}'; exit 0 ;; esac; done
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 COMMIT=26de52407c5b722cfecad1772dcbeefd984ef6d0
