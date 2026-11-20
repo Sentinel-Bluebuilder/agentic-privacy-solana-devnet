@@ -103,6 +103,19 @@ cat > "$FX/bin/uname" <<'EOF'
 [ "${1:-}" = -s ] && [ -n "${FX_OS:-}" ] && { echo "$FX_OS"; exit 0; }
 exec /usr/bin/uname "$@"
 EOF
+# python3 shim (W30): FX_TAMPER=1 flips one bit of the transfer amount in the message soltx.py just built, so the
+# pre-sign check must catch it (args: -I soltx.py <keyfile> <signer> <blockhash> <work dir> ...)
+cat > "$FX/bin/python3" <<'EOF'
+#!/bin/sh
+/usr/bin/python3 "$@"; rc=$?
+if [ -n "${FX_TAMPER:-}" ] && [ "$rc" = 0 ]; then
+  case ${2:-}:${3:-} in
+    *soltx.py:check|*soltx.py:pubkey|*soltx.py:oncurve) ;;
+    *soltx.py:*) [ -f "$6/msg.bin" ] && /usr/bin/python3 -I -c 'import sys; p = sys.argv[1]; b = bytearray(open(p, "rb").read()); b[-8] ^= 1; open(p, "wb").write(b)' "$6/msg.bin" ;;
+  esac
+fi
+exit $rc
+EOF
 chmod +x "$FX/bin/"*
 mkdir -p "$FX/nojq"
 for f in /usr/bin/* /usr/local/bin/* /bin/*; do
@@ -231,6 +244,17 @@ fx  usage-instance       usage        INSTANCE='c1;x' sh direct/connect.sh
 fx  unsupported-os       unsupported-os FX_OS=Darwin sh direct/connect.sh    # Path B is Linux only: the app's next
 fx  build-unsupported-os unsupported-os FX_OS=Darwin sh direct/build.sh      # refused before anything is cloned or built
 ok_case help-on-darwin   0 ''         FX_OS=Darwin sh direct/install.sh --help   # help still works on another OS
+# parse: every script parses under bash -n and bash --posix -n (a uname shim cannot catch a parse error), and has
+# no `$(case` (bash 3.2, macOS /bin/sh, cannot parse a bare `pattern)` inside $( ); bash 5 here accepts it)
+why=""
+for f in direct/*.sh install.sh; do
+  bash -n "$f" 2>/dev/null || why="$why $f:bash-n;"
+  bash --posix -n "$f" 2>/dev/null || why="$why $f:posix-n;"
+  bad=$(grep -nE '^[^#]*[$][(]case .* in ' "$f" | cut -d: -f1 | tr '\n' ' ')   # code lines only, not comments
+  [ -z "$bad" ] || why="$why $f:\$(case at line $bad;"
+done
+if [ -z "$why" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL:$why"; fi
+printf '%-22s %s | %s\n' parse-all "bash -n + bash --posix -n + no \$(case, $(ls direct/*.sh install.sh | wc -l) files" "$v" | tee -a "$LOG"
 # INSTANCE you set is kept in next (an instance with no device key: no-device, next = install with INSTANCE=)
 out=$(env PATH="$FX/bin:$PATH" INSTANCE=fxzz sh direct/fund-request.sh 2>"$FX/instance-carry.err" </dev/null); rc=$?
 check instance-carry     no-device "$rc" "$(printf '%s\n' "$out" | tail -1)"
@@ -277,11 +301,36 @@ i=0; while [ $i -lt 30 ] && [ ! -S "$SOCK" ]; do sleep 1; i=$((i + 1)); done
 # ─── RPC ───
 fx  rpc-429-read         rpc-busy     FX_MATCH='program params' FX_ERR="$E429" sh direct/refund.sh
 fx  rpc-429-start        rpc-busy     FX_START_ERR="$E429" sh direct/connect.sh --yes
+# W77: the daemon's "escrow below node minimum" → its own code, money none, and no node route left behind
+fx  escrow-below-min     escrow-below-minimum FX_START_ERR='error: opening channel: channel escrow below node minimum' sh direct/connect.sh --yes
+RT=${XDG_CACHE_HOME:-$HOME/.cache}/sentinel-direct/routes-$INSTANCE
+if [ ! -f "$RT" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL: $RT still lists $(tr '\n' ' ' < "$RT")"; fi
+printf '%-22s %s | %s\n' escrow-min-routes "routes file after the failed start: $([ -f "$RT" ] && echo present || echo removed)" "$v" | tee -a "$LOG"
 fx  rpc-refused          rpc-unavailable FX_MATCH='program params' FX_ERR="$EREFUSED" sh direct/refund.sh
 fx  rpc-bogus-url        rpc-unavailable RPC_URL=http://127.0.0.1:9 sh direct/fund-device.sh --sol 0.001
 fx  rpc-429-send         rpc-busy     FX_CURL_SEND='{"error":{"code":429,"message":"Too Many Requests"}}' sh direct/fund-device.sh --sol 0.001 --yes
 fx  send-refused         unknown      FX_CURL_SEND='{"error":{"code":-32002,"message":"Transaction simulation failed"}}' sh direct/fund-device.sh --sol 0.001 --yes
-fx  send-unconfirmed     unknown      FX_CURL_SEND='{"result":"FaultsShimSignature1111111111111111111111111"}' FX_CURL_STATUS='{"result":{"value":[null]}}' sh direct/fund-device.sh --sol 0.001 --yes
+fx  tx-mismatch          tx-mismatch FX_TAMPER=1 sh direct/fund-device.sh --sol 0.001 --yes   # W30: caught before signing
+# W30 offline: soltx.py check passes the message it built and refuses one amount or recipient off (sol and token)
+(umask 077; python3 -I -c 'import json, os; print(json.dumps(list(os.urandom(64))))' > "$FX/w30.json"); mkdir -p "$FX/w30"
+W30S=$(python3 -I direct/soltx.py pubkey "$FX/w30.json"); BH=11111111111111111111111111111111
+T22=TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb; MNT=Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa
+w30() { # w30 <case> <kind> <build args> -- <check args>: the build must pass its own check and fail the other
+  name=$1; kind=$2; shift 2; ba=""; while [ "$1" != -- ]; do ba="$ba $1"; shift; done; shift
+  # shellcheck disable=SC2086
+  python3 -I direct/soltx.py "$FX/w30.json" "$W30S" "$BH" "$FX/w30" "$FX/w30/signer.tmp" "$kind" $ba >/dev/null 2>&1; rm -f "$FX/w30/signer.tmp"
+  # shellcheck disable=SC2086
+  ok=$(python3 -I direct/soltx.py check "$FX/w30/msg.bin" "$W30S" "$kind" $ba >/dev/null 2>&1 && echo pass || echo fail)
+  bad=$(python3 -I direct/soltx.py check "$FX/w30/msg.bin" "$W30S" "$kind" "$@" 2>&1); brc=$?
+  if [ "$ok" = pass ] && [ "$brc" = 1 ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL: own=$ok other-rc=$brc"; fi
+  printf '%-22s %s | %s\n' "$name" "$(printf '%s' "$bad" | cut -c1-110)" "$v" | tee -a "$LOG"
+}
+w30 w30-sol-amount   sol "$HOLDER" 1000000 -- "$HOLDER" 1000001
+w30 w30-sol-to       sol "$HOLDER" 1000000 -- "$NO_TA" 1000000
+w30 w30-token-amount token "$NO_TA" "$MNT" "$HOLDER" 5000 6 "$T22" "$HOLDER" -- "$NO_TA" "$MNT" "$HOLDER" 5001 6 "$T22" "$HOLDER"
+w30 w30-token-rent   token "$NO_TA" "$MNT" "$HOLDER" 5000 6 "$T22" "$HOLDER" -- "$NO_TA" "$MNT" "$HOLDER" 5000 6 "$T22" "$NO_TA"
+shred -u "$FX/w30.json"
+fx  send-unconfirmed     unknown     FX_CURL_SEND='{"result":"FaultsShimSignature1111111111111111111111111"}' FX_CURL_STATUS='{"result":{"value":[null]}}' sh direct/fund-device.sh --sol 0.001 --yes
 
 # ─── nodes ───
 BOGUS_NODE="$(printf "%031d" 0 | tr 0 1)2"   # 31 ones + "2": a valid base58 address that is not a node account

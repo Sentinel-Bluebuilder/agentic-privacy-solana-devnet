@@ -1,7 +1,10 @@
 # Path B: connect with Sentinel's own tools, no app
 
-**Path B: Linux only today (macOS/Windows: use the app).** The scripts need Linux with systemd; on a Mac or a
-Windows PC, use Path A, the app ([AGENTS.md](../AGENTS.md)).
+**Path B: Linux only today (macOS/Windows: use the app).** The scripts need Linux with systemd and `ip`; on a Mac or a
+Windows PC, use Path A, the app ([AGENTS.md](../AGENTS.md)). On an Apple silicon Mac (2026-11-20): the public upstream
+builds for darwin-arm64 at the pinned commit, and `sentinel-dvpnd` gets as far as `preflight failed: grant`; a client
+session is not possible with `direct/` as shipped. There, `sh direct/build.sh` refuses (`unsupported-os`), and
+`VERIFY_ONLY=1 sh direct/build.sh` checks the Linux files' SHA-256.
 
 Read this page once, top to bottom. Every code, exit, money class, error message and raw command is in
 [DIRECT-REFERENCE.md](DIRECT-REFERENCE.md); a script's `next` points there when you need it.
@@ -104,7 +107,8 @@ box, including a live public-RPC 429 that the retry absorbed. The same owner key
 Path A's `devnet-dvpn` (rc.5) with the same address and balances.
 **Windows: NOT proven** (Windows 11 x64, Azure, 2026-11-20). Build, daemon, service, grant, session and close start
 all work, but traffic does not go through the tunnel (gap W-1; see "Windows" in [DIRECT-REFERENCE.md](DIRECT-REFERENCE.md)).
-**Not run yet:** macOS, arm64 (the arm64 binaries build cleanly but have not been run).
+**Not run yet:** a client session on macOS (no `ip`/systemd), and the linux-arm64 binaries (they build, and their
+SHA-256 matches, but they have not been run). The darwin-arm64 build ran `init` and `doctor` on macOS up to the grant check.
 
 **Per release.** CI (`.github/workflows/checks.yml`) runs on every push: script syntax, every last line against
 `direct/schema` (hand-made and 23 captured live lines), and the example programs. The live checks cannot run in

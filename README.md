@@ -67,8 +67,7 @@ with the CLI first (sections 1 to 4 of `AGENTS.md`). Get it with
 
 - **Android:** the app has the same commands inside it, but a released Android build cannot be
   driven from outside the app, so an agent cannot use it this way.
-- **Apple silicon:** the macOS steps are proven on the Intel build; the Apple silicon build has
-  not been run.
+- **macOS:** the agent commands (`agent up` / `status` / `down`) ran live on the Apple silicon build machine (GitHub macOS 15 runner, run 44808199308): connect, exit IP proven, disconnect, settle line; 17 pass / 6 differ. A fresh agent has not yet followed this page start to finish on a Mac, and no Intel Mac has run rc8 ([`docs/PROOF.md`](docs/PROOF.md)).
 - **Windows on ARM:** there is no ARM64 build.
 - **MCP:** unit tests pass and a live check against real devnet nodes passed on Linux; a paid
   connection through the MCP server has not been run.

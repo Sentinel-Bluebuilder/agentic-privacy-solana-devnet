@@ -31,9 +31,7 @@ are the earlier record.
   send that leaves too little SOL; `device plan` refusing an allowance above the wallet, and warning on 0; the settle
   line after `agent down`.
 - **macOS, published 2026-11-20:** `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` and `-arm64-mac.zip` (Apple silicon only; hashes
-  in [`docs/PROVENANCE.md`](PROVENANCE.md)). The release build's own checks: 17 pass, 6 differ from the expected
-  answer. The agent path (`AGENTS.md` from the page) has not been run on a Mac yet. Intel Macs: v0.3.0-rc4, the newest
-  Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
+  in [`docs/PROVENANCE.md`](PROVENANCE.md)). The agent commands (`agent up` / `status` / `down`) ran live on the Apple silicon build machine (GitHub macOS 15 runner, run 44808199308): connect, exit IP proven, disconnect, settle line; 17 pass / 6 differ. A fresh agent has not yet followed this page start to finish on a Mac, and no Intel Mac has run rc8. Intel Macs: v0.3.0-rc4, the newest Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 - **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
   macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
   ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being
@@ -189,7 +187,7 @@ service stopped. This is fixed after rc2. A fresh install is not affected.
 
 ## macOS
 
-All macOS runs are on the **Intel (x64)** build.
+The macOS runs in this table are on the **Intel (x64)** build (rc.1 to rc4). rc8 ran on the Apple silicon build: see "macOS, published 2026-11-20" above.
 
 | step | status | how |
 |---|---|---|

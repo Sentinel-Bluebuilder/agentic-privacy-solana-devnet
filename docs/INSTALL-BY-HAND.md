@@ -30,7 +30,7 @@ U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/do
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-[ -n "$F" ] || { echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md)"; exit 1; }
+[ -n "$F" ] || echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md); stop here"
 curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)

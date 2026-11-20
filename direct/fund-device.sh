@@ -43,6 +43,7 @@ FEE_NOTE="the device is your own key; it spends this SOL on fees and rent"
 confirm "send $LAMPORTS lamports ($SOL SOL) from owner $OWNER to device $DEVICE (fee 5000 lamports)" "sh direct/fund-device.sh --sol $SOL"
 
 # ─── build, sign, send ───
+PREVIEW_CHECK=1   # W30: the signed transfer must equal the preview's payee (to, lamports)
 sol_send "$OKF" "$OWNER" unclear "System transfer $LAMPORTS lamports $OWNER -> $DEVICE" sol "$DEVICE" "$LAMPORTS"
 SIG=$TX_SIG
 DB2=$(balance "$DEVICE")

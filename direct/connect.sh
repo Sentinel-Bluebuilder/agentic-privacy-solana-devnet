@@ -157,6 +157,14 @@ BEFORE_IP=$(curl -s -4 -m 10 https://api.ipify.org || echo unknown)
 if [ -n "$CHANNEL" ]; then MONEY_STATE=refund; else MONEY_STATE=unclear; fi
 
 # ─── 4. start ───
+# W77: if client start fails, no tunnel is up: remove the node routes added above so nothing is left behind
+# (cleared once start succeeds; from then on disconnect.sh removes them)
+drop_routes() {
+  [ -f "$ROUTES" ] || return 0
+  while read -r ip; do sudo ip route del "$ip/32" >/dev/null 2>&1 || echo "route $ip/32 was already gone" >&2; done < "$ROUTES"
+  rm -f "$ROUTES"
+}
+EXIT_EXTRA='[ "$rc" = 0 ] || drop_routes'
 if [ -n "$CHANNEL" ]; then
   OUT=$(try refund dclient start --instance "$INSTANCE" --node "$NODE" --channel "$CHANNEL")
 else
@@ -180,6 +188,7 @@ else
   rm -f "$TRY_ERR_FILE"
 fi
 echo "$OUT" >&2
+EXIT_EXTRA=""             # the session is up: the routes are now disconnect.sh's to remove
 SESSION=$(echo "$OUT" | jq -r .session.id)
 CHANNEL=$(echo "$OUT" | jq -r .session.channel)
 MONEY_STATE=open          # the session runs on a funded channel

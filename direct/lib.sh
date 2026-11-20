@@ -239,6 +239,8 @@ classify() {
       fail "$E_OTHER" deposit-unusable "$t" "sh direct/connect.sh --yes" refund ;;
     *6023*|*BalanceZero*)
       fail "$E_OTHER" nothing-to-withdraw "$t" "sh direct/refund.sh" refund ;;
+    *"escrow below node minimum"*)   # W77: the daemon refused before any deposit: nothing was sent
+      fail "$E_USAGE" escrow-below-minimum "$t" "env -u ESCROW sh direct/connect.sh" none ;;
     *"a session is already active"*)
       fail "$E_OTHER" session-active "$t" "sh direct/disconnect.sh && $CMD" none ;;
     *"no active session"*)
@@ -406,6 +408,19 @@ sol_send() {
   ss_pem=$(umask 077; mktemp -p "$ss_work")
   python3 -I "$HERE/soltx.py" "$ss_key" "$ss_from" "$ss_bh" "$ss_work" "$ss_pem" "$@" >&2 \
     || { rm -rf "$ss_work"; fail "$E_OTHER" unknown "could not build: $ss_what (see the Python error above)" "sentinel-dvpn key show owner" none; }
+  # W30: decode the message from its bytes and compare it with the intended send before anything is signed
+  if ! ss_chk=$(python3 -I "$HERE/soltx.py" check "$ss_work/msg.bin" "$ss_from" "$@" 2>&1); then
+    rm -rf "$ss_work"
+    fail "$E_SAFETY" tx-mismatch "the built transaction differs from the intended send ($ss_what): $ss_chk; nothing was signed or sent" "$CMD" none
+  fi
+  # a script that previewed this send (PREVIEW_CHECK=1): the decoded transfer must be one of the preview's payees
+  if [ "${PREVIEW_CHECK:-0}" = 1 ] && [ "$1" = sol ]; then
+    printf '[%s]' "$PAYEES" | jq -e --arg to "$2" --argjson l "$3" 'any(.[]; .role == "transfer" and .to == $to and .lamports == $l)' >/dev/null || {
+      rm -rf "$ss_work"
+      fail "$E_SAFETY" tx-mismatch "the built transfer ($3 lamports to $2) is not a payee the preview showed: [$PAYEES]; nothing was signed or sent" "$CMD" none
+    }
+  fi
+  echo "$ss_chk" >&2
   ss_pub=$(openssl pkey -in "$ss_pem" -pubout -outform DER | tail -c 32 | od -An -tx1 | tr -d ' \n')
   [ "$ss_pub" = "$(cat "$ss_work/pub.hex")" ] \
     || { rm -rf "$ss_work"; fail "$E_OTHER" unknown "openssl derived a different public key; not signing" "sentinel-dvpn key show owner" none; }

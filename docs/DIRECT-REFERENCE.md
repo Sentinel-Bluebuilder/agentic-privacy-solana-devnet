@@ -48,9 +48,9 @@ names the exact ones):
 | 0 | ok | |
 | 1 | failed (every code not listed below) | `session-active`, `device-sol`, `device-permission`, `node-gone`, `node-stale`, `no-nodes`, `daemon-unavailable`, `tunnel-failed`, `close-wait`, `unknown`, and `rpc-unavailable` when money is not `none` |
 | 2 | needs `--yes` (a preview; nothing was signed) | `needsConfirm` |
-| 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing`, `escrow-too-small` |
+| 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing`, `escrow-too-small`, `escrow-below-minimum` |
 | 4 | needs you or your funder; nothing was paid | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `no-token-account` |
-| 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key` (Path B only; Path A uses 5 for its kill-switch codes) |
+| 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key`, `tx-mismatch` (Path B only; Path A uses 5 for its kill-switch codes) |
 | 6 | network or RPC, and no deposit can be open | `rpc-busy`, `rpc-unavailable` with money `none`, `download-failed` |
 
 Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 13:14Z gave
@@ -76,8 +76,10 @@ name; codes with no Path A twin are Path B only:
 | `not-funded`, `device-sol`, `spending-limit`, `price-cap`, `device-permission`, `session-active`, `node-gone`, `node-stale`, `node-offline`, `no-nodes`, `price-changed`, `deposit-unusable`, `service-down`, `daemon-unavailable`, `rpc-busy`, `rpc-unavailable`, `tunnel-failed`, `tunnel-closing`, `no-wallet`, `unsupported`, `unknown` | the same name | as in Path A |
 | `close-wait`, `not-closing`, `nothing-to-withdraw` | (none: Path A's `settle run` does the wait for you) | refund steps run by hand |
 | `no-session`, `wrong-account`, `usage`, `needs-root`, `tool-missing`, `checksum-mismatch`, `no-device`, `install-failed`, `download-failed`, `build-failed`, `route-failed`, `session-dropped`, `step-failed`, `interrupted`, `sweep-incomplete`, `no-token-account`, `key-unsafe` | (none) | raw CLI and install cases (`no-device`: the daemon instance has no device key; run `sudo sh direct/install.sh`) |
+| `tx-mismatch` | (none) | `fund-device.sh`, `close-all.sh` (the sends this kit builds and signs itself): before signing, `direct/soltx.py check` decodes the built message from its bytes and compares signer, programs, accounts and amounts with the intended send, and `fund-device.sh` also with its preview's payee. Any difference: nothing is signed or sent (W30) |
 | `unsupported-os` | (none: the app runs on every OS) | any script, `build.sh` too, on a host that is not Linux (macOS, Windows): Path B runs on Linux only today. Nothing runs; `next` shows the app (Path A). `VERIFY_ONLY=1 sh direct/build.sh` still cross-builds the Linux files to compare their SHA-256 |
 | `insecure-key`, `keyfile-missing`, `escrow-too-small` | (Path A's `keyfile-mode` is exit 4; Path A has no twin for the other two) | `insecure-key`: with `--yes`, the owner key file has a mode other than 600/400 (a preview only warns, in `warnings[]`); `keyfile-missing`: `KEYFILE=` / `OWNER_KEYFILE=` names no file (the default key is never used instead); `escrow-too-small`: `ESCROW` is below the node's first 100 MB block. Nothing is signed in any of them |
+| `escrow-below-minimum` | (none) | `connect.sh`: the daemon refused the channel open ("channel escrow below node minimum") before any deposit; money `none`, and the node routes connect.sh added are removed. `next`: `env -u ESCROW sh direct/connect.sh` (W77) |
 
 ## Step by step (what the scripts run)
 

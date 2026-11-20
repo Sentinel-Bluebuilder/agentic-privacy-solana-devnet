@@ -493,8 +493,11 @@ Every answer as a JSON Schema: [`docs/agent-answers.schema.json`](docs/agent-ans
 
 # Path B: connect with Sentinel's own tools, no app
 
-**Path B: Linux only today (macOS/Windows: use the app).** The scripts need Linux with systemd; on a Mac or a
-Windows PC, use Path A, the app ([AGENTS.md](../AGENTS.md)).
+**Path B: Linux only today (macOS/Windows: use the app).** The scripts need Linux with systemd and `ip`; on a Mac or a
+Windows PC, use Path A, the app ([AGENTS.md](../AGENTS.md)). On an Apple silicon Mac (2026-11-20): the public upstream
+builds for darwin-arm64 at the pinned commit, and `sentinel-dvpnd` gets as far as `preflight failed: grant`; a client
+session is not possible with `direct/` as shipped. There, `sh direct/build.sh` refuses (`unsupported-os`), and
+`VERIFY_ONLY=1 sh direct/build.sh` checks the Linux files' SHA-256.
 
 Read this page once, top to bottom. Every code, exit, money class, error message and raw command is in
 [DIRECT-REFERENCE.md](DIRECT-REFERENCE.md); a script's `next` points there when you need it.
@@ -597,7 +600,8 @@ box, including a live public-RPC 429 that the retry absorbed. The same owner key
 Path A's `devnet-dvpn` (rc.5) with the same address and balances.
 **Windows: NOT proven** (Windows 11 x64, Azure, 2026-11-20). Build, daemon, service, grant, session and close start
 all work, but traffic does not go through the tunnel (gap W-1; see "Windows" in [DIRECT-REFERENCE.md](DIRECT-REFERENCE.md)).
-**Not run yet:** macOS, arm64 (the arm64 binaries build cleanly but have not been run).
+**Not run yet:** a client session on macOS (no `ip`/systemd), and the linux-arm64 binaries (they build, and their
+SHA-256 matches, but they have not been run). The darwin-arm64 build ran `init` and `doctor` on macOS up to the grant check.
 
 **Per release.** CI (`.github/workflows/checks.yml`) runs on every push: script syntax, every last line against
 `direct/schema` (hand-made and 23 captured live lines), and the example programs. The live checks cannot run in
@@ -1369,9 +1373,9 @@ names the exact ones):
 | 0 | ok | |
 | 1 | failed (every code not listed below) | `session-active`, `device-sol`, `device-permission`, `node-gone`, `node-stale`, `no-nodes`, `daemon-unavailable`, `tunnel-failed`, `close-wait`, `unknown`, and `rpc-unavailable` when money is not `none` |
 | 2 | needs `--yes` (a preview; nothing was signed) | `needsConfirm` |
-| 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing`, `escrow-too-small` |
+| 3 | usage (Path A prints no JSON here; Path B does) | `usage`, `needs-root`, `tool-missing`, `escrow-too-small`, `escrow-below-minimum` |
 | 4 | needs you or your funder; nothing was paid | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `no-token-account` |
-| 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key` (Path B only; Path A uses 5 for its kill-switch codes) |
+| 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key`, `tx-mismatch` (Path B only; Path A uses 5 for its kill-switch codes) |
 | 6 | network or RPC, and no deposit can be open | `rpc-busy`, `rpc-unavailable` with money `none`, `download-failed` |
 
 Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 13:14Z gave
@@ -1397,8 +1401,10 @@ name; codes with no Path A twin are Path B only:
 | `not-funded`, `device-sol`, `spending-limit`, `price-cap`, `device-permission`, `session-active`, `node-gone`, `node-stale`, `node-offline`, `no-nodes`, `price-changed`, `deposit-unusable`, `service-down`, `daemon-unavailable`, `rpc-busy`, `rpc-unavailable`, `tunnel-failed`, `tunnel-closing`, `no-wallet`, `unsupported`, `unknown` | the same name | as in Path A |
 | `close-wait`, `not-closing`, `nothing-to-withdraw` | (none: Path A's `settle run` does the wait for you) | refund steps run by hand |
 | `no-session`, `wrong-account`, `usage`, `needs-root`, `tool-missing`, `checksum-mismatch`, `no-device`, `install-failed`, `download-failed`, `build-failed`, `route-failed`, `session-dropped`, `step-failed`, `interrupted`, `sweep-incomplete`, `no-token-account`, `key-unsafe` | (none) | raw CLI and install cases (`no-device`: the daemon instance has no device key; run `sudo sh direct/install.sh`) |
+| `tx-mismatch` | (none) | `fund-device.sh`, `close-all.sh` (the sends this kit builds and signs itself): before signing, `direct/soltx.py check` decodes the built message from its bytes and compares signer, programs, accounts and amounts with the intended send, and `fund-device.sh` also with its preview's payee. Any difference: nothing is signed or sent (W30) |
 | `unsupported-os` | (none: the app runs on every OS) | any script, `build.sh` too, on a host that is not Linux (macOS, Windows): Path B runs on Linux only today. Nothing runs; `next` shows the app (Path A). `VERIFY_ONLY=1 sh direct/build.sh` still cross-builds the Linux files to compare their SHA-256 |
 | `insecure-key`, `keyfile-missing`, `escrow-too-small` | (Path A's `keyfile-mode` is exit 4; Path A has no twin for the other two) | `insecure-key`: with `--yes`, the owner key file has a mode other than 600/400 (a preview only warns, in `warnings[]`); `keyfile-missing`: `KEYFILE=` / `OWNER_KEYFILE=` names no file (the default key is never used instead); `escrow-too-small`: `ESCROW` is below the node's first 100 MB block. Nothing is signed in any of them |
+| `escrow-below-minimum` | (none) | `connect.sh`: the daemon refused the channel open ("channel escrow below node minimum") before any deposit; money `none`, and the node routes connect.sh added are removed. `next`: `env -u ESCROW sh direct/connect.sh` (W77) |
 
 ## Step by step (what the scripts run)
 
@@ -2032,10 +2038,12 @@ code of the same name (`install-failed`, `no-device`). Every line has `money` an
 | <a id="code-direct-download-failed"></a>`download-failed` | `install.sh` | `apt-get update` or the release download (`SHA256SUMS`, a binary) failed. | 6 | `none` | `sleep 60 && sudo sh direct/install.sh` |
 | <a id="code-direct-install-failed"></a>`install-failed` | `install.sh` | A setup step failed: the packages, copying a binary, `sentinel-dvpnd init`, the kill-switch setting, the service, or adding you to the group. `error` names the step. | 1 | `none` | the step's own command, then `sudo sh direct/install.sh` |
 | <a id="code-direct-key-unsafe"></a>`key-unsafe` | `install.sh` (`KEYFILE=`) | The key file given as `KEYFILE=` has a mode other than 600 or 400, so other users can read the secret key. Nothing is copied. | 5 | `none` | `chmod 600 <file> && sudo KEYFILE=<file> sh direct/install.sh` |
+| <a id="code-direct-tx-mismatch"></a>`tx-mismatch` | `fund-device.sh`, `close-all.sh` | The transaction built to be signed differs from the intended send, or (`fund-device.sh`) from the payee its preview showed: `direct/soltx.py check` decodes the message from its bytes and compares signer, programs, accounts and amounts. Nothing is signed or sent. | 5 | `none` | the same command again; report it if it repeats (`error` names the field) |
 | <a id="code-direct-unsupported-os"></a>`unsupported-os` | every script, `build.sh` too | The host is not Linux (macOS, Windows): Path B runs on Linux only today. Nothing runs. `--help` still works. `VERIFY_ONLY=1 sh direct/build.sh` still cross-builds the Linux files to compare their SHA-256. | 1 | `none` | `grep -n -A6 'Two paths' AGENTS.md` (the app, Path A) |
 | <a id="code-direct-insecure-key"></a>`insecure-key` | any script that signs, with `--yes` | The owner key file (`~/.sentinel-dvpn/keys/owner.json`, or `OWNER_KEYFILE=`) has a mode other than 600 or 400, so other users can read the secret key. Refused before anything is signed. The preview (no `--yes`) only warns, in `warnings[]`. | 5 | `none` | `chmod 600 <file> && <the same command> --yes` |
 | <a id="code-direct-keyfile-missing"></a>`keyfile-missing` | `install.sh` and every script | `KEYFILE=` or `OWNER_KEYFILE=` names no file. Nothing is read or signed, and neither the default key nor a new key is used in its place. | 4 | `none` | `ls -l <its folder>`, then rerun with the right path |
 | <a id="code-direct-escrow-too-small"></a>`escrow-too-small` | `connect.sh` | `ESCROW=` is below the node's first 100 MB block (a tenth of its GB price): the daemon would refuse it after the grant. Checked before anything is signed. | 3 | `none` | `ESCROW=<the minimum> NODE=<node> sh direct/connect.sh` (the `next` gives the numbers) |
+| <a id="code-direct-escrow-below-minimum"></a>`escrow-below-minimum` | `connect.sh` | The daemon refused the channel open: "channel escrow below node minimum" (a minimum the pre-check did not know). Nothing was deposited; the node routes are removed. | 3 | `none` | `env -u ESCROW sh direct/connect.sh` (the default escrow) |
 | <a id="code-direct-build-failed"></a>`build-failed` | `install.sh` (`BUILD=1`) | `direct/build.sh` failed. A wrong checksum is `checksum-mismatch`, not this. | 1 | `none` | `sh direct/build.sh` (needs git, make and Go 1.27.3) |
 | <a id="code-direct-no-device"></a>`no-device` | any script after install | The daemon has no device key: `install.sh` did not finish. | 1 | `none` | `sudo sh direct/install.sh` |
 | <a id="code-direct-route-failed"></a>`route-failed` | `connect.sh` | The route that keeps the node's own IP outside the tunnel could not be added (no default route, or `ip route replace` failed). | 1 | `none` | `ip route show default`, or the exact `sudo ip route replace …` line |
@@ -2719,6 +2727,7 @@ In order. `agent status --json` names the one you are in, and its `next` is the 
 | `exitIp` (or `quality ip`) shows your **own** address while `connected` is true | [`server-stopped`](CODES.md#code-server-stopped) | The node stopped serving; for a few seconds `agent status` can still say `connected`. Then it answers `"code":"server-stopped"`. The deposit is safe. | `devnet-dvpn agent up --yes` (another node; the dead one is skipped 10 min), or `devnet-dvpn agent down --yes` (closes the deposit). With `"blocked": true` as well: `devnet-dvpn daemon restore-network` first (`next`), then one of those two (`alsoNext`). |
 | `quality ip` shows **no** address after `agent down`, or `agent status` says `"blocked": true` | none | The kill switch still holds the block (the session had dropped before you disconnected). | `devnet-dvpn daemon restore-network` (now), then `devnet-dvpn daemon set --kill-switch off --yes` (so it does not come back). Or `devnet-dvpn agent up --yes` to reconnect with protection. rc7: with no session, `next` is that `agent up --yes` and `alsoNext` is `daemon restore-network`. |
 | macOS (rc8), kill switch on, the VPN service was killed: `devnet-dvpn daemon restore-network` answers `daemon-unavailable` ("Restart the Mac") with no `next`, and there is no internet | [`daemon-unavailable`](CODES.md#code-daemon-unavailable) | `restore-network` cannot lift the block while the service is down (an rc8 bug, being fixed for rc9). | `sudo launchctl kickstart -k system/co.sentinel.sentinel-dvpnd.c0`, then `devnet-dvpn daemon restore-network`; if still blocked, `sudo pfctl -a sentinel-dvpn-c0 -F all` (this app's rules only; never without `-a`, never `pfctl -d`). |
+| Windows, kill switch on: no internet after the VPN service stopped | [`daemon-unavailable`](CODES.md#code-daemon-unavailable) | Windows keeps blocking traffic while the service is stopped. That is the kill switch working: nothing leaks. | In an administrator PowerShell: `Start-Service 'sentinel-dvpnd$c0'`, then `devnet-dvpn daemon restore-network` (or press Restore network in the app). If the service will not start, restart Windows: the service starts at boot, and Restore network then lifts the block. |
 | `agent status` says `"reconnecting": true` (rc7) | none | The live session dropped and is reconnecting; the kill switch blocks the internet meanwhile (`connected` false, `blocked` true). The deposit stays open. | Wait a minute and run `agent status --json` again, or run `next` (`devnet-dvpn daemon restore-network`) to go direct now; `alsoNext` names reconnect / close. |
 | `agent status` `next` is `devnet-dvpn agent up` with no `--yes` (rc7) | none | The device has no spending permission left, or the wallet holds under 1 tDVPN (with `held`). | Run it as printed: the preview pays nothing and names what is missing (funding or a limit), then follow its `next`. |
 | `agent up` refused while the kill switch blocks | [`kill-switch-held`](CODES.md#code-kill-switch-held) | The block lets through only the last node, so this connect cannot lift it. Nothing was paid. | `devnet-dvpn daemon restore-network, then devnet-dvpn agent up --yes` |
@@ -4003,7 +4012,7 @@ U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/do
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-[ -n "$F" ] || { echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md)"; exit 1; }
+[ -n "$F" ] || echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md); stop here"
 curl -fsSLO "$U/$F"
 grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
@@ -4304,9 +4313,7 @@ are the earlier record.
   send that leaves too little SOL; `device plan` refusing an allowance above the wallet, and warning on 0; the settle
   line after `agent down`.
 - **macOS, published 2026-11-20:** `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` and `-arm64-mac.zip` (Apple silicon only; hashes
-  in [`docs/PROVENANCE.md`](PROVENANCE.md)). The release build's own checks: 17 pass, 6 differ from the expected
-  answer. The agent path (`AGENTS.md` from the page) has not been run on a Mac yet. Intel Macs: v0.3.0-rc4, the newest
-  Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
+  in [`docs/PROVENANCE.md`](PROVENANCE.md)). The agent commands (`agent up` / `status` / `down`) ran live on the Apple silicon build machine (GitHub macOS 15 runner, run 44808199308): connect, exit IP proven, disconnect, settle line; 17 pass / 6 differ. A fresh agent has not yet followed this page start to finish on a Mac, and no Intel Mac has run rc8. Intel Macs: v0.3.0-rc4, the newest Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 - **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
   macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
   ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being
@@ -4462,7 +4469,7 @@ service stopped. This is fixed after rc2. A fresh install is not affected.
 
 ## macOS
 
-All macOS runs are on the **Intel (x64)** build.
+The macOS runs in this table are on the **Intel (x64)** build (rc.1 to rc4). rc8 ran on the Apple silicon build: see "macOS, published 2026-11-20" above.
 
 | step | status | how |
 |---|---|---|
