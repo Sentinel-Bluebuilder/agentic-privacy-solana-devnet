@@ -2,7 +2,8 @@
 # ─── direct/install.sh: install Sentinel's own client tools for Solana devnet (Linux, no app) ───
 #
 #   sudo sh direct/install.sh       # from your normal user; creates your owner key if you have none
-#   sudo KEYFILE=~/owner.json sh direct/install.sh   # use a key file you already have (mode 600)
+#   sudo KEYFILE=$HOME/owner.json sh direct/install.sh   # use a key file you already have (mode 600;
+#                                                        # $HOME, not ~: dash does not expand ~ after sudo)
 #
 # What it does, in order (each command is printed before it runs; safe to run again):
 #   1. checks it runs as root and finds the user who called sudo
@@ -13,11 +14,13 @@
 #      key: a second key that signs and pays fees for the daemon. Your owner key never enters the daemon
 #   5. sets kill_switch = 'off' (see "Remote box" in docs/DIRECT.md: the upstream default 'on'
 #      drops all outbound traffic except the tunnel, which cuts SSH). KILL_SWITCH=on keeps it on
-#   6. registers and starts the systemd service sentinel-dvpnd@c1 (FOREGROUND=1: skip, run it yourself)
+#   6. registers the systemd service sentinel-dvpnd@c1; connect.sh starts it once the grant exists
+#      (FOREGROUND=1: skip, run it yourself)
 #   7. adds the calling user to the sentinel-dvpn group, so the CLI can reach the daemon socket
 #
 # Env: KEYFILE=<path> (an owner key file you already have, e.g. funded: checked and copied in, see step 0),
 #      OWNER=<base58> (default: the calling user's "owner" key), BUILD=1, KILL_SWITCH=on, FOREGROUND=1
+#      Put them AFTER sudo (sudo KILL_SWITCH=on sh direct/install.sh): sudo drops variables set before it
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
@@ -41,8 +44,10 @@ if [ -n "$KEYFILE" ]; then
   KMODE=$(stat -c %a "$KEYFILE")
   case $KMODE in 600|400) ;; *) fail "$E_SAFETY" key-unsafe "KEYFILE=$KEYFILE has mode $KMODE: other users can read it (it is a plain secret key)" \
     "chmod 600 $KEYFILE && sudo KEYFILE=$KEYFILE sh direct/install.sh" none ;; esac
+  need python3   # reads the key file's address; missing python3 is tool-missing, not "not a keypair"
+  # the next shows only the file's size and type, never its bytes (it is a secret key)
   KADDR=$(python3 -I "$HERE/soltx.py" pubkey "$KEYFILE" 2>/dev/null) \
-    || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a 64-number Solana keypair array" "head -c 20 $KEYFILE" none
+    || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a 64-number Solana keypair array" "wc -c $KEYFILE" none
   [ -z "${OWNER:-}" ] || [ "$OWNER" = "$KADDR" ] \
     || fail "$E_OTHER" wrong-account "KEYFILE=$KEYFILE is $KADDR, but OWNER=$OWNER" "sudo KEYFILE=$KEYFILE sh direct/install.sh" none
   CHOME=$(getent passwd "$CALLER" | cut -d: -f6)
@@ -101,7 +106,7 @@ step "$E_OTHER" install-failed "sudo BUILD=1 sh direct/install.sh" none sentinel
 # ─── 3. owner address ───
 OWNER=${OWNER:-}
 if [ -z "$OWNER" ] && [ -n "$CALLER" ]; then
-  OWNER=$(sudo -u "$CALLER" sentinel-dvpn key show owner 2>/dev/null | jq -r .public_key) || OWNER=
+  OWNER=$(sudo -u "$CALLER" sentinel-dvpn key show owner 2>/dev/null | jq -r '.public_key // empty') || OWNER=   # never "null"
   if [ -z "$OWNER" ]; then
     # first run: create the owner (wallet) key for the calling user, a plain file under ~/.sentinel-dvpn/keys
     OWNER=$(run sudo -u "$CALLER" sentinel-dvpn key new owner --unencrypted | jq -r ".public_key // empty") || OWNER=""   # empty -> no-wallet below

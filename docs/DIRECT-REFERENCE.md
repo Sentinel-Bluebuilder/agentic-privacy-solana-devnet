@@ -53,8 +53,8 @@ names the exact ones):
 | 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key`, `tx-mismatch` (Path B only; Path A uses 5 for its kill-switch codes) |
 | 6 | network or RPC, and no deposit can be open | `rpc-busy`, `rpc-unavailable` with money `none`, `download-failed` |
 
-Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 13:14Z gave
-66 pass, 0 fail. Lines from that run for exits 4, 5 and 6 (case, code, exit, money):
+Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 21:08Z gave
+114 pass, 0 fail. Lines from that run for exits 4, 5 and 6 (case, code, exit, money):
 
 ```text
 no-key                 code=no-wallet            exit=4 money=none    | PASS

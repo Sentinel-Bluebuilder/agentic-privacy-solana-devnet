@@ -118,7 +118,17 @@ fail() {
   exit "$1"
 }
 
-need() { command -v "$1" >/dev/null 2>&1 || fail "$E_USAGE" tool-missing "$1 not found on PATH" "sudo sh direct/install.sh"; }
+# need <tool>: tool-missing (exit 3) whose next installs exactly that tool (install.sh adds only wireguard-tools,
+# jq and curl, so python3 / openssl get their own apt line)
+need() {
+  command -v "$1" >/dev/null 2>&1 && return 0
+  case $1 in
+    sentinel-dvpn|sentinel-dvpnd) nd_next="sudo sh direct/install.sh" ;;
+    wg) nd_next="sudo apt-get install -y wireguard-tools" ;;
+    *) nd_next="sudo apt-get install -y $1" ;;
+  esac
+  fail "$E_USAGE" tool-missing "$1 not found on PATH" "$nd_next"
+}
 
 # ─── how this script was run, so a "next" can repeat it exactly ───
 CMD_BASE="sh direct/$(basename "$0")"

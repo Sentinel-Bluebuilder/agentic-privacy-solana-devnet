@@ -7,15 +7,15 @@ Moved here from [`AGENTS.md`](../AGENTS.md), section 1. Where each file comes fr
 The same steps, one release. File names carry the version with a dot, the tag without (tag
 `v0.3.0-rc8` holds `…0.3.0-rc.8…`), so take the name from `SHA256SUMS`.
 
-Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; Arch:
-`-x64\.pkg\.tar\.zst$` and `sudo pacman -U --noconfirm`; arm64: `_arm64` / `aarch64`):
+Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; the release also has an x86_64
+AppImage, and no Arch or arm64 package):
 
 ```sh
 U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc8
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
 curl -fsSLO "$U/$F"
-grep " $F\$" SHA256SUMS | sha256sum -c -             # must print: <file name>: OK
+grep " $F\$" SHA256SUMS | sha256sum -c - &&           # must print <file name>: OK, else nothing installs
 sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "./$F"
 ```
 
@@ -30,15 +30,17 @@ U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/do
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-[ -n "$F" ] || echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md); stop here"
-curl -fsSLO "$U/$F"
-grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
+if [ -z "$F" ]; then echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md)"
+elif ! curl -fsSLO "$U/$F"; then echo "download failed: install nothing"
+elif ! grep " $F\$" SHA256SUMS | shasum -a 256 -c -; then echo "checksum mismatch: install nothing"
+else   # the line above printed <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
 sudo -n ditto "$M/Devnet dVPN.app" "/Applications/Devnet dVPN.app"
 hdiutil detach -quiet "$M"
 sudo -n xattr -dr com.apple.quarantine "/Applications/Devnet dVPN.app"   # the app is not notarized
 export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
 brew install wireguard-tools wireguard-go openvpn bash   # as your user, never sudo (or: devnet-dvpn daemon repair-drivers --yes)
+fi
 ```
 
 In the Finder instead of a shell: right-click the app > Open once. V2Ray, Xray and Hysteria2 need no `brew` line.
@@ -51,8 +53,9 @@ curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an al
 $l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
 $h, $f = ($l.Line -split '\s+')[0, 1]
 curl.exe -fsSLo $f "$u/$f"
-(Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h   # must print True
-$p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode      # 0 = installed
+if ((Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h) {   # else nothing installs
+  $p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode   # 0 = installed
+} else { 'checksum mismatch: install nothing' }
 $env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"     # this shell; new shells have it already
 ```
 

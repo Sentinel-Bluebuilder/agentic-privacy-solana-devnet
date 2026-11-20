@@ -16,7 +16,7 @@ The standard Solana key file (a 64-number JSON array, the same file Path A uses)
 ```sh
 git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet && cd agentic-privacy-solana-devnet
 chmod 600 ~/owner.json                          # it is a plain secret key: install.sh refuses other modes
-sudo KEYFILE=~/owner.json sh direct/install.sh  # tools + daemon, your key as the owner; prints owner + device
+sudo KEYFILE="$HOME/owner.json" sh direct/install.sh  # tools + daemon, your key as the owner; prints owner + device
 sh direct/fund-request.sh                       # checks both balances; "next" names what is missing
 sh direct/fund-device.sh --yes                  # only if "next" names it: 0.02 SOL owner -> device
 sh direct/connect.sh                            # PREVIEW (exit 2): payees, fee, rent; then the same with --yes
@@ -111,15 +111,15 @@ all work, but traffic does not go through the tunnel (gap W-1; see "Windows" in 
 SHA-256 matches, but they have not been run). The darwin-arm64 build ran `init` and `doctor` on macOS up to the grant check.
 
 **Per release.** CI (`.github/workflows/checks.yml`) runs on every push: script syntax, every last line against
-`direct/schema` (hand-made and 23 captured live lines), and the example programs. The live checks cannot run in
+`direct/schema` (hand-made and 13 captured live lines), and the example programs. The live checks cannot run in
 CI (they need a VM, root and a devnet wallet), so `sh direct/faults.sh` and the paid `sh direct/selftest.sh` are
 re-run on Azure Ubuntu 24.04 whenever the pinned upstream commit, the Go version or the release tag (`direct-v1` today)
 changes, and after any change to `direct/*.sh`. Each run's log is kept and dated, and it is enforced: where the logs are kept, CI fails on any change to `direct/*.sh` or `direct/SHA256SUMS` until a newer passing `faults.sh` log is committed. Runs for `direct-v1` on
 2026-11-20: `faults.sh` at 11:28Z (52 pass, 0 fail), 11:40Z (56/0), 12:07Z (59/0), 12:43Z (62/0) and 13:14Z
-(66/0, the current set); `selftest.sh` passed on a fresh box twice (channel close started 11:02Z and 11:49Z).
+(66/0), and 21:08Z (114/0, the current set); `selftest.sh` passed on a fresh box twice (channel close started 11:02Z and 11:49Z).
 
 **Needs:** Linux with systemd, `sudo` (WireGuard and routes need root), and git. `install.sh` adds
-`wireguard-tools`, `jq` and `curl`. `fund-device.sh` also uses `python3` and `openssl`, which stock Ubuntu has.
+`wireguard-tools`, `jq` and `curl`. `fund-device.sh` and `close-all.sh` also use `python3` and `openssl`, and `install.sh` with `KEYFILE=` uses `python3`; stock Ubuntu has both.
 Go 1.27.3 only if you build.
 
 > **Remote box? Read this first.** The upstream daemon (1) turns the kill switch on by default,
@@ -187,7 +187,7 @@ The full output contract (what each script costs and prints, the four `money` cl
 **No terminal needed.** No script prompts or reads a TTY; `--yes` is the only confirmation. On 2026-11-20 at
 13:21Z, over `ssh -T` (stdin and stdout not a tty, stdin from `/dev/null`), `fund-request.sh`, `disconnect.sh`
 and the previews of `connect.sh`, `fund-device.sh`, `refund.sh` and `close-all.sh` each ended with a JSON line
-that passed its schema. `faults.sh` (66 cases) ran the same way. The paid `selftest.sh` itself has not yet been run over `ssh -T`:
+that passed its schema. `faults.sh` (114 cases) ran the same way. The paid `selftest.sh` itself has not yet been run over `ssh -T`:
 it opens a deposit with a 2 h close.
 
 ## Two keys, and who pays what
@@ -226,7 +226,7 @@ Any tDVPN left in your user balance can still be withdrawn with the owner key.
 `policy drop`, which allows only loopback, the tunnel, the node, the RPC and DHCP. It has no rule for
 established connections, so on a box you reach over SSH the SSH replies are dropped and you are locked out.
 
-`install.sh` therefore writes `kill_switch = 'off'` and says so. `KILL_SWITCH=on sudo sh direct/install.sh`
+`install.sh` therefore writes `kill_switch = 'off'` and says so. `sudo KILL_SWITCH=on sh direct/install.sh` (after `sudo`: sudo drops variables set before it)
 keeps it on; only do that on a machine you sit at. `allow_lan = false` and
 `dns_servers = ['1.1.1.1','1.0.0.1']` (via `resolvectl`) are the other `[network]` settings in
 `/var/lib/sentinel-dvpn/c1/config.toml`. After you edit that file, restart the daemon:

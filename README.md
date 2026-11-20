@@ -34,7 +34,7 @@ On an older release: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What ch
 
 | OS | Releases |
 |---|---|
-| Linux (deb, rpm, Arch, AppImage; x64 + arm64) | <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases> |
+| Linux (x64: deb, rpm, AppImage) | <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases> |
 | Windows (x64) | <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases> |
 | macOS (Intel + Apple silicon) | <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases> |
 | Android | <https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-android/releases> |

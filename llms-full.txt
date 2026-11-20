@@ -509,7 +509,7 @@ The standard Solana key file (a 64-number JSON array, the same file Path A uses)
 ```sh
 git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet && cd agentic-privacy-solana-devnet
 chmod 600 ~/owner.json                          # it is a plain secret key: install.sh refuses other modes
-sudo KEYFILE=~/owner.json sh direct/install.sh  # tools + daemon, your key as the owner; prints owner + device
+sudo KEYFILE="$HOME/owner.json" sh direct/install.sh  # tools + daemon, your key as the owner; prints owner + device
 sh direct/fund-request.sh                       # checks both balances; "next" names what is missing
 sh direct/fund-device.sh --yes                  # only if "next" names it: 0.02 SOL owner -> device
 sh direct/connect.sh                            # PREVIEW (exit 2): payees, fee, rent; then the same with --yes
@@ -604,15 +604,15 @@ all work, but traffic does not go through the tunnel (gap W-1; see "Windows" in 
 SHA-256 matches, but they have not been run). The darwin-arm64 build ran `init` and `doctor` on macOS up to the grant check.
 
 **Per release.** CI (`.github/workflows/checks.yml`) runs on every push: script syntax, every last line against
-`direct/schema` (hand-made and 23 captured live lines), and the example programs. The live checks cannot run in
+`direct/schema` (hand-made and 13 captured live lines), and the example programs. The live checks cannot run in
 CI (they need a VM, root and a devnet wallet), so `sh direct/faults.sh` and the paid `sh direct/selftest.sh` are
 re-run on Azure Ubuntu 24.04 whenever the pinned upstream commit, the Go version or the release tag (`direct-v1` today)
 changes, and after any change to `direct/*.sh`. Each run's log is kept and dated, and it is enforced: where the logs are kept, CI fails on any change to `direct/*.sh` or `direct/SHA256SUMS` until a newer passing `faults.sh` log is committed. Runs for `direct-v1` on
 2026-11-20: `faults.sh` at 11:28Z (52 pass, 0 fail), 11:40Z (56/0), 12:07Z (59/0), 12:43Z (62/0) and 13:14Z
-(66/0, the current set); `selftest.sh` passed on a fresh box twice (channel close started 11:02Z and 11:49Z).
+(66/0), and 21:08Z (114/0, the current set); `selftest.sh` passed on a fresh box twice (channel close started 11:02Z and 11:49Z).
 
 **Needs:** Linux with systemd, `sudo` (WireGuard and routes need root), and git. `install.sh` adds
-`wireguard-tools`, `jq` and `curl`. `fund-device.sh` also uses `python3` and `openssl`, which stock Ubuntu has.
+`wireguard-tools`, `jq` and `curl`. `fund-device.sh` and `close-all.sh` also use `python3` and `openssl`, and `install.sh` with `KEYFILE=` uses `python3`; stock Ubuntu has both.
 Go 1.27.3 only if you build.
 
 > **Remote box? Read this first.** The upstream daemon (1) turns the kill switch on by default,
@@ -680,7 +680,7 @@ The full output contract (what each script costs and prints, the four `money` cl
 **No terminal needed.** No script prompts or reads a TTY; `--yes` is the only confirmation. On 2026-11-20 at
 13:21Z, over `ssh -T` (stdin and stdout not a tty, stdin from `/dev/null`), `fund-request.sh`, `disconnect.sh`
 and the previews of `connect.sh`, `fund-device.sh`, `refund.sh` and `close-all.sh` each ended with a JSON line
-that passed its schema. `faults.sh` (66 cases) ran the same way. The paid `selftest.sh` itself has not yet been run over `ssh -T`:
+that passed its schema. `faults.sh` (114 cases) ran the same way. The paid `selftest.sh` itself has not yet been run over `ssh -T`:
 it opens a deposit with a 2 h close.
 
 ## Two keys, and who pays what
@@ -719,7 +719,7 @@ Any tDVPN left in your user balance can still be withdrawn with the owner key.
 `policy drop`, which allows only loopback, the tunnel, the node, the RPC and DHCP. It has no rule for
 established connections, so on a box you reach over SSH the SSH replies are dropped and you are locked out.
 
-`install.sh` therefore writes `kill_switch = 'off'` and says so. `KILL_SWITCH=on sudo sh direct/install.sh`
+`install.sh` therefore writes `kill_switch = 'off'` and says so. `sudo KILL_SWITCH=on sh direct/install.sh` (after `sudo`: sudo drops variables set before it)
 keeps it on; only do that on a machine you sit at. `allow_lan = false` and
 `dns_servers = ['1.1.1.1','1.0.0.1']` (via `resolvectl`) are the other `[network]` settings in
 `/var/lib/sentinel-dvpn/c1/config.toml`. After you edit that file, restart the daemon:
@@ -1378,8 +1378,8 @@ names the exact ones):
 | 5 | refused for safety | `checksum-mismatch`, `key-unsafe`, `insecure-key`, `tx-mismatch` (Path B only; Path A uses 5 for its kill-switch codes) |
 | 6 | network or RPC, and no deposit can be open | `rpc-busy`, `rpc-unavailable` with money `none`, `download-failed` |
 
-Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 13:14Z gave
-66 pass, 0 fail. Lines from that run for exits 4, 5 and 6 (case, code, exit, money):
+Each exit class is tested by `sh direct/faults.sh`. The run on Azure Ubuntu 24.04 on 2026-11-20 at 21:08Z gave
+114 pass, 0 fail. Lines from that run for exits 4, 5 and 6 (case, code, exit, money):
 
 ```text
 no-key                 code=no-wallet            exit=4 money=none    | PASS
@@ -2051,6 +2051,16 @@ code of the same name (`install-failed`, `no-device`). Every line has `money` an
 | <a id="code-direct-step-failed"></a>`step-failed` | `selftest.sh` | A script the selftest ran stopped with no JSON line. When the script did print one, the selftest passes on its code instead. | 1 | the step's, else `none` | `sh direct/<script>.sh` |
 | <a id="code-direct-interrupted"></a>`interrupted` | any (lib.sh EXIT backstop) | The script was killed (exit 130 / 143) before it printed its line. | 1 | `MONEY_STATE`: how far it got (`none`, `unclear` before the session starts, `open` after) | the same command again (it is safe to repeat: `docs/DIRECT.md`, "Safe to run again?") |
 | <a id="code-direct-unknown"></a>`unknown` | any (lib.sh EXIT backstop) | A `set -e` stop with no code of its own; `error` names the last command run. | 1 | `MONEY_STATE`, as above | `none`: the failure table in `docs/DIRECT.md`; otherwise `sh direct/refund.sh` |
+| <a id="code-direct-checksum-mismatch"></a>`checksum-mismatch` | `install.sh` | The downloaded binaries, or your own build (`BUILD=1`), differ from `direct/SHA256SUMS`; nothing was installed. | 5 | `none` | `sudo BUILD=1 sh direct/install.sh` (download), or `sh direct/build.sh` (your build) |
+| <a id="code-direct-close-wait"></a>`close-wait` | `refund.sh`, `close-all.sh` | A channel close is still in its 7200 s wait (on-chain `GraceNotElapsed`, 6035); nothing was swept yet. | 1 | `refund` | `close-all.sh`: `sleep <seconds> && sh direct/close-all.sh --to <address> --yes` (the wait it prints); `refund.sh`: `sh direct/refund.sh` after the time in `error` |
+| <a id="code-direct-needs-root"></a>`needs-root` | `install.sh` | Run without root. | 3 | `none` | `sudo sh direct/install.sh` |
+| <a id="code-direct-no-session"></a>`no-session` | `disconnect.sh` | The daemon has no active session: it had already ended. | 1 | `none` | `sentinel-dvpn client sessions --instance <instance>` (nothing to stop) |
+| <a id="code-direct-no-token-account"></a>`no-token-account` | `close-all.sh` | The `--to` address has no tDVPN token account to receive the owner's tDVPN; nothing was sent. | 4 | `none` | `sh direct/close-all.sh --help` (send to an address that already holds tDVPN) |
+| <a id="code-direct-not-closing"></a>`not-closing` | `refund.sh` | A close was asked before its start-close (on-chain `ChannelNotClosing`, 6033). | 1 | `refund` | `sh direct/refund.sh --yes` |
+| <a id="code-direct-nothing-to-withdraw"></a>`nothing-to-withdraw` | `refund.sh` | The withdraw found a zero balance while channels are still open (on-chain `BalanceZero`, 6023). | 1 | `refund` | `sh direct/refund.sh` (close the channels first) |
+| <a id="code-direct-sweep-incomplete"></a>`sweep-incomplete` | `close-all.sh` | After the sweep the owner or the device still holds tDVPN or SOL (`error` gives the amounts). | 1 | `none` | `sh direct/close-all.sh --to <address> --yes` again |
+| <a id="code-direct-tool-missing"></a>`tool-missing` | every script | A tool the script needs is not on `PATH` (`error` names it). | 3 | `none` | the line for that tool: `sudo apt-get install -y <tool>` (`wg`: `wireguard-tools`; `sentinel-dvpn` / `sentinel-dvpnd`: `sudo sh direct/install.sh`) |
+| <a id="code-direct-wrong-account"></a>`wrong-account` | `install.sh`, any script on-chain | `KEYFILE=` is not the `OWNER=` given, or the service already holds another owner (never overwritten); on-chain, a wrong account or seed (`ConstraintSeeds` 2006, `ConstraintAddress` 2012). | 1 | `none` | `install.sh`: the line it prints; on-chain: `grep -n -A1 wrong-account docs/DIRECT-REFERENCE.md` |
 
 ## rc.6 and later: exit codes and changed answers
 
@@ -2097,7 +2107,8 @@ A network failure after which a deposit may be open exits 1. Exit 5 can still fo
 # ─── direct/install.sh: install Sentinel's own client tools for Solana devnet (Linux, no app) ───
 #
 #   sudo sh direct/install.sh       # from your normal user; creates your owner key if you have none
-#   sudo KEYFILE=~/owner.json sh direct/install.sh   # use a key file you already have (mode 600)
+#   sudo KEYFILE=$HOME/owner.json sh direct/install.sh   # use a key file you already have (mode 600;
+#                                                        # $HOME, not ~: dash does not expand ~ after sudo)
 #
 # What it does, in order (each command is printed before it runs; safe to run again):
 #   1. checks it runs as root and finds the user who called sudo
@@ -2108,11 +2119,13 @@ A network failure after which a deposit may be open exits 1. Exit 5 can still fo
 #      key: a second key that signs and pays fees for the daemon. Your owner key never enters the daemon
 #   5. sets kill_switch = 'off' (see "Remote box" in docs/DIRECT.md: the upstream default 'on'
 #      drops all outbound traffic except the tunnel, which cuts SSH). KILL_SWITCH=on keeps it on
-#   6. registers and starts the systemd service sentinel-dvpnd@c1 (FOREGROUND=1: skip, run it yourself)
+#   6. registers the systemd service sentinel-dvpnd@c1; connect.sh starts it once the grant exists
+#      (FOREGROUND=1: skip, run it yourself)
 #   7. adds the calling user to the sentinel-dvpn group, so the CLI can reach the daemon socket
 #
 # Env: KEYFILE=<path> (an owner key file you already have, e.g. funded: checked and copied in, see step 0),
 #      OWNER=<base58> (default: the calling user's "owner" key), BUILD=1, KILL_SWITCH=on, FOREGROUND=1
+#      Put them AFTER sudo (sudo KILL_SWITCH=on sh direct/install.sh): sudo drops variables set before it
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
@@ -2136,8 +2149,10 @@ if [ -n "$KEYFILE" ]; then
   KMODE=$(stat -c %a "$KEYFILE")
   case $KMODE in 600|400) ;; *) fail "$E_SAFETY" key-unsafe "KEYFILE=$KEYFILE has mode $KMODE: other users can read it (it is a plain secret key)" \
     "chmod 600 $KEYFILE && sudo KEYFILE=$KEYFILE sh direct/install.sh" none ;; esac
+  need python3   # reads the key file's address; missing python3 is tool-missing, not "not a keypair"
+  # the next shows only the file's size and type, never its bytes (it is a secret key)
   KADDR=$(python3 -I "$HERE/soltx.py" pubkey "$KEYFILE" 2>/dev/null) \
-    || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a 64-number Solana keypair array" "head -c 20 $KEYFILE" none
+    || fail "$E_USAGE" usage "KEYFILE=$KEYFILE is not a 64-number Solana keypair array" "wc -c $KEYFILE" none
   [ -z "${OWNER:-}" ] || [ "$OWNER" = "$KADDR" ] \
     || fail "$E_OTHER" wrong-account "KEYFILE=$KEYFILE is $KADDR, but OWNER=$OWNER" "sudo KEYFILE=$KEYFILE sh direct/install.sh" none
   CHOME=$(getent passwd "$CALLER" | cut -d: -f6)
@@ -2196,7 +2211,7 @@ step "$E_OTHER" install-failed "sudo BUILD=1 sh direct/install.sh" none sentinel
 # ─── 3. owner address ───
 OWNER=${OWNER:-}
 if [ -z "$OWNER" ] && [ -n "$CALLER" ]; then
-  OWNER=$(sudo -u "$CALLER" sentinel-dvpn key show owner 2>/dev/null | jq -r .public_key) || OWNER=
+  OWNER=$(sudo -u "$CALLER" sentinel-dvpn key show owner 2>/dev/null | jq -r '.public_key // empty') || OWNER=   # never "null"
   if [ -z "$OWNER" ]; then
     # first run: create the owner (wallet) key for the calling user, a plain file under ~/.sentinel-dvpn/keys
     OWNER=$(run sudo -u "$CALLER" sentinel-dvpn key new owner --unencrypted | jq -r ".public_key // empty") || OWNER=""   # empty -> no-wallet below
@@ -2331,7 +2346,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 - **E-nn / S-n / R-n** (`E-88`, `S7`, `R2`) — ids of a finding (E), a score row (S) or a test round (R) in the testing record; a page cites them so a change can be traced. They are not codes and appear in no answer.
 - **defaults** (`priceCap`, `priceCapBase`, `spendingLimit`, `spendingLimitRecommended`, `defaults.priceCap`, `defaults.spendingLimitRecommended`, `defaults.source`, `source`, `fixed`, `market`, `reason`, `p50`, `p75`, `outliers`, `nodes`) — in `agent up --json` (v0.3.0-rc7): what the price cap and the spending limit are and where they came from: `source` `market` (sized from the matching online nodes, `market.p50` / `p75` per unit) or `fixed` (too few priced nodes; `reason` says why). Shows: `agent up --json`. Changes: `--max-price`, `devnet-dvpn settings set allowanceTdvpn=<n>`.
 - **nextAfter** — in `settle run --json` (v0.3.0-rc7): Unix seconds when the last closing deposit is ready for the next `settle run --yes`. Shows: `settle run --json`.
-- **docUrl** — on every failure line (v0.3.0-rc7): a link to the code's row in `docs/CODES.md` (`…/docs/CODES.md#code-<code>`). Shows: any `--json` failure.
+- **docUrl** — on every failure line that has a `code` (v0.3.0-rc7; not on success answers): a link to the code's row in `docs/CODES.md` (`…/docs/CODES.md#code-<code>`). Shows: any `--json` failure.
 - **needsConfirm** (`what`) — exit `2`: nothing was signed; `what` is the sentence of what it would do. Changes: run it again with `--yes`.
 - **dry run** — a command without `--yes`: it prints what it would do and changes nothing (exit `2`). Shows: any command that spends money or changes the system.
 - **`--yes`** — the flag that lets a command spend money or change the system. Without it nothing happens.
@@ -3989,15 +4004,15 @@ Moved here from [`AGENTS.md`](../AGENTS.md), section 1. Where each file comes fr
 The same steps, one release. File names carry the version with a dot, the tag without (tag
 `v0.3.0-rc8` holds `…0.3.0-rc.8…`), so take the name from `SHA256SUMS`.
 
-Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; Arch:
-`-x64\.pkg\.tar\.zst$` and `sudo pacman -U --noconfirm`; arm64: `_arm64` / `aarch64`):
+Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; the release also has an x86_64
+AppImage, and no Arch or arm64 package):
 
 ```sh
 U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc8
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
 curl -fsSLO "$U/$F"
-grep " $F\$" SHA256SUMS | sha256sum -c -             # must print: <file name>: OK
+grep " $F\$" SHA256SUMS | sha256sum -c - &&           # must print <file name>: OK, else nothing installs
 sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "./$F"
 ```
 
@@ -4012,15 +4027,17 @@ U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/do
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
-[ -n "$F" ] || echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md); stop here"
-curl -fsSLO "$U/$F"
-grep " $F\$" SHA256SUMS | shasum -a 256 -c -         # must print: <file name>: OK
+if [ -z "$F" ]; then echo "no $A build in this release (Intel Macs: docs/OLDER-RELEASES.md)"
+elif ! curl -fsSLO "$U/$F"; then echo "download failed: install nothing"
+elif ! grep " $F\$" SHA256SUMS | shasum -a 256 -c -; then echo "checksum mismatch: install nothing"
+else   # the line above printed <file name>: OK
 M=$(hdiutil attach -nobrowse -readonly "./$F" | tail -1 | cut -f3-)
 sudo -n ditto "$M/Devnet dVPN.app" "/Applications/Devnet dVPN.app"
 hdiutil detach -quiet "$M"
 sudo -n xattr -dr com.apple.quarantine "/Applications/Devnet dVPN.app"   # the app is not notarized
 export PATH="/Applications/Devnet dVPN.app/Contents/Resources/bin:$PATH"
 brew install wireguard-tools wireguard-go openvpn bash   # as your user, never sudo (or: devnet-dvpn daemon repair-drivers --yes)
+fi
 ```
 
 In the Finder instead of a shell: right-click the app > Open once. V2Ray, Xray and Hysteria2 need no `brew` line.
@@ -4033,8 +4050,9 @@ curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an al
 $l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
 $h, $f = ($l.Line -split '\s+')[0, 1]
 curl.exe -fsSLo $f "$u/$f"
-(Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h   # must print True
-$p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode      # 0 = installed
+if ((Get-FileHash ".\$f" -Algorithm SHA256).Hash.ToLower() -eq $h) {   # else nothing installs
+  $p = Start-Process -FilePath ".\$f" -ArgumentList '/S' -Wait -PassThru; $p.ExitCode   # 0 = installed
+} else { 'checksum mismatch: install nothing' }
 $env:Path += ";$env:ProgramFiles\Devnet dVPN\bin"     # this shell; new shells have it already
 ```
 
