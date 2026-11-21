@@ -9,7 +9,7 @@ Check which release you have: `devnet-dvpn version --json`.
 
 ## v0.3.0
 
-The v0.3.0-rc9 files, promoted unchanged: the same SHA256SUMS on all three OSes, so `devnet-dvpn version --json` still says `0.3.0-rc.9`. Nothing changed for an agent; pin `v0.3.0` (`DVPN_VERSION=v0.3.0`). The macOS app source is public ([`docs/PROVENANCE.md`](docs/PROVENANCE.md), Path A); the Windows and Linux source is not public yet.
+The v0.3.0-rc9 files, promoted unchanged: the same SHA256SUMS on all three OSes, so `devnet-dvpn version --json` still says `0.3.0-rc.9`. Nothing changed for an agent; pin `v0.3.0` (`DVPN_VERSION=v0.3.0`). The app source is public on all three OSes, each at its release commit ([`docs/PROVENANCE.md`](docs/PROVENANCE.md), Path A).
 
 ## v0.3.0-rc9
 

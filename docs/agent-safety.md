@@ -3,7 +3,7 @@
 For an AI agent driving `devnet-dvpn`. Every value below comes from the app's own CLI reference
 ([Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md),
 [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md),
-[macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md),
+[macOS](https://github.com/Sentinel-Bluebuilder/devnet-dvpn-mac-build/blob/a9242bb975f3/docs/CLI.md),
 [Android](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-android/blob/main/docs/CLI.md))
 and network-safety docs; every "proven" line is a test run of the app on that OS, named by
 release and date. Proof overview: [`PROOF.md`](PROOF.md).
