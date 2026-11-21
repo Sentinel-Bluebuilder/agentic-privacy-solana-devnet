@@ -1,6 +1,6 @@
 # Older releases (v0.3.0-rc2, rc4, rc5 and rc6)
 
-[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc8** (macOS: Apple silicon; Intel Macs: "Intel Mac" below). Take rc8 if you can. This page keeps what
+[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc9** (macOS: Apple silicon; Intel Macs: "Intel Mac" below). Take rc9 if you can. This page keeps what
 an agent needs on an older release, and the single commands that `agent up` / `agent down` run.
 
 What is proven, per OS and release: [`PROOF.md`](PROOF.md).
@@ -11,14 +11,14 @@ What is proven, per OS and release: [`PROOF.md`](PROOF.md).
 devnet-dvpn version --json
 ```
 
-- `0.3.0-rc.8` or `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page (what rc8 added: [`CHANGELOG.md`](../CHANGELOG.md)).
+- `0.3.0-rc.9`, `0.3.0-rc.8` or `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page (what rc9 and rc8 added: [`CHANGELOG.md`](../CHANGELOG.md)).
 - macOS on an Intel Mac: "Intel Mac: v0.3.0-rc4" below.
 - `0.3.0-rc.6`: read "v0.3.0-rc6" below.
 - `0.3.0-rc.5`: read "v0.3.0-rc5" below.
 - `0.3.0-rc.4`: the `agent` commands exist; read "v0.3.0-rc4" below. It is the newest Intel Mac build.
 - `0.3.0-rc.2`: `agent` answers exit `3`, "unknown command: agent". Use "Step by step" below.
 - Older than rc2 (the release GitHub marks "Latest" can be one): it cannot make a key file.
-  Install rc8 by name (`AGENTS.md`, section 1).
+  Install rc9 by name (`AGENTS.md`, section 1).
 
 ## Step by step (rc2, or on any release if the shortcut fails)
 
@@ -93,7 +93,7 @@ To install it: `DVPN_VERSION=v0.3.0-rc5` (PowerShell: `$env:DVPN_VERSION = 'v0.3
 
 ## Intel Mac: v0.3.0-rc4
 
-v0.3.0-rc8 for macOS is built for Apple silicon only; the newest Intel (`x64`) build is v0.3.0-rc4 (2026-11-16). On an
+v0.3.0-rc8 and v0.3.0-rc9 for macOS are built for Apple silicon only; the newest Intel (`x64`) build is v0.3.0-rc4 (2026-11-16). On an
 Intel Mac install it by hand, then follow "v0.3.0-rc4" below (it prints no `programId` / `mint`: check network
 `devnet` only). An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
 

@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -336,7 +337,7 @@ const AGENT_CODES = [
   'test-running', 'rpc-busy', 'price-changed', 'deposit-unusable', 'deposits-unread',
   'not-confirmed', 'plan-limit', 'busy', 'unsupported', 'network-mismatch',
   'session-active', 'node-gone', 'node-stale', 'node-offline', 'protocol-blocked', 'driver-missing', 'basis-unavailable',
-  'not-enough-tdvpn', 'spending-limit', 'price-cap', 'rpc-ws', 'keyfile-mode', 'device-sol', 'preflight', 'kill-switch-held', 'switch-reconnecting', 'switch-offline',
+  'not-enough-tdvpn', 'spending-limit', 'price-cap', 'rpc-ws', 'keyfile-mode', 'device-sol', 'preflight', 'kill-switch-held', 'kill-switch-remote', 'disconnect-failed', 'apply-busy', 'apply-while-connecting', 'apply-failed', 'switch-reconnecting', 'switch-offline',
   'cancelled',
   'waiting-for-network', 'ticket-other-owner', 'approval-revoked', 'service-stopped-connecting', 'node-identity', 'node-ledger',
   'node-price', 'node-error', 'kill-switch-failed', 'tunnel-failed', 'tunnel-dead', 'tunnel-mtu', 'tunnel-closing', 'port-in-use',
@@ -376,7 +377,6 @@ test('every agent failure code has a line in the mcp/README.md failure table', (
 
 // This repository carries a copy of the doc (docs/AGENT-COMMANDS.md), so this runs everywhere.
 const HUB_DOC = join(HERE, '..', 'docs', 'AGENT-COMMANDS.md');
-const APP_DOC = join(HERE, '..', '..', 'devnet-dvpn', 'docs', 'AGENT-COMMANDS.md');
 
 test('the code list matches the copy in this repository of docs/AGENT-COMMANDS.md', () => {
   const inDoc = codesIn(readFileSync(HUB_DOC, 'utf8'));
@@ -386,11 +386,51 @@ test('the code list matches the copy in this repository of docs/AGENT-COMMANDS.m
   assert.deepEqual([...copy].filter((c) => !inDoc.has(c)), [], 'codes in AGENT_CODES but no longer in the doc');
 });
 
-test('the copy in this repository of docs/AGENT-COMMANDS.md equals the app source (when it is next to this repo)', (t) => {
-  if (!existsSync(APP_DOC)) { t.skip('app source not next to this repo'); return; }
-  const norm = (s) => s.replace(/\r\n/g, '\n');
-  assert.equal(norm(readFileSync(HUB_DOC, 'utf8')), norm(readFileSync(APP_DOC, 'utf8')),
-    'docs/AGENT-COMMANDS.md drifted from the app source: copy it again, then update AGENT_CODES and the README table');
+// ─── B40: the hub copy = the app's file at a NAMED commit, plus a listed set of hub corrections ───
+// The app source is a git checkout of devnet-dvpn: DVPN_SRC, else ../devnet-dvpn. The file is read at APP_PIN
+// with `git show`, so the checkout's own branch or state does not matter. Each correction's `app` text must occur
+// exactly once in the pinned file; after the corrections the two files must be equal. When the hub copy moves to a
+// new app commit, move APP_PIN with it and re-check each correction (drop the ones the app took).
+// No source: a skip, except with DVPN_REQUIRE_SRC=1 (the release gate, docs/RELEASE-CHECKLIST.md), where it fails.
+const APP_PIN = 'f4009a9594e5ef9c512bcafd7119290a97d38794'; // app source rc9-f2 (v0.3.0-rc9), the rc.9 page push
+// rc9-f2 carries every earlier correction (B41 x2, clock-skew, LIM-1, exit 5 and 6, the sudo case, the B6 rows).
+const HUB_CORRECTIONS = [];
+
+// The pinned app file with the corrections applied; throws when a correction no longer matches exactly once.
+const correctedAppDoc = (appText, corrections = HUB_CORRECTIONS) => {
+  let text = appText.replace(/\r\n/g, '\n');
+  for (const c of corrections) {
+    const n = text.split(c.app).length - 1;
+    if (n !== 1) throw new Error(`correction "${c.why}": its app text occurs ${n} times in the pinned file (want 1)`);
+    text = text.replace(c.app, () => c.hub);
+  }
+  return text;
+};
+
+const appSrcDir = () => process.env.DVPN_SRC || join(HERE, '..', '..', 'devnet-dvpn');
+const pinnedAppDoc = (dir) => execFileSync('git', ['-C', dir, 'show', `${APP_PIN}:docs/AGENT-COMMANDS.md`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+
+test('the copy in this repository of docs/AGENT-COMMANDS.md = the app file at APP_PIN + HUB_CORRECTIONS', (t) => {
+  const dir = appSrcDir();
+  let appText = null;
+  let why = `no app source at ${dir}`;
+  if (existsSync(join(dir, '.git')) || existsSync(join(dir, 'HEAD'))) {
+    try { appText = pinnedAppDoc(dir); } catch (err) { why = `git show ${APP_PIN.slice(0, 9)} in ${dir} failed: ${String(err.stderr || err.message).trim()}`; }
+  }
+  if (appText === null) {
+    if (process.env.DVPN_REQUIRE_SRC === '1') assert.fail(`DVPN_REQUIRE_SRC=1 and ${why}: set DVPN_SRC to a devnet-dvpn checkout that has ${APP_PIN}`);
+    t.skip(`${why} (set DVPN_SRC; the release gate sets DVPN_REQUIRE_SRC=1)`);
+    return;
+  }
+  assert.equal(readFileSync(HUB_DOC, 'utf8').replace(/\r\n/g, '\n'), correctedAppDoc(appText),
+    `docs/AGENT-COMMANDS.md differs from the app source ${APP_PIN.slice(0, 9)} + HUB_CORRECTIONS: copy the app file again (or move APP_PIN), then update AGENT_CODES and the README table`);
+});
+
+test('correctedAppDoc refuses a correction that no longer matches exactly once', () => {
+  const c = [{ why: 'x', app: 'AAA', hub: 'BBB' }];
+  assert.equal(correctedAppDoc('1 AAA 2', c), '1 BBB 2');
+  assert.throws(() => correctedAppDoc('1 2', c), /occurs 0 times/);
+  assert.throws(() => correctedAppDoc('AAA AAA', c), /occurs 2 times/);
 });
 
 test('vpn_up refuses max_price without basis (it is per unit of a basis that defaults to the saved setting)', async () => {
@@ -417,6 +457,11 @@ test('live-check runs vpn_down after any paid vpn_up that is not a clean refusal
   const ok = ans(0, { ok: true, session: 's1', node: NODE });
   assert.equal(upCleanlyRefused(ok), false);
   assert.equal(mustRunDown(ok, notConnected), true);
+
+  // Already connected (reused): the check paid nothing and did not open the session → never down (B20).
+  const reused = ans(0, { ok: true, reused: true, session: 's0', node: NODE });
+  assert.equal(mustRunDown(reused, connected), false);
+  assert.equal(mustRunDown(reused, notConnected), false);
 
   // A failure that still carries a session → down.
   assert.equal(mustRunDown(ans(1, { ok: false, code: 'node-error', session: 's2' }), notConnected), true);

@@ -4,7 +4,7 @@
 //   node tools/check-current-tag.mjs        # exit 0 OK, 1 a stale tag, 4 cannot check (or the control failed)
 //
 // The current tags are read from ONE place: the release box in AGENTS.md,
-//   > **Release: `v0.3.0-rc7`** on Windows and Linux (…); macOS: `v0.3.0-rc4`.
+//   > **Release: `<current tag>`** on Windows and Linux (…); macOS: `<macOS tag>`.
 // In every file in public-files.txt (except the HISTORY files below), a line that names a v0.3 app tag as the
 // thing to install (a download or tag URL, DVPN_VERSION, "install … by name", "Use release", "pins", "tags look
 // like", the release box) may name only those two. History stays: a line with a date, "earlier / older / was /
@@ -101,12 +101,13 @@ let checked = 0;
 for (const rel of list) {
   if (HISTORY.includes(rel) || HISTORY_PREFIX.some((p) => rel.startsWith(p))) continue;
   const p = join(ROOT, rel);
-  if (!existsSync(p)) continue;
+  // S10 (vacuous pass): a page public-files.txt lists but the tree lacks was skipped, and the count only dropped.
+  if (!existsSync(p)) { console.log(`MISSING ${rel} (listed in public-files.txt)`); bad++; continue; }
   checked++;
   for (const h of staleTags(readFileSync(p, 'utf8'), tags)) {
     console.log(`STALE ${rel}:${h.line}  ${h.tag} (current ${tags.current}, macOS ${tags.mac})  ${h.text}`);
     bad++;
   }
 }
-console.log(bad ? `FAIL ${bad} stale tag(s) in ${checked} public files` : `OK   ${checked} public files name only ${tags.current} (macOS ${tags.mac}) as the install tag`);
+console.log(bad ? `FAIL ${bad} stale tag(s) or missing page(s) in ${checked} public files` : `OK   ${checked} public files name only ${tags.current} (macOS ${tags.mac}) as the install tag`);
 process.exit(bad ? 1 : 0);

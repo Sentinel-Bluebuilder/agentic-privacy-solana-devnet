@@ -29,7 +29,7 @@ GRACE=$(try none sentinel-dvpn program params | jq -r .channel_close_grace_secon
 NOW=$(chain_now)   # the chain's clock decides when a close is due, not this box's
 
 ACTIVE=0; daemon_running && ACTIVE=$(try none dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[]? | select(.status == "active")] | length')
-[ "$ACTIVE" = 0 ] || fail "$E_OTHER" session-active "a session is active; its channel cannot be closed cleanly" "sh direct/disconnect.sh && $SELF" none
+[ "$ACTIVE" = 0 ] || fail "$E_OTHER" session-active "a session is active; its channel cannot be closed cleanly. It may be another run's: look before you end it" "sh direct/status.sh" none
 
 # ─── plan (read-only) ───
 CHANNELS=$(try none sentinel-dvpn channel search --owner "$OWNER")
@@ -89,6 +89,13 @@ MONEY_STATE=refund        # a stop from here leaves deposits closing or in the u
 # ─── do it ───
 for ch in $TO_START; do try refund sentinel-dvpn channel start-close-channel --channel "$ch" >&2; done
 for ch in $TO_CLOSE; do try refund sentinel-dvpn channel close-channel --channel "$ch" >&2; done
+if [ -n "$TO_START" ]; then
+  # The chain stamps close_started_at at the start tx's block time, after NOW was read: NOW + GRACE printed a
+  # closeAfter up to a few seconds EARLY (pathb-edge rf_yes, 00:42:21 vs the chain's 00:42:22). Read the real ones.
+  NOW=$(chain_now)
+  CHANNELS=$(try refund sentinel-dvpn channel search --owner "$OWNER")
+  WAIT_UNTIL=$(echo "$CHANNELS" | jq -r --argjson now "$NOW" --argjson g "$GRACE" '[.[] | select(.value.status <= 1) | (if .value.status == 1 then .value.close_started_at else $now end) + $g | select(. > $now)] | min // 0')
+fi
 BAL=$(try none sentinel-dvpn user search --owner "$OWNER" | jq -r '.[0].value.balance // 0')
 if [ "$BAL" -gt 0 ]; then
   try refund sentinel-dvpn user withdraw-user-balance >&2

@@ -1,6 +1,6 @@
 # Choices: protocol, country, pricing, split tunnelling, kill switch
 
-For `devnet-dvpn` v0.3.0-rc8 (Windows, Linux, macOS Apple silicon). Moved here from [`AGENTS.md`](../AGENTS.md) to keep that page short; the steps there do not need any of these.
+For `devnet-dvpn` v0.3.0-rc9 (Windows, Linux, macOS Apple silicon). Moved here from [`AGENTS.md`](../AGENTS.md) to keep that page short; the steps there do not need any of these.
 
 **Protocol:** WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2; a node serves one.
 `agent up --protocol <name>`, or `nodes list --online --protocol <name> --json`.

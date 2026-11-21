@@ -49,7 +49,7 @@ if daemon_running; then
   ACTIVE=$(printf '%s' "$SJ" | jq -r '.id // empty')
 fi
 if [ -n "$ACTIVE" ]; then   # already connected: nothing to do, nothing signed (ok, not a failure)
-  EXIT_IP=$(curl -s -4 -m 10 https://api.ipify.org || echo "")
+  EXIT_IP=$(public_ip 10)
   summary true connect "sh direct/disconnect.sh" "\"alreadyConnected\":true,\"note\":\"session $ACTIVE was already active; nothing was signed\",\"exitIp\":\"$EXIT_IP\",\"beforeIp\":\"\",\"nodeIp\":\"\",\"node\":\"$(printf '%s' "$SJ" | jq -r '.node // empty')\",\"session\":\"$ACTIVE\",\"channel\":\"$(printf '%s' "$SJ" | jq -r '.channel // empty')\""
   exit 0
 fi
@@ -152,7 +152,7 @@ for ip in "$NODE_IP" $(echo "${SSH_CONNECTION:-}" | awk '{print $1}'); do
   step "$E_OTHER" route-failed "sudo ip route replace $ip/32 via $GW dev $DEV && $CMD" none sudo ip route replace "$ip/32" via "$GW" dev "$DEV"
   echo "$ip" >> "$ROUTES"
 done
-BEFORE_IP=$(curl -s -4 -m 10 https://api.ipify.org || echo unknown)
+BEFORE_IP=$(public_ip 10)
 # from here a deposit may open: a stop without a JSON line reports money as unclear
 if [ -n "$CHANNEL" ]; then MONEY_STATE=refund; else MONEY_STATE=unclear; fi
 
@@ -195,7 +195,7 @@ MONEY_STATE=open          # the session runs on a funded channel
 
 # ─── 5. exit IP ───
 sleep 3
-EXIT_IP=$(curl -s -4 -m 15 https://api.ipify.org || echo unknown)
+EXIT_IP=$(public_ip 15)
 if [ "$EXIT_IP" = "$BEFORE_IP" ] || [ "$EXIT_IP" = unknown ]; then
   fail "$E_OTHER" tunnel-failed "exit IP is $EXIT_IP (before: $BEFORE_IP); traffic is not going through the node" \
     "sh direct/disconnect.sh && sh direct/refund.sh" open "A deposit is open in channel $CHANNEL: sh direct/disconnect.sh, then sh direct/refund.sh --yes closes it."

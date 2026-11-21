@@ -10,6 +10,7 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 STEP=disconnect
+parse_args "$@"   # an unknown flag is usage (exit 3), as on every other script
 MONEY_STATE=refund        # stopping keeps the channel deposit: refund.sh returns it
 need sentinel-dvpn; need jq; need curl
 ROUTES=${XDG_CACHE_HOME:-$HOME/.cache}/sentinel-direct/routes-$INSTANCE
@@ -20,7 +21,7 @@ SPENT=0
 if [ -n "$SESSION" ]; then
   OUT=$(try none dclient stop --instance "$INSTANCE" "$SESSION")
   echo "$OUT" >&2
-  SPENT=$(echo "$OUT" | jq -r .session.spent)
+  SPENT=$(echo "$OUT" | jq -r '.session.spent // 0')   # an integer even when the reply has none (schema: spent integer)
 else
   echo "no active session" >&2
 fi
@@ -31,7 +32,7 @@ if [ -f "$ROUTES" ]; then
 fi
 
 sleep 2
-IP=$(curl -s -4 -m 10 https://api.ipify.org || echo unknown)
+IP=$(public_ip 10)
 if ip -br link | awk -v t="dvpn-$INSTANCE" '$1==t{f=1} END{exit !f}'; then
   fail "$E_OTHER" tunnel-closing "interface dvpn-$INSTANCE is still up after stop" \
     "sudo sentinel-dvpnd service restart --instance $INSTANCE" refund "No new money was spent ($SPENT base units used so far); the unused escrow is still held: sh direct/refund.sh --yes returns it."

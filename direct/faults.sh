@@ -15,6 +15,9 @@
 # NO MONEY MOVES: the shim blocks every `sentinel-dvpn client start`, plain or through sudo, and
 # answers fund-device's sendTransaction itself. The one live write is the grant-cap check: two
 # `grant update-grant` calls (+1 base unit, then back), 2 fees of 5000 lamports.
+# IT CHANGES THE BOX: it stops and restarts the daemon (an active session ends), adds and removes a dummy
+# dvpn-$INSTANCE interface, and runs install.sh as root (KEYFILE refusals + one same-key reinstall). Run it on
+# a test box with no session you need.
 # Prints one line per case, then {"ok":…,"step":"faults","pass":N,"fail":M}. Exit 0 all pass, 1 any fail.
 set -u
 # --help / -h: print this header and exit, before anything runs
@@ -93,6 +96,7 @@ for a in "$@"; do
     *sendTransaction*) [ -n "${FX_CURL_SEND:-}" ] && { printf '%s\n' "$FX_CURL_SEND"; exit 0; }
                        echo '{"error":{"message":"faults shim: send blocked"}}'; exit 0 ;;
     *getSignatureStatuses*) [ -n "${FX_CURL_STATUS:-}" ] && { printf '%s\n' "$FX_CURL_STATUS"; exit 0; } ;;
+    *api.ipify.org*) [ -n "${FX_IPIFY:-}" ] && { printf '%s\n' "$FX_IPIFY"; exit 0; } ;;   # an error page, not an IP
   esac
 done
 exec /usr/bin/curl "$@"
@@ -203,6 +207,17 @@ ok_case() {
   if [ -z "$why" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL:$why"; fi
   printf '%-22s exit=%s last=%s | %s\n' "$name" "$rc" "$(printf '%s\n' "$out" | tail -1 | cut -c1-120)" "$v" | tee -a "$LOG"
 }
+# sj <case> <jq test> [VAR=value ...] <command ...>: a look-only answer (exit 0) that passes its schema and the jq test
+sj() {
+  name=$1; test=$2; shift 2
+  out=$(env PATH="$FX/bin:$PATH" "$@" 2>"$FX/$name.err" </dev/null); rc=$?
+  last=$(printf '%s\n' "$out" | tail -1); why=""
+  [ "$rc" = 0 ] || why="$why exit=$rc(want 0);"
+  sv=$(python3 -I direct/schema/validate.py "$last" 2>&1) || why="$why schema: $sv;"
+  printf '%s' "$last" | jq -e "$test" >/dev/null 2>&1 || why="$why jq test failed: $test;"
+  if [ -z "$why" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL:$why"; fi
+  printf '%-22s exit=%s last=%s | %s\n' "$name" "$rc" "$(printf '%s' "$last" | cut -c1-120)" "$v" | tee -a "$LOG"
+}
 # pv <case> <jq test> [VAR=value ...] <command ...>: a preview (exit 2) that passes preview.json and the
 # jq test on its payees, feeLamports and rentLamports (S6: every preview names who gets paid)
 pv() {
@@ -292,7 +307,9 @@ fx  device-sol           device-sol   FX_START_ERR='error: Transaction simulatio
 
 # ─── daemon ───
 fx  daemon-socket        daemon-unavailable FX_MATCH='client sessions' FX_ERR="$ESOCK" sh direct/disconnect.sh
+fx  status-socket        daemon-unavailable FX_MATCH='client sessions' FX_ERR="$ESOCK" sh direct/status.sh   # look-only: a coded line, never "not connected"
 /usr/bin/sudo systemctl stop "sentinel-dvpnd@$INSTANCE.service"
+fx  status-daemon-down   daemon-unavailable sh direct/status.sh   # the daemon is stopped: it cannot say "not connected"
 ok_case daemon-down-disc 0 'no active session' sh direct/disconnect.sh
 ok_case daemon-down-refd 0 ''         FX_MATCH='search --owner' FX_OUT='[]' sh direct/refund.sh   # no channels, no user balance: the case is the daemon, not the clock
 /usr/bin/sudo sentinel-dvpnd service start --instance "$INSTANCE" >/dev/null 2>&1
@@ -343,6 +360,8 @@ fx  usage-max-price      usage        MAX_PRICE=abc sh direct/connect.sh
 fx  usage-unknown-flag   usage        sh direct/connect.sh --bogus
 fx  usage-stray-arg      usage        sh direct/refund.sh yes
 fx  usage-bare-sol       usage        sh direct/fund-device.sh --sol
+fx  usage-selftest-flag  usage        sh direct/selftest.sh --bogus        # audit S3: refused before the paid run
+fx  usage-selftest-hold  usage        HOLD=abc sh direct/selftest.sh       # audit S1: HOLD=abc no longer skips the hold
 fx  usage-sol-empty      usage        sh direct/fund-device.sh --sol=
 ok_case sol-equals-form  2 ''         sh direct/fund-device.sh --sol=0.001
 fx  usage-escrow         usage        ESCROW=abc sh direct/connect.sh
@@ -371,6 +390,18 @@ pv  payees-close-all '(.payees | map(select(.role == "transfer" and .to == $h)) 
 # ─── sessions + tunnel ───
 ok_case already-connected 0 '' FX_MATCH='client sessions' FX_OUT="{\"sessions\":[{\"id\":\"fx-1\",\"status\":\"active\",\"node\":\"$NO_TA\",\"channel\":\"$NO_TA\"}]}" sh direct/connect.sh   # connect while connected: ok, alreadyConnected
 fx  session-active-refd  session-active FX_MATCH='client sessions' FX_OUT='{"sessions":[{"id":"fx-1","status":"active"}]}' sh direct/refund.sh
+# K13 class: session-active never tells an agent to end a session it may not own; it says look first (status.sh)
+nx=$(printf '%s\n' "$out" | tail -1 | jq -r '.next // empty' 2>/dev/null)
+if [ "$nx" = "sh direct/status.sh" ]; then PASS=$((PASS + 1)); v=PASS; else FAILN=$((FAILN + 1)); v="FAIL: next=$nx"; fi
+printf '%-22s next=%s | %s\n' session-active-look "$nx" "$v" | tee -a "$LOG"
+# status.sh: look only (signs nothing). Not connected, only an ended session, connected (named, next = conditional disconnect)
+sj  status-none      '.connected == false and .next == null and .session == null and .exitIp == null' FX_MATCH='client sessions' FX_OUT='{"sessions":[]}' sh direct/status.sh
+sj  status-ended     '.connected == false and .next == null' FX_MATCH='client sessions' FX_OUT='{"sessions":[{"id":"fx-0","status":"ended","node":"N0"}]}' sh direct/status.sh
+sj  status-connected '.connected == true and .session == "fx-1" and .node == "FaultsNode1" and .protocol == "wireguard" and .channel == "FaultsChan1" and .exitIp == "203.0.113.9" and (.next | startswith("sh direct/disconnect.sh  # only if this run started"))' \
+    FX_MATCH='client sessions' FX_IPIFY=203.0.113.9 FX_OUT='{"sessions":[{"id":"fx-0","status":"ended"},{"id":"fx-1","status":"active","node":"FaultsNode1","service":"wireguard","channel":"FaultsChan1"}]}' sh direct/status.sh
+sj  status-ip-page   '.connected == true and .exitIp == null' FX_MATCH='client sessions' FX_IPIFY='<html>"rate limited"</html>' FX_OUT='{"sessions":[{"id":"fx-1","status":"active","node":"N1","service":"v2ray","channel":"C1"}]}' sh direct/status.sh
+ok_case help-status      0 ''         sh direct/status.sh --help
+fx  usage-status-flag    usage        sh direct/status.sh --yes   # look only: even --yes is refused (there is nothing to confirm)
 fx  tunnel-failed        tunnel-failed FX_START_OUT='{"session":{"id":"fx-s","channel":"FaultsShimChannel"}}' sh direct/connect.sh --yes
 ok_case tunnel-cleanup   0 ''         sh direct/disconnect.sh
 
@@ -382,6 +413,25 @@ kill -TERM "$kp"; wait "$kp"; rc=$?
 check kill-mid-connect   interrupted "$rc" "$(tail -1 "$FX/kill.out")"
 ok_case rerun-after-kill 2 'market: '   sh direct/connect.sh
 ok_case rerun-disconnect 0 ''           sh direct/disconnect.sh
+# audit B26: ipify answering a page (rate limit) must give ip "unknown" and valid JSON, never the page in the line
+ok_case ipify-page       0 ''           env FX_IPIFY='<html><b>"rate limited"</b></html>' sh direct/disconnect.sh
+fx  usage-disconnect-flag usage       sh direct/disconnect.sh --bogus      # audit B26: no longer ignored
+# audit B27: build.sh failures are one JSON line. PATH=/usr/bin:/bin never holds a go.dev Go 1.27.3, so this
+# stops at the tool check (no clone, no build) on every box
+fx  usage-build-flag     usage        sh direct/build.sh --bogus
+fx  build-tool-missing   tool-missing env PATH=/usr/bin:/bin sh direct/build.sh
+# Past the tool check with shims of git / make / go in $FX/bb (nothing is cloned or compiled, no network):
+#   build-git-failed   git clone fails                         → build-failed, exit 1, one JSON line (B27)
+#   build-quote-src    the same with a " in SRC                → still one valid JSON line (bfail escapes)
+#   build-mismatch     a "build" whose bytes cannot match      → checksum-mismatch, exit 5 (32ecbab)
+mkdir -p "$FX/bb" "$FX/bsrc/.git"
+printf '#!/bin/sh\necho "faults shim: git $*" >&2\ncase "$*" in *clone*) exit 128 ;; *rev-parse*) echo 26de52407c5b722cfecad1772dcbeefd984ef6d0 ;; esac\nexit 0\n' > "$FX/bb/git"
+printf '#!/bin/sh\n[ "$1" = -C ] || exit 2\nmkdir -p "$2/bin" && printf planted > "$2/bin/$(basename "$2")"\n' > "$FX/bb/make"
+printf '#!/bin/sh\necho go1.27.3\n' > "$FX/bb/go"
+chmod +x "$FX/bb/git" "$FX/bb/make" "$FX/bb/go"
+fx  build-git-failed     build-failed      env PATH="$FX/bb:/usr/bin:/bin" SRC="$FX/nosrc" DIST="$FX/bdist" ARCHES=amd64 sh direct/build.sh
+fx  build-quote-src      build-failed      env PATH="$FX/bb:/usr/bin:/bin" SRC="$FX/no\"src\\x" DIST="$FX/bdist" ARCHES=amd64 sh direct/build.sh
+fx  build-mismatch       checksum-mismatch env PATH="$FX/bb:/usr/bin:/bin" SRC="$FX/bsrc" DIST="$FX/bdist" ARCHES=amd64 sh direct/build.sh
 # kill refund.sh while it signs (start-close-channel hangs), then the rerun finishes the job (S8)
 env PATH="$FX/bin:$PATH" FX_MATCH='channel search' FX_OUT="$FX_REFUND_CH" FX_HANG_MATCH='start-close-channel' \
   sh direct/refund.sh --yes > "$FX/killr.out" 2> "$FX/killr.err" < /dev/null &
@@ -460,9 +510,9 @@ else
   echo "update-grant-absolute  skipped: no grant" | tee -a "$LOG"
 fi
 
-printf 'not driven (code-read only): daemon_up start/socket failures (only run when no grant exists), fund-device python/openssl key checks (need a corrupted key), build.sh MISMATCH (a 9-minute build)\n' | tee -a "$LOG"
+printf 'not driven (code-read only): daemon_up start/socket failures (only run when no grant exists), fund-device python/openssl key checks (need a corrupted key), a real build.sh MATCH / MISMATCH (a 9-minute build: build-mismatch drives the MISMATCH line with shims)\n' | tee -a "$LOG"
 rm -rf "$FX"
 OK=true; [ "$FAILN" = 0 ] || OK=false
 printf '{"ok":%s,"step":"faults","pass":%s,"fail":%s,"log":"%s","next":"%s"}\n' "$OK" "$PASS" "$FAILN" "$LOG" \
-  "$([ "$FAILN" = 0 ] && echo 'sh direct/selftest.sh' || echo "grep FAIL $LOG")"
+  "$([ "$FAILN" = 0 ] && echo 'sh direct/selftest.sh' || echo "grep FAIL $LOG")" | tee -a "$LOG"   # the log carries its own result (tools/check-faults-fresh.mjs)
 [ "$FAILN" = 0 ]

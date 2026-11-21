@@ -8,7 +8,7 @@
 // Codes (with --src, or DVPN_SRC, or <root>/../devnet-dvpn when it exists): every failure code reachable
 // from the app's src/cli/agent-cmd.ts (its own fail() codes, connect()'s CONNECT_CODES, the plain service/RPC copy,
 // runSettlement's codes) and from the follow-up commands it names (settle, device, wallet) must have a row on
-// the page: docs/CODES.md (default when it exists) or the failure tables of docs/AGENT-COMMANDS.md
+// the page: docs/CODES.md (default; a missing CODES.md fails) or the failure tables of docs/AGENT-COMMANDS.md
 // (--page commands). On docs/CODES.md each row must fill every cell, and an agent row's money class must
 // equal src/cli/money-note.ts. Each edge is only followed while agent-cmd.ts still holds the call that makes it
 // reachable (a guard); a guard that no longer matches exits 4 (re-trace by hand). With no source found the
@@ -21,8 +21,8 @@
 // and every backticked alias before the ` — `. Or = a failure code in the failure-code tables of
 // docs/AGENT-COMMANDS.md (those tables are their definition). Or = in ALLOW below.
 //
-// Exit: 0 ok · 1 an undefined term · 4 the checker failed its own control (do not trust it).
-import { existsSync, readFileSync } from 'node:fs';
+// Exit: 0 ok · 1 an undefined term · 3 wrong usage (a bad --page) · 4 the checker failed its own control (do not trust it).
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -128,11 +128,15 @@ export function fnBody(src, name) {
   return src.slice(i, j < 0 ? undefined : j);
 }
 
-/** `code: 'a'` and `code: 'a' | 'b'` literals. */
+/** `code: 'a'` and `code: 'a' | 'b'` literals, and the kept-code ternary `code: c === 'a' || c === 'b' ? c : 'x'`
+ *  (TX-LAND: wallet.ts send() keeps tx-unknown / tx-not-landed, else send-failed). */
 export function codeLiterals(src) {
   const out = new Set();
   for (const m of src.matchAll(new RegExp(`\\bcode: ('${CODE}'(?:\\s*\\|\\s*'${CODE}')*)`, 'g'))) {
     for (const q of m[1].matchAll(new RegExp(`'(${CODE})'`, 'g'))) out.add(q[1]);
+  }
+  for (const m of src.matchAll(new RegExp(`\\bcode: (\\w+) === '${CODE}'(?:\\s*\\|\\|\\s*\\1 === '${CODE}')*\\s*\\?\\s*\\1\\s*:\\s*'${CODE}'`, 'g'))) {
+    for (const q of m[0].matchAll(new RegExp(`'(${CODE})'`, 'g'))) out.add(q[1]);
   }
   return out;
 }
@@ -259,6 +263,12 @@ export function reachableCodes(files) {
     if (t == null) continue; // rc.6 and older have no cliErr
     for (const m of t.matchAll(new RegExp(`\\bcliErr\\(\\s*(?:[^,']*\\? )?'(${CODE})'(?: : '(${CODE})')?`, 'g'))) add([m[1], m[2]].filter(Boolean), `${f.replace('src/cli/', '')} (cliErr)`);
   }
+  // rc.10 row 150 (B7): a helper module's coded Error, `Object.assign(new Error(…), { code: 'x', … })`, thrown by a
+  // command (kill-switch-remote in remote-session.ts, wallet-switch-needed in wallet-mismatch.ts), in any src/cli file.
+  for (const [f, t] of Object.entries(files)) {
+    if (t == null || !f.startsWith('src/cli/')) continue;
+    for (const m of t.matchAll(new RegExp(`Object\\.assign\\(\\s*new Error\\([^;]*?\\{\\s*code:\\s*'(${CODE})'`, 'g'))) add([m[1]], `${f.replace('src/cli/', '')} (Error code)`);
+  }
   // Anchors: a parser that lost its way returns far fewer codes.
   for (const a of ['no-nodes', 'node-refused', 'connect-failed', 'unknown', 'daemon-gone', 'rpc-unavailable', 'cannot cover the prepay']) {
     if (!codes.has(a)) broken.push(`anchor code '${a}' not found: the source changed or the parser broke`);
@@ -335,16 +345,21 @@ function codeControl() {
     'src/core/daemon/link-copy.ts': "return { code: 'svc-d', message: '' };",
     'src/cli/error-out.ts': "daemonErrorCopy(e.message); { code: 'rpc-unavailable' }",
     'src/main/services/settlement.ts': "export async function runSettlement() { return { code: 'daemon-gone' }; }\nexport async function withdraw() { return { code: 'nothing' }; }\n",
-    'src/main/services/wallet.ts': ['deviceSetupPlan', 'deviceSetup', 'revokeDeviceAccess', 'revokeOtherDevice', 'switchWallet', 'send'].map((f) => `export async function ${f}() { return {}; }`).join('\n'),
+    // TX-LAND: send() keeps two codes by a ternary, else a third; a comparison with no ternary is not a code.
+    'src/main/services/wallet.ts': ['deviceSetupPlan', 'deviceSetup', 'revokeDeviceAccess', 'revokeOtherDevice', 'switchWallet'].map((f) => `export async function ${f}() { return {}; }`).join('\n')
+      + "\nexport async function send() { if (code === 'planted-cmp') x(); return { ok: false, code: code === 'planted-ta' || code === 'planted-tb' ? code : 'planted-tc' }; }",
     'src/main/wallet/vault.ts': "export function noWallet(): { code: 'no-wallet' | 'keyfile-missing' } {}",
     'src/cli/commands.ts': "if (r.code === 'nothing') ok(); throw Object.assign(e, { code: r.code ?? 'switch-failed' });",
     // rc.7: cliErr codes in a non-agent file count, a ternary names two; a function definition does not.
     'src/cli/daemon-cmd.ts': "throw cliErr('planted-clierr', `n`, 'm'); throw cliErr(cur.missing ? 'planted-ca' : 'planted-cb', `n`, m);\nexport function cliErr(code: string) {}",
+    // B7: a helper module's coded Error counts, over lines; an Error with no code, or a code outside src/cli, does not.
+    'src/cli/helper-x.ts': "return Object.assign(new Error(`m ${f(x)}. Nothing.`), {\n    code: 'planted-assign',\n    action: `n`,\n  });\nObject.assign(new Error('m'), { name: 'planted-noname' });",
+    'src/main/other.ts': "Object.assign(new Error('m'), { code: 'planted-outside' });",
   };
   const { codes, broken } = reachableCodes(files);
-  const want = ['cannot cover the prepay', 'c-b', 'connect-failed', 'daemon-gone', 'dis-c', 'keyfile-missing', 'no-nodes', 'no-wallet', 'node-refused', 'pf-a', 'planted-ca', 'planted-cb', 'planted-clierr', 'planted-own', 'rpc-unavailable', 'settle-failed', 'stop-failed', 'svc-d', 'switch-failed', 'unknown'].sort();
+  const want = ['cannot cover the prepay', 'c-b', 'connect-failed', 'daemon-gone', 'dis-c', 'keyfile-missing', 'no-nodes', 'no-wallet', 'node-refused', 'pf-a', 'planted-assign', 'planted-ca', 'planted-cb', 'planted-clierr', 'planted-own', 'planted-ta', 'planted-tb', 'planted-tc', 'rpc-unavailable', 'settle-failed', 'stop-failed', 'svc-d', 'switch-failed', 'unknown'].sort();
   const got = [...codes.keys()].sort();
-  const leaked = ['none', 'status', 'planted-ip', 'planted-ternary', 'planted-does'].filter((c) => codes.has(c));
+  const leaked = ['none', 'status', 'planted-ip', 'planted-ternary', 'planted-does', 'planted-noname', 'planted-outside', 'planted-cmp'].filter((c) => codes.has(c));
   if (leaked.length) { console.error(`FAIL code control: non-codes extracted as codes: ${leaked.join(', ')}`); process.exit(4); }
   if (broken.length || got.join() !== want.join()) {
     console.error(`FAIL code control: extraction wanted ${want.join()}, got ${got.join()}${broken.length ? ` · broken: ${broken.join('; ')}` : ''}`);
@@ -366,6 +381,8 @@ function codeControl() {
   if (noAnchor.length !== 1 || !noAnchor[0].includes('code-svc-d')) { console.error(`FAIL code control: planted missing anchor not caught exactly (${noAnchor.join('; ') || 'none'})`); process.exit(4); }
   const noClierr = checkCodes(codes, pageRows(full.replace(row('planted-clierr'), '')), moneyOf);
   if (noClierr.length !== 1 || !noClierr[0].includes('`planted-clierr` (from daemon-cmd.ts (cliErr))')) { console.error(`FAIL code control: planted cliErr code with no row not caught exactly (${noClierr.join('; ') || 'none'})`); process.exit(4); }
+  const noAssign = checkCodes(codes, pageRows(full.replace(row('planted-assign'), '')), moneyOf);
+  if (noAssign.length !== 1 || !noAssign[0].includes('`planted-assign` (from helper-x.ts (Error code))')) { console.error(`FAIL code control: planted helper Error code with no row not caught exactly (${noAssign.join('; ') || 'none'})`); process.exit(4); }
   const dupAnchor = checkCodes(codes, pageRows(full.replace(row('dis-c'), row('dis-c').replace('<a id="code-dis-c"></a>', '<a id="code-dis-c"></a><a id="code-svc-d"></a>'))), moneyOf);
   if (dupAnchor.length !== 1 || !dupAnchor[0].includes('code-svc-d appears 2 times')) { console.error(`FAIL code control: planted duplicate anchor not caught exactly (${dupAnchor.join('; ') || 'none'})`); process.exit(4); }
   // A per-release cell passes when it names the source's class, and fails when it names only others.
@@ -390,10 +407,13 @@ function runCodeCheck(root, opts) {
   }
   const files = {};
   for (const f of SRC_FILES) { const p = join(src, f); files[f] = existsSync(p) ? readFileSync(p, 'utf8').replace(/\r/g, '') : null; }
+  // B7: every src/cli/**/*.ts, so a helper module's coded Error is seen (the step after the cliErr scan).
+  const cliTs = (rel) => readdirSync(join(src, rel), { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? cliTs(`${rel}/${d.name}`) : d.name.endsWith('.ts') ? [`${rel}/${d.name}`] : []));
+  for (const f of cliTs('src/cli')) if (!(f in files)) files[f] = readFileSync(join(src, f), 'utf8').replace(/\r/g, '');
   const { codes, broken } = reachableCodes(files);
   if (broken.length) { console.error(`FAIL: cannot trace the codes (re-trace by hand):\n  ${broken.join('\n  ')}`); process.exit(4); }
   const codesPage = join(root, 'docs', 'CODES.md');
-  const page = opts.page ?? (existsSync(codesPage) ? 'codes' : 'commands');
+  const page = opts.page ?? 'codes';
   let problems;
   if (page === 'codes') {
     const moneyOf = moneyClasses(files['src/cli/money-note.ts'] ?? '', files['src/core/session/state.ts'] ?? '');
@@ -506,7 +526,10 @@ function main() {
     for (const { term, line } of miss) console.log(`       ${name}:${line}  \`${term}\` is not in GLOSSARY.md`);
   }
   const page = val('--page');
-  if (page && page !== 'codes' && page !== 'commands') { console.error('--page must be codes or commands'); process.exit(4); }
+  if (page && page !== 'codes' && page !== 'commands') { console.error('usage: --page must be codes or commands'); process.exit(3); }
+  // S11 (vacuous pass): a missing docs/CODES.md silently switched the code check to AGENT-COMMANDS.md and left the
+  // codes page itself unchecked. It is the page; only an explicit --page commands checks without it.
+  if (page !== 'commands' && !existsSync(join(root, 'docs', 'CODES.md'))) { console.log('FAIL docs/CODES.md is missing (pass --page commands to check AGENT-COMMANDS.md only)'); bad++; }
   bad += runCodeCheck(root, { src: val('--src'), requireSrc: args.includes('--require-src'), page });
   process.exit(bad > 0 ? 1 : 0);
 }

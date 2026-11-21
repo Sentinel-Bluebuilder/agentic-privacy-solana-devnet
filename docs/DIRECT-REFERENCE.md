@@ -31,6 +31,7 @@ names the exact ones):
 | `sh direct/fund-device.sh --yes` | sends `--sol` SOL (default 0.02) from the owner to the device | that SOL to the device (yours) + a 5000-lamport fee | `signature`, `deviceLamports` | not needed (the device spends it on fees and rent) |
 | `sh direct/connect.sh --yes` | first run: grant + delegate (the spending cap); then opens a channel and connects | the deposit (escrow; the node gets only what it redeems) + rent: grant 0.00167 SOL (owner), channel 0.00217 SOL and user account 0.00124 SOL once (device) + fees | `exitIp`, `node`, `channel` (`next`: `disconnect.sh`) | `disconnect.sh`, then `refund.sh --yes` |
 | `sh direct/disconnect.sh` | ends the session | nothing (signs nothing) | `spent`, `tunnel` (`next`: `refund.sh`) | `connect.sh --yes` |
+| `sh direct/status.sh` | shows the live session, look only (session, node, protocol, channel, exit IP) | nothing (signs nothing) | `connected` (`next`: null, or `sh direct/disconnect.sh  # only if this run started the session`) | nothing to undo |
 | `sh direct/refund.sh --yes` | starts closing, after 2 h closes, withdraws | fees; the unspent escrow and the channel rent come back | `closeAfter`, then `userBalance` (`next`: wait, then run it again) | not needed; `--revoke` also closes the grant (its rent comes back) |
 | `sh direct/close-all.sh --to <address> --yes` | disconnect, refund + revoke, then sends all tDVPN and SOL from both keys to `<address>` and closes the owner's token account (its rent goes there too). It builds and signs the sends itself, like `fund-device.sh` (`python3` + `openssl`; no app, no Solana CLI) | fees only | the three send signatures, all balances 0 | not needed |
 
@@ -121,7 +122,7 @@ $ sentinel-dvpn version
 
 A read on the public RPC (the default for the build network is `https://api.devnet.solana.com`):
 
-```sh
+```console
 $ sentinel-dvpn program status
 { "paused_features": [] }
 ```
@@ -322,7 +323,7 @@ Raw `sentinel-dvpn` exits with code 1 on every failure, usage errors included, a
 | doctor `grant` … `holds no grant` | no grant yet | none | | step 4 |
 | `"error":"connection lost"` after ~50 s, reconnect loop | node API routed into the tunnel | the node is paid only for what you used | (selftest `hold`) / 1 | node route (step 6) |
 | your SSH session freezes, then `Connection timed out` / `Broken pipe`, and new `ssh` attempts hang | the kill switch is on (`kill_switch = 'on'`, the upstream default) and its drop-policy chain has no rule for established connections, so your own SSH replies are dropped. Or the tunnel took the default route with no `/32` for your SSH client | none (the session still runs and is paid only for what it uses) | none: the script cannot reach you | from the cloud serial console: `sudo sentinel-dvpnd service stop --instance c1` (stopping the daemon removes its tunnel and chain), or reboot the VM (neither persists). Then `sudo sh direct/install.sh` (sets `kill_switch = 'off'`) and `sh direct/connect.sh` (adds the SSH `/32`). See "Remote box" in [DIRECT.md](DIRECT.md) |
-| `a session is already active` | the daemon allows one session at a time | none | `session-active` / 1 (`connect.sh` checks first and answers ok with `alreadyConnected`; `refund.sh` refuses) | `sh direct/disconnect.sh` |
+| `a session is already active` | the daemon allows one session at a time | none | `session-active` / 1 (`connect.sh` checks first and answers ok with `alreadyConnected`; `refund.sh` refuses) | `sh direct/status.sh` (look first: another run may hold the session; disconnect only a session this run started) |
 | `rpc error: code = NotFound desc = not found: no active session` | the session already ended (see `client sessions`) | none | `no-session` / 1 | nothing to stop |
 | `start_close_channel: … ConstraintSeeds (2006)` | `--grant` passed while the owner signs | none (simulated) | `wrong-account` / 1 | drop `--grant` |
 | `dial unix /var/lib/sentinel-dvpn/c1/daemon.sock: … no such file` | the daemon is not running | none | `daemon-unavailable` / 1 | `sudo sentinel-dvpnd service start --instance c1` |
@@ -332,8 +333,7 @@ Raw `sentinel-dvpn` exits with code 1 on every failure, usage errors included, a
 ### Program errors (client flow)
 
 Find the number as `Error Number: N` or `custom program error: 0x…` in the output. The source is the
-IDL `errors` list at 26de5240; 6033, 6035 and 6049 were produced live on devnet. The table is from
-AC-BUILDER; the full version with a "where" column is in [BUILD-YOUR-OWN-CLIENT.md](BUILD-YOUR-OWN-CLIENT.md) §9.
+IDL `errors` list at 26de5240; 6033, 6035 and 6049 were produced live on devnet. The full version with a "where" column is in [BUILD-YOUR-OWN-CLIENT.md](BUILD-YOUR-OWN-CLIENT.md) §9.
 
 | Message | Meaning | Money moved | Script `code` / exit | Fix |
 |---|---|---|---|---|

@@ -7,7 +7,7 @@
 // exit and no session), vpn_down runs: always when vpn_up gave no answer (it may still have
 // connected and paid), otherwise when the status says connected or cannot be read. A down with
 // nothing connected is harmless. It never calls vpn_connect / vpn_disconnect / vpn_settle.
-// The paid session needs the agent commands (v0.3.0-rc.3 or newer).
+// The paid session needs the agent commands (v0.3.0-rc4 or newer; rc3 was never published).
 //
 //   node mcp/live-check.mjs --out <dir> [--bundle <devnet-dvpn.cjs>]
 //   node mcp/live-check.mjs --out <dir> --paid --yes [--protocol wireguard] [--basis per_gb|per_hour]
@@ -19,7 +19,7 @@
 //
 // Pass "installed": the installed devnet-dvpn, found as the server finds it (PATH; on macOS also
 //   /usr/local/bin and the app bundle). Expected: the six CLI tools answer; vpn_agent_status /
-//   vpn_up answer as the agent commands (rc.3 or newer) or, on v0.3.0-rc2, with the
+//   vpn_up answer as the agent commands (v0.3.0-rc4 or newer) or, on v0.3.0-rc2, with the
 //   "use vpn_nodes + vpn_connect" fallback.
 // Pass "bundle" (only with --bundle): DEVNET_DVPN_BIN = that bundle, a `out/cli/devnet-dvpn.cjs`
 //   built from source (an installed app's copy sits inside app.asar; plain Node cannot read it).
@@ -56,6 +56,7 @@ export const checkAfterUp = (up) => !upCleanlyRefused(up);
 /** Whether vpn_down must run, given the paid vpn_up and the status read after it. */
 export const mustRunDown = (up, status) => {
   if (upCleanlyRefused(up)) return false;
+  if (sc(up)?.result?.reused === true) return false;             // the session was already live: this check did not open it, so it must not end it
   if (up == null) return true;                                   // no answer: it may have connected and paid
   if (sc(up)?.exitCode === 0 || typeof sc(up)?.result?.session === 'string') return true;
   return sc(status)?.result?.connected !== false;                // connected, or the status cannot be read
@@ -186,7 +187,7 @@ const runPass = async (pass, env) => {
   for (const name of ['vpn_status', 'vpn_wallet']) await call(name, {}, (r) => EXPECT[name](r.structuredContent));
   await call('vpn_nodes', {}, (r) => EXPECT.vpn_nodes(r.structuredContent));
   if (pass === 'installed') {
-    // rc2: the fallback; rc.3 or newer: the agent commands themselves.
+    // rc2: the fallback; rc4 or newer: the agent commands themselves.
     await call('vpn_agent_status', {}, either(FALLBACK, BUNDLE_AGENT.vpn_agent_status));
     await call('vpn_up', {}, either(FALLBACK, BUNDLE_AGENT.vpn_up));
   } else {

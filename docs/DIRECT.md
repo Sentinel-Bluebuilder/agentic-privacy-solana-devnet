@@ -137,6 +137,7 @@ sh direct/fund-request.sh       # prints the ONE funding message for your funder
 sh direct/fund-device.sh --yes  # only when fund-request's "next" names it: sends 0.02 SOL owner -> device
 sh direct/connect.sh            # PREVIEW: says what it would sign and spend (exit 2)
 sh direct/connect.sh --yes      # connect; prints {"ok":true,"exitIp":...}
+sh direct/status.sh             # look only: the live session, if any (signs nothing)
 sh direct/disconnect.sh         # stop (signs nothing)
 sh direct/refund.sh --yes       # get unspent escrow back (run again after the time it prints)
 sh direct/close-all.sh --to <address> --yes   # done with the box: refund, revoke, send both keys' funds to <address>

@@ -7,6 +7,29 @@ Terms: [`GLOSSARY.md`](GLOSSARY.md).
 
 Check which release you have: `devnet-dvpn version --json`.
 
+## v0.3.0-rc9
+
+Draft: each line ships only if its change is in the rc9 build (drop the line otherwise).
+
+On Windows, Linux and macOS (Apple silicon only: Intel Macs stay on v0.3.0-rc4, [docs/OLDER-RELEASES.md](docs/OLDER-RELEASES.md), "Intel Mac").
+
+### Breaking
+- Spending limit, least privilege: `--raise-limit` and a first `device setup` raise only as far as needed, and
+  `defaults.spendingLimit` is the live grant (`configuredDefault` = Settings). `device setup` with no `--allowance` is
+  never refused: the smaller of Settings and the wallet, with a warning.
+
+### Added
+- `needs-admin` (Windows): `daemon install` from a standard account says so first, with the elevation line.
+- `keyfile-unreadable`: an unreadable key file is a coded refusal with a `next`, not a bare `EPERM`.
+- `keyfile-mode` on Windows: the key file's ACL is checked; `keyfile-lock-failed` when a new key file cannot be locked.
+- `clock-skew` on Windows (`w32time` resync) and in `agent status` (`clockSkewSec`).
+- `killSwitchHolding` in `agent status`: says when the kill switch is on but no longer blocking.
+- The RPC: a dead RPC gets a way out (another RPC) instead of exit 1.
+
+### Fixed
+- A fresh data dir adopts the installed service's device key (no staging key in `wallet show`).
+- `wallet show` warns about a key file other users can read.
+
 ## v0.3.0-rc8
 
 Published on Windows and Linux, and (2026-11-20) on macOS for Apple silicon only: Intel Macs stay on v0.3.0-rc4

@@ -10,7 +10,7 @@
 
 Pick one path and read its first file top to bottom once.
 
-- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc8 by name (macOS: Apple silicon); the first command after install is
+- **Path A (the app):** [AGENTS.md](AGENTS.md). Install v0.3.0-rc9 by name (macOS: Apple silicon); the first command after install is
   `devnet-dvpn agent status --json`. Every answer carries `next` (the command to run next) or, on failure, `action`.
   Add `--json` for one line of JSON; nothing spends without `--yes` (without it: a preview, exit code 2).
 - **Path B (direct, Linux):** [docs/DIRECT.md](docs/DIRECT.md). The first command is
@@ -40,7 +40,7 @@ exact message to send them.
 
 ## Optional
 
-- [CHANGELOG.md](CHANGELOG.md): what changed for an agent per release (rc4 → rc5 → rc6 → rc7 → rc8), breaking changes first.
+- [CHANGELOG.md](CHANGELOG.md): what changed for an agent per release (rc4 → rc5 → rc6 → rc7 → rc8 → rc9), breaking changes first.
 - [docs/PROVENANCE.md](docs/PROVENANCE.md): every file an agent runs, with its SHA-256, release, source commit, build command and when it was last verified.
 - [docs/INSTALL-BY-HAND.md](docs/INSTALL-BY-HAND.md): install the app without the installer script: download, check against SHA256SUMS, install, per OS (macOS: only here).
 - [docs/CHOICES.md](docs/CHOICES.md): protocol, country, pricing, split tunnelling and the kill switch.
@@ -70,8 +70,8 @@ Rules of the tool:
 - A command that spends money or changes the system does nothing without `--yes`; without it, it
   only prints what it would do (exit code `2`).
 - Exit codes: `0` ok · `1` error · `2` needs `--yes` · `3` wrong usage · `4` needs you or your operator
-  (`not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `keyfile-mode`, `clock-skew`, `allowance-above-balance`, `insufficient-funds`; nothing was paid) · `5` refused for safety (kill
-  switch, `bad-recipient`, `low-sol-after`; read `action`) · `6` network or RPC (money `unclear`: run `agent status` before you retry, in a minute). Other network codes exit `1`:
+  (`not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `needs-admin`, `keyfile-missing`, `keyfile-unreadable`, `keyfile-mode`, `clock-skew`, `allowance-above-balance`, `insufficient-funds`; nothing was paid) · `5` refused for safety (kill
+  switch, `bad-recipient`, `low-sol-after`; read `action`) · `6` network or RPC (money `unclear`: run `agent status` before you retry, in a minute; rc.9: exit `1` from `agent`). Other network codes exit `1`:
   read `money`.
 - Every amount has a twin in base units: `sol` → `solLamports`, `tdvpn` → `tdvpnBase`, `held` → `heldBase`,
   `spent` → `spentBase`, `refundable` → `refundableBase`, `deposit.tdvpn` → `deposit.tdvpnBase`.
@@ -103,14 +103,14 @@ Rules of the tool:
 > Your own code instead of a CLI: [`docs/BUILD-YOUR-OWN-CLIENT.md`](docs/BUILD-YOUR-OWN-CLIENT.md).
 > A script that drives the app: [`docs/examples/agent-loop.mjs`](docs/examples/agent-loop.mjs) (one Node file, no dependencies: checks programId + mint, follows `next`, never pays without `--yes`).
 
-> **Release: `v0.3.0-rc8`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc8` (Apple silicon; Intel
+> **Release: `v0.3.0-rc9`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc9` (Apple silicon; Intel
 > Macs: `docs/OLDER-RELEASES.md`). The same command line on all three. Pin the tag by name, as the lines below do.
 > The download line per OS:
-> - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh`
-> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc8`, Apple silicon only).
-> - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc8'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
+> - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh`
+> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc9`, Apple silicon only).
+> - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc9'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
 >
-> Done when `devnet-dvpn version --json` says `0.3.0-rc.8`, network `devnet`, `programId`
+> Done when `devnet-dvpn version --json` says `0.3.0-rc.9`, network `devnet`, `programId`
 > `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` and `mint` `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`;
 > any other `programId` or `mint`: stop, wrong build, pay nothing. Another release
 > installed: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What is proven, per OS and
@@ -120,10 +120,10 @@ Rules of the tool:
 
 > **Safety: five rules.**
 > 1. Always pass `--max-price` to `agent up`: on devnet many nodes ask 50 tDVPN per GB.
-> 2. Over SSH from the internet, never turn the kill switch on without another way in: it can lock you out for good.
+> 2. On a remote server, keep the kill switch off: one lost session locks you out for good (`kill-switch-remote`).
 > 3. `--yes` spends money or changes the system. Without it nothing is signed (exit `2`).
 > 4. Had a wallet before? Never `wallet create`: load its key file, or `wallet import <file>`.
-> 5. `agent up` never raises this computer's spending limit by itself: it refuses (`spending-limit`, nothing paid) and `action` is your line pinned to the node it picked, plus `--raise-limit --yes`: run it to accept that deposit. `--raise-limit` raises the limit to the Settings `allowanceTdvpn` (150 on a new install), not to the deposit, and it stays there until lowered: set `settings set allowanceTdvpn=<small n>` first, or use `device setup --allowance <current + deposit> --yes` instead.
+> 5. `agent up` never raises this computer's spending limit by itself: it refuses (`spending-limit`, nothing paid) and `action` sets the limit to exactly that deposit (`device setup --allowance <deposit> --yes`), then runs your line pinned to the node it picked. `alsoNext` adds `--raise-limit` instead: that raises the limit to the Settings `allowanceTdvpn` (150 on a new install) and it stays there until lowered.
 >
 > **Give the agent its own small wallet.** A key file just for the agent (`devnet-dvpn wallet create --keyfile <new path> --yes`), not the one that holds your own funds; fund only what one task needs (one deposit, plus the SOL a new device needs: section 3). The spending limit (150 tDVPN on a new install) is its ceiling on this computer.
 > After the task: `devnet-dvpn agent down --yes`, `devnet-dvpn settle withdraw --yes` once the refund is ready, then empty it: `devnet-dvpn wallet send --to <ADDRESS> --tdvpn <N> --sol <N> --yes` (`<ADDRESS>` = your own wallet; keep a little SOL back for that fee: from rc8, leaving under 0.01 SOL needs `--allow-empty`, else `low-sol-after`).
@@ -135,7 +135,7 @@ Rules of the tool:
 Linux and macOS (root or passwordless `sudo`):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh   # Linux; macOS: docs/INSTALL-BY-HAND.md
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh   # Linux; macOS: docs/INSTALL-BY-HAND.md
 devnet-dvpn agent status --json                               # where am I; "next" says what is missing
 # only if agent status has no "address" (a key file already set stays as it is):
 export DVPN_KEYFILE="$PWD/agent-key.json"
@@ -158,7 +158,7 @@ Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a dep
 Windows (an **elevated** PowerShell, or SSH as an administrator):
 
 ```powershell
-$env:DVPN_VERSION = 'v0.3.0-rc8'
+$env:DVPN_VERSION = 'v0.3.0-rc9'
 irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
 devnet-dvpn agent status --json
 # only if agent status has no "address":
@@ -214,20 +214,20 @@ In a sandbox where you cannot become administrator / root you cannot install the
 Linux (deb, rpm, Arch; x64 and arm64):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh
 ```
 
 To read it before it runs:
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh
-DVPN_VERSION=v0.3.0-rc8 sh install.sh
+DVPN_VERSION=v0.3.0-rc9 sh install.sh
 ```
 
 Windows (x64), elevated PowerShell:
 
 ```powershell
-$env:DVPN_VERSION = 'v0.3.0-rc8'
+$env:DVPN_VERSION = 'v0.3.0-rc9'
 irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
 ```
 
@@ -239,7 +239,7 @@ release with your package, which may not be the one this page is for), downloads
 release's `SHA256SUMS`, refuses a file that does not match, installs it with no questions, and
 runs `devnet-dvpn version --json`. It prints one JSON line:
 `{"ok":true,"tag":…,"file":…,"version":{…},"path":…,"next":…}`, or `{"ok":false,"error":…}`
-with exit code 1. `tag` must be `v0.3.0-rc8`.
+with exit code 1. `tag` must be `v0.3.0-rc9`.
 
 PATH afterwards:
 - Linux: `devnet-dvpn` is on PATH at once.
@@ -280,8 +280,8 @@ the shell that set it: set it again in every new shell or SSH session (Windows, 
 `[Environment]::SetEnvironmentVariable('DVPN_KEYFILE', $env:DVPN_KEYFILE, 'User')`). The key
 file is your money: never print it, never commit it.
 
-Use one wallet per computer. With a second wallet's key file loaded, `agent up` / `connect` refuse
-(code `wallet-switch-needed`, nothing paid): load the first key file again, or run
+Use one wallet per computer. With a second wallet's key file loaded, commands refuse
+(code `wallet-switch-needed`, nothing paid; a service restart does not help): load the first key file again, or run
 `devnet-dvpn device switch --yes` to set this computer up for the loaded wallet (the first wallet's
 deposits stay refundable with its own key; about 0.05 SOL of fee SOL stays on the old device, and no
 command sends it back yet). A half-finished setup or switch: `devnet-dvpn device discard-setup --yes`.
@@ -365,10 +365,10 @@ devnet-dvpn daemon doctor --json        # no check may have "level": "fail"
 
 In this order: the service does not start before the device has its spending permission.
 - Spending limit: a new install may spend up to 150 tDVPN from your wallet (a cap, not a charge; an existing limit is kept).
-  A wallet with less: `device setup --yes` refuses (`allowance-above-balance`, nothing signed); run its `next`.
+  A wallet with less (rc9): `device setup --yes` sets the limit to the wallet's balance and says so in `warning`; raise it after funding with `device setup --allowance <N> --yes`.
   When a deposit is above it, `agent up --yes` pays nothing and answers `"code":"spending-limit"`
-  (exit `4`); its `action` is your line pinned to the node it picked, plus `--raise-limit --yes`. Run it
-  to raise the limit for this connect (the answer then carries `limitRaised` and `limitNote`), or set your own:
+  (exit `4`); its `action` sets the limit to this deposit, then runs your line pinned to the node it picked; `alsoNext`, with `--raise-limit --yes`,
+  raises it to the Settings limit (the answer then carries `limitRaised` and `limitNote`). Or set your own:
   `devnet-dvpn device setup --allowance N --yes`, N in tDVPN.
 - `"service":"no-service"` in the `device setup` output means the service is not installed yet:
   normal at that step.
@@ -409,7 +409,7 @@ How to read the proof (`{ "direct": { "ip", "source" }, "viaSocks", "sourceIs" }
 If `agent up` fails, it names `code` and `action`: run the action. `"code":"not-enough-tdvpn"`
 means the node it picked costs more than you hold: add `--max-price`, or fund more.
 `"code":"no-nodes"`: under `--max-price`, `action` names the cheapest price (run it if you accept it); else widen `--protocol` / `--country`. `"code":"spending-limit"`: nothing was
-paid; run the `action` (your line, pinned, with `--raise-limit --yes`). `"code":"price-cap"`: no `--max-price` and the
+paid; run the `action` (it sets the limit to this deposit, then runs your line, pinned). `"code":"price-cap"`: no `--max-price` and the
 deposit is above `defaults.priceCap`; nothing was paid; pass `--max-price` (the `action` names the price) or fewer `--units`. `price-changed`,
 `deposit-unusable` or `deposits-unread`: nothing was paid; run `agent up --yes` again (it reads
 the price fresh, and `--max-price` still caps it). Before picking a protocol,
@@ -630,6 +630,7 @@ sh direct/fund-request.sh       # prints the ONE funding message for your funder
 sh direct/fund-device.sh --yes  # only when fund-request's "next" names it: sends 0.02 SOL owner -> device
 sh direct/connect.sh            # PREVIEW: says what it would sign and spend (exit 2)
 sh direct/connect.sh --yes      # connect; prints {"ok":true,"exitIp":...}
+sh direct/status.sh             # look only: the live session, if any (signs nothing)
 sh direct/disconnect.sh         # stop (signs nothing)
 sh direct/refund.sh --yes       # get unspent escrow back (run again after the time it prints)
 sh direct/close-all.sh --to <address> --yes   # done with the box: refund, revoke, send both keys' funds to <address>
@@ -1356,6 +1357,7 @@ names the exact ones):
 | `sh direct/fund-device.sh --yes` | sends `--sol` SOL (default 0.02) from the owner to the device | that SOL to the device (yours) + a 5000-lamport fee | `signature`, `deviceLamports` | not needed (the device spends it on fees and rent) |
 | `sh direct/connect.sh --yes` | first run: grant + delegate (the spending cap); then opens a channel and connects | the deposit (escrow; the node gets only what it redeems) + rent: grant 0.00167 SOL (owner), channel 0.00217 SOL and user account 0.00124 SOL once (device) + fees | `exitIp`, `node`, `channel` (`next`: `disconnect.sh`) | `disconnect.sh`, then `refund.sh --yes` |
 | `sh direct/disconnect.sh` | ends the session | nothing (signs nothing) | `spent`, `tunnel` (`next`: `refund.sh`) | `connect.sh --yes` |
+| `sh direct/status.sh` | shows the live session, look only (session, node, protocol, channel, exit IP) | nothing (signs nothing) | `connected` (`next`: null, or `sh direct/disconnect.sh  # only if this run started the session`) | nothing to undo |
 | `sh direct/refund.sh --yes` | starts closing, after 2 h closes, withdraws | fees; the unspent escrow and the channel rent come back | `closeAfter`, then `userBalance` (`next`: wait, then run it again) | not needed; `--revoke` also closes the grant (its rent comes back) |
 | `sh direct/close-all.sh --to <address> --yes` | disconnect, refund + revoke, then sends all tDVPN and SOL from both keys to `<address>` and closes the owner's token account (its rent goes there too). It builds and signs the sends itself, like `fund-device.sh` (`python3` + `openssl`; no app, no Solana CLI) | fees only | the three send signatures, all balances 0 | not needed |
 
@@ -1446,7 +1448,7 @@ $ sentinel-dvpn version
 
 A read on the public RPC (the default for the build network is `https://api.devnet.solana.com`):
 
-```sh
+```console
 $ sentinel-dvpn program status
 { "paused_features": [] }
 ```
@@ -1647,7 +1649,7 @@ Raw `sentinel-dvpn` exits with code 1 on every failure, usage errors included, a
 | doctor `grant` … `holds no grant` | no grant yet | none | | step 4 |
 | `"error":"connection lost"` after ~50 s, reconnect loop | node API routed into the tunnel | the node is paid only for what you used | (selftest `hold`) / 1 | node route (step 6) |
 | your SSH session freezes, then `Connection timed out` / `Broken pipe`, and new `ssh` attempts hang | the kill switch is on (`kill_switch = 'on'`, the upstream default) and its drop-policy chain has no rule for established connections, so your own SSH replies are dropped. Or the tunnel took the default route with no `/32` for your SSH client | none (the session still runs and is paid only for what it uses) | none: the script cannot reach you | from the cloud serial console: `sudo sentinel-dvpnd service stop --instance c1` (stopping the daemon removes its tunnel and chain), or reboot the VM (neither persists). Then `sudo sh direct/install.sh` (sets `kill_switch = 'off'`) and `sh direct/connect.sh` (adds the SSH `/32`). See "Remote box" in [DIRECT.md](DIRECT.md) |
-| `a session is already active` | the daemon allows one session at a time | none | `session-active` / 1 (`connect.sh` checks first and answers ok with `alreadyConnected`; `refund.sh` refuses) | `sh direct/disconnect.sh` |
+| `a session is already active` | the daemon allows one session at a time | none | `session-active` / 1 (`connect.sh` checks first and answers ok with `alreadyConnected`; `refund.sh` refuses) | `sh direct/status.sh` (look first: another run may hold the session; disconnect only a session this run started) |
 | `rpc error: code = NotFound desc = not found: no active session` | the session already ended (see `client sessions`) | none | `no-session` / 1 | nothing to stop |
 | `start_close_channel: … ConstraintSeeds (2006)` | `--grant` passed while the owner signs | none (simulated) | `wrong-account` / 1 | drop `--grant` |
 | `dial unix /var/lib/sentinel-dvpn/c1/daemon.sock: … no such file` | the daemon is not running | none | `daemon-unavailable` / 1 | `sudo sentinel-dvpnd service start --instance c1` |
@@ -1657,8 +1659,7 @@ Raw `sentinel-dvpn` exits with code 1 on every failure, usage errors included, a
 ### Program errors (client flow)
 
 Find the number as `Error Number: N` or `custom program error: 0x…` in the output. The source is the
-IDL `errors` list at 26de5240; 6033, 6035 and 6049 were produced live on devnet. The table is from
-AC-BUILDER; the full version with a "where" column is in [BUILD-YOUR-OWN-CLIENT.md](BUILD-YOUR-OWN-CLIENT.md) §9.
+IDL `errors` list at 26de5240; 6033, 6035 and 6049 were produced live on devnet. The full version with a "where" column is in [BUILD-YOUR-OWN-CLIENT.md](BUILD-YOUR-OWN-CLIENT.md) §9.
 
 | Message | Meaning | Money moved | Script `code` / exit | Fix |
 |---|---|---|---|---|
@@ -1790,7 +1791,7 @@ commands those answers tell it to run (`settle`, `device`, `wallet`). One row pe
 - **alsoNext**: the other way out. Only `agent status` prints an `alsoNext` field. On a failure line this
   column is this page's fallback for when **Next** does not work.
 
-Source of truth: the `devnet-dvpn` app at 0.3.0-rc.8 (`76b237e2`, 119 reachable codes, every one with a row), traced from `src/cli/agent-cmd.ts`.
+Source of truth: the `devnet-dvpn` app at 0.3.0-rc.9 (`68d0f22e8`, 124 traced codes, every one with a row), traced from `src/cli/agent-cmd.ts`.
 `tools/check-glossary.mjs --src <devnet-dvpn checkout>` fails when a code those paths can return has no
 row here, or when a row's money class differs from `src/cli/money-note.ts`.
 
@@ -1803,11 +1804,12 @@ whatever the code. The rows below give `action` for when no deposit is open.
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| <a id="code-no-wallet"></a>`no-wallet` | No wallet in this CLI: no key file named, none in the vault. | `none` | `<cli> wallet create --keyfile <path> --yes, then fund the address it prints`. When this computer has a device record: `<cli> wallet import <the key file of <owner>, the wallet that set up this computer's device>, then <cli> agent up --yes (a new wallet would not hold its funds)` | `<cli> agent status` (shows `address: null`) |
+| <a id="code-no-wallet"></a>`no-wallet` | No wallet in this CLI: no key file named, none in the vault. rc.9: `daemon init` says it too (exit 4). | `none` | `<cli> wallet create --keyfile <path> --yes, then fund the address it prints`. When this computer has a device record: `<cli> wallet import <the key file of <owner>, the wallet that set up this computer's device>, then <cli> agent up --yes (a new wallet would not hold its funds)` | `<cli> agent status` (shows `address: null`) |
 | <a id="code-keyfile-missing"></a>`keyfile-missing` | The key file that `--keyfile` or `DVPN_KEYFILE` names is gone. Not "no wallet": the funds stay with the lost key. | `none` | `restore the key file named in "error" from your backup (it is the only key to this wallet), then <cli> agent up --yes` | none: never `wallet create` (a new wallet holds none of the funds) |
-| <a id="code-keyfile-mode"></a>`keyfile-mode` | rc.7, Linux and macOS (on Windows the ACL is not checked yet, rc.9). The key file can be read by other users (its mode is in `error`). Refused before anything is signed. Exit 4: a person fixes it. | `none` | `chmod 600 <the key file>, then <cli> agent up --yes` | none |
+| <a id="code-keyfile-mode"></a>`keyfile-mode` | Linux and macOS since rc.7, Windows since rc.9 (the file's ACL gives Users, Everyone or Authenticated Users access). The key file can be read by other users (its mode or ACL is in `error`). Refused before anything is signed. Exit 4: a person fixes it. | `none` | `chmod 600 <the key file>, then <cli> agent up --yes` (Windows: the `icacls "<the key file>" /inheritance:r /grant:r …` line in `next`) | none |
+| <a id="code-keyfile-unreadable"></a>`keyfile-unreadable` | rc.9. This user cannot read the key file that `--keyfile` or `DVPN_KEYFILE` names (`EACCES` or `EPERM`; the path is in `error`). Nothing was sent or signed. Exit 4: a person fixes it. Not `keyfile-missing` (the file is there) and not `keyfile-mode` (that one is readable by too many). | `none` | Linux and macOS: `sudo chown $(id -un) <the key file> && chmod 600 <the key file>, then <cli> wallet show --json`. Windows: `icacls "<the key file>" /grant "<DOMAIN\user>:R", then <cli> wallet show --json` | none: never `wallet create` (a new wallet holds none of the funds) |
 | <a id="code-no-device"></a>`no-device` | `daemon init` could not create this computer's device key. | `none` | `<cli> daemon doctor` | `<cli> device setup --yes, then <cli> agent up --yes` |
-| <a id="code-no-subscription"></a>`no-subscription` | `--plan` names a subscription this wallet does not hold, or one that is not active. | `none` | `<cli> plans list, then <cli> plans subscribe <plan> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
+| <a id="code-no-subscription"></a>`no-subscription` | `--plan` names a subscription this wallet does not hold, or one that is not active. rc.9: `connect` raises it too. | `none` | `<cli> plans list, then <cli> plans subscribe <plan> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
 | <a id="code-no-nodes"></a>`no-nodes` | No online node matches `--protocol` / `--country` / `--max-price` / `--node` (or the plan's live roster). Under `--max-price` (rc7) the message names the cheapest matching price above it. From rc.8 it names the real blocker, and its `next` never repeats the failing line: a price above the cap (only from nodes that answer their check, plus how many at or under the cap do not answer); no node in that country but some elsewhere (`next` drops `--country`); only another protocol (`next` drops `--protocol`); with `--node`, why that node is not picked (not on the network, the one in use now, does not offer the protocol, …), keeping `--node` where a retry can work. | `none` | Under `--max-price` with a match above it (rc7): `<cli> agent up [--protocol <p>] [--country <c>] --basis <b> --units <n> --max-price <the cheapest price> --yes` (runnable as printed). Otherwise: `<cli> nodes list --online --json, then widen --protocol / --country / --max-price` | `<cli> agent up --basis <the other one> --yes` |
 | <a id="code-not-funded"></a>`not-funded` | The wallet holds less than 0.06 SOL (rc7; 0.02 before) before its first connect, or less tDVPN than the deposit shown. rc7 names the exact shortfall and, when larger, a recommended amount that also covers a reconnect. | `none` | `send at least <n> SOL and/or <n> tDVPN (<m> recommended: it also covers a reconnect) to <address>, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` (a smaller deposit) |
 | <a id="code-price-cap"></a>`price-cap` | rc.6 and later. With no `--max-price` and no `--plan`, the deposit (price × units) is above the default cap, `defaults.priceCap` in the preview. rc7: the larger of the spending limit / 10 and the p75 price of the matching online nodes × `--units`, never above the limit; with fewer than 3 priced nodes, the limit / 10 (rc.6: always the limit / 10). The message names the node's price and the `--max-price` that accepts it. This applies to the quick pick and to `--node`. Refused before paying. | `none` | `<cli> agent up --node <node> --basis <b> --units <n> --max-price <its price> --yes (you accept this price), or fewer --units, or another node` | `<cli> agent up --units <fewer> --yes` |
@@ -1825,8 +1827,8 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
 | <a id="code-not-confirmed"></a>`not-confirmed` | The connect was asked without `--yes`. `agent up` itself always passes the confirm, so this comes only from a direct `connect`. | `none` | `<cli> agent up --yes (add --yes: nothing is paid without it)` | none |
-| <a id="code-wallet-switch-needed"></a>`wallet-switch-needed` | This computer is set up for another wallet, so the loaded key cannot pay here. Comes from `connect()` only, so `agent up` only. | `none` | `load the key file of the wallet named in "error", or <cli> device switch --yes (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable)` | `<cli> agent status` (names the loaded address) |
-| <a id="code-clock-skew"></a>`clock-skew` | This computer's clock is off by N minutes. Refused before any deposit. | `none` | the time-sync line for this OS, then `<cli> agent up --yes`: Linux `sudo timedatectl set-ntp true && (sudo chronyc makestep 2>/dev/null \|\| true)`, macOS `sudo sntp -sS time.apple.com`, Windows `w32tm /resync` (elevated shell). Exit 4 | none |
+| <a id="code-wallet-switch-needed"></a>`wallet-switch-needed` | This computer is set up for another wallet, so the loaded key cannot pay here. Answered by `agent status` and `daemon install`, and named in `daemon doctor`'s service-wallet row; restarting the service does not clear it. | `none` | `load the key file of the wallet named in "error", or <cli> device switch --yes (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable)` | `<cli> agent status` (names the loaded address) |
+| <a id="code-clock-skew"></a>`clock-skew` | This computer's clock is off by N minutes. Refused before any deposit (rc.9: also named by `agent status`, `clockSkewSec`, and by `agent up` before any device or funding check). | `none` | the time-sync line for this OS, then `<cli> agent up --yes`: Linux `sudo timedatectl set-ntp true && (sudo chronyc makestep 2>/dev/null \|\| true)`, macOS `sudo sntp -sS time.apple.com`, Windows `Start-Service w32time; w32tm /resync /force` (elevated PowerShell). Exit 4 | none |
 | <a id="code-device-permission"></a>`device-permission` | This computer has no spending permission, or the permission or wallet switch could not be set up. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> daemon doctor` |
 | <a id="code-plan-limit"></a>`plan-limit` | The plan does not allow a new node here. | `none` | `<cli> agent up --plan <subscription> --node <a node you already use> --yes` | `<cli> agent up --yes` without `--plan` (pays a deposit) |
 | <a id="code-busy"></a>`busy` | Another connect was already running. | `none` | `<cli> agent up --yes again in a few seconds (another connect was running)` | `<cli> agent status` |
@@ -1835,20 +1837,20 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 | <a id="code-daemon-missing"></a>`daemon-missing` | The VPN service is not installed. | `none` | Linux/macOS: `<cli> daemon install --yes (administrator/root once: passwordless sudo, or a person types the password), then <cli> agent up --yes`. Windows: `<cli> daemon install --yes from an elevated shell or an administrator SSH login (a normal shell shows a UAC prompt an agent cannot answer), then <cli> agent up --yes` | `<cli> daemon doctor` |
 | <a id="code-daemon-relogin"></a>`daemon-relogin` | The service does not accept this account yet (Windows: the service pipe has not been granted to this account). | `none` | as `daemon-missing` (Windows: `… once from an elevated shell …`) | `<cli> daemon doctor` |
 | <a id="code-daemon-restarting"></a>`daemon-restarting` | The VPN service is restarting. | `none` | `<cli> agent up --yes again in a few seconds (the VPN service is restarting); if it keeps failing, <cli> daemon doctor` | `<cli> daemon doctor` |
-| <a id="code-daemon-unavailable"></a>`daemon-unavailable` | The VPN service does not answer. | `none` | `<cli> daemon doctor` | `<cli> daemon install --yes` (administrator once) |
+| <a id="code-daemon-unavailable"></a>`daemon-unavailable` | The VPN service does not answer. | `none` | `<cli> daemon doctor` | `<cli> daemon install --yes` (administrator once). rc.9, from `daemon restore-network`: `next` = Windows `Start-Service 'sentinel-dvpnd$c0' in an administrator PowerShell, then <cli> daemon restore-network`; Linux `sudo systemctl restart sentinel-dvpnd@c0, then <cli> daemon restore-network`; macOS `sudo launchctl kickstart -k system/co.sentinel.sentinel-dvpnd.c0, then <cli> daemon restore-network` |
 | <a id="code-network-mismatch"></a>`network-mismatch` | The installed service is for another network. | `none` | `<cli> daemon install --yes (administrator once: it installs the service for this network), then <cli> agent up --yes` | none |
 
 ### The check before paying (nothing has been paid for any of these)
 
 | Code | Meaning | Money moved? | Next (`action`) | alsoNext |
 |---|---|---|---|---|
-| <a id="code-session-active"></a>`session-active` | A VPN session is already running (from the command line or another window). | `none` | `<cli> agent down --yes, then <cli> agent up --yes` | `<cli> agent status` |
-| <a id="code-node-gone"></a><a id="code-node-stale"></a><a id="code-node-offline"></a>`node-gone`, `node-stale`, `node-offline` | The node is no longer listed, has not checked in recently, or did not answer its probe. | `none` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent up --yes` (the quick pick skips it for 10 min) |
+| <a id="code-session-active"></a>`session-active` | A VPN session is already running (from the command line or another window). | `none` | `<cli> agent status --json` (another run holds the session: look, never end it) | `<cli> agent status` |
+| <a id="code-node-gone"></a><a id="code-node-stale"></a><a id="code-node-offline"></a>`node-gone`, `node-stale`, `node-offline` | The node is no longer listed, has not checked in recently, or did not answer its probe. rc.9: `connect` raises `node-gone` too. | `none` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent up --yes` (the quick pick skips it for 10 min) |
 | <a id="code-protocol-blocked"></a>`protocol-blocked` | The kill switch blocks this protocol here. | `none` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <another ready one> --yes` | `<cli> daemon restore-network` |
 | <a id="code-driver-missing"></a>`driver-missing` | A network adapter or protocol program is missing from this computer. | `none` | `<cli> daemon repair-drivers --yes, then <cli> agent up --yes` | `<cli> agent up --protocol <another ready one> --yes` |
 | <a id="code-basis-unavailable"></a>`basis-unavailable` | The node does not sell per GB, or does not sell per hour. | `none` | `<cli> agent up --basis <the other one: per_gb or per_hour> --yes` | `<cli> agent up --node <another node> --yes` |
 | <a id="code-not-enough-tdvpn"></a>`not-enough-tdvpn` | The wallet holds too little tDVPN for this deposit. | `none` | `send tDVPN to the wallet address (<cli> agent status shows it), then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
-| <a id="code-spending-limit"></a>`spending-limit` | The spending approval or device limit is below this deposit. On `agent up --yes` without `--raise-limit` (rc.6 and later) nothing is paid; the message names the limit, the deposit and the raised limit. | `none` | `<cli> agent up --node <node> [--protocol <p>] --basis <b> --units <n> [--max-price <m>] --raise-limit --yes`: your own line, pinned to the node `agent up` picked, every flag you gave kept (E-88). From `connect()` (no `--raise-limit` path): `<cli> device setup --allowance <N> --yes, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
+| <a id="code-spending-limit"></a>`spending-limit` | The spending approval or device limit is below this deposit. On `agent up --yes` without `--raise-limit` (rc.6 and later) nothing is paid; the message names the limit, the deposit and the raised limit. | `none` | rc.9: `<cli> device setup --allowance <this deposit> --yes, then <cli> agent up --node <node> [--protocol <p>] --basis <b> --units <n> [--max-price <m>] --yes`: the limit set to this deposit only, then your own line, pinned to the node `agent up` picked, every flag you gave kept (E-88); `alsoNext` = the same line with `--raise-limit --yes` (raises it to the Settings limit). From `connect()` (no `--raise-limit` path): `<cli> device setup --allowance <N> --yes, then <cli> agent up --yes` | `<cli> agent up --units <fewer> --yes` |
 | <a id="code-device-sol"></a>`device-sol` | The device or wallet is out of SOL for network fees. | `none` | `<cli> device setup --yes, then <cli> agent up --yes` | send SOL to the wallet address, then `<cli> agent up --yes` |
 | <a id="code-preflight"></a>`preflight` | A blocker with no code of its own. When it carries an app button ("Open diagnostics", "Open settings", "Repair drivers"), `action` is that button's command followed by `, then <cli> agent up --yes`. "Pick another server" gives the `node-gone` command. | `none` | `read "error": it names what to change (nothing was paid), then <cli> agent up --yes` | `<cli> agent status` |
 | <a id="code-kill-switch-held"></a>`kill-switch-held` | The kill switch still blocks the internet and lets through only the last node. | `none` | `<cli> daemon restore-network, then <cli> agent up --yes` | `<cli> agent down --yes` |
@@ -1863,7 +1865,7 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 |---|---|---|---|---|
 | <a id="code-switch-offline"></a>`switch-offline` | A switch failed with the old session gone. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
 | <a id="code-cancelled"></a>`cancelled` | The connect was stopped before it finished. The unused part of a sent deposit is refunded. | `open` | `<cli> agent up --yes again (it was stopped before it finished)` | `<cli> agent down --yes` |
-| <a id="code-waiting-for-network"></a>`waiting-for-network` | The service has no network yet. | `open` | `<cli> agent up --yes again in a minute (this computer has no network yet)` | `<cli> agent down --yes` |
+| <a id="code-waiting-for-network"></a>`waiting-for-network` | The service cannot reach the Solana network yet (its own RPC check failed). rc.9: nothing was paid, exit 6 on every command (rc.8: money `open`, exit 1). | `none` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent up --yes` again in a minute, if the network was only late |
 | <a id="code-ticket-other-owner"></a>`ticket-other-owner` | The plan access belongs to another wallet than this computer's. | `open` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
 | <a id="code-approval-revoked"></a>`approval-revoked` | This wallet's spending approval for this computer was revoked. | `open` | `<cli> device setup --yes, then <cli> agent up --yes` | `<cli> agent down --yes` |
 | <a id="code-service-stopped-connecting"></a>`service-stopped-connecting` | The service stopped while connecting. With the kill switch on, the internet stays blocked. | `open` | `<cli> quality ip; if it shows no address, <cli> daemon restore-network; then <cli> agent up --yes` | `<cli> agent down --yes` |
@@ -1879,7 +1881,7 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 | <a id="code-rpc-network"></a><a id="code-rpc-quota"></a>`rpc-network`, `rpc-quota` | The network intercepts Solana RPC (login page, proxy, filter), or the service's RPC quota ran out. | `open` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent down --yes` |
 | <a id="code-rpc-timeout"></a>`rpc-timeout` | The service's RPC endpoint did not answer in time. | `open` | `<cli> agent up --yes again in a minute; if it keeps failing, <cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent down --yes` |
 | <a id="code-rpc-busy"></a>`rpc-busy` | The RPC endpoint is rate-limiting. | `unclear` | `<cli> agent up --yes again in a minute (the network was busy)` | `<cli> agent status` (lists any deposit) |
-| <a id="code-rpc-ws"></a>`rpc-ws` | rc.7. The service could not keep its Solana websocket (the RPC pair's ws side). Exit 6. | `unclear` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent status` (lists any deposit) |
+| <a id="code-rpc-ws"></a>`rpc-ws` | rc.7. The service could not keep its Solana websocket (the RPC pair's ws side). Exit 6 (rc.9: exit 1 from `agent up`). | `unclear` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` | `<cli> agent status` (lists any deposit) |
 | <a id="code-timeout"></a>`timeout` | The node did not answer in time. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
 | <a id="code-chain-encoding"></a>`chain-encoding` | The network program rejected the payment transaction. | `open` | `<cli> agent up --basis per_hour --yes (pay per hour instead)` | `<cli> agent down --yes` |
 
@@ -1889,7 +1891,7 @@ A spending-limit shortfall, whatever its code, answers the `spending-limit` comm
 |---|---|---|---|---|
 | <a id="code-peer_limit_reached"></a><a id="code-terms_rejected"></a>`peer_limit_reached`, `terms_rejected` | The node is full, or refused the terms. | `open` | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` | `<cli> agent down --yes` |
 | <a id="code-credit_exhausted"></a><a id="code-lease_insufficient"></a><a id="code-voucher_exceeds_escrow"></a><a id="code-voucher_signature_invalid"></a>`credit_exhausted`, `lease_insufficient`, `voucher_exceeds_escrow`, `voucher_signature_invalid` | The deposit ran out or no longer covers the session. | `open` | `<cli> agent down --yes, then <cli> agent up --yes (a new deposit)` | `<cli> agent up --node <another node> --yes` |
-| <a id="code-subscription_invalid"></a>`subscription_invalid` | The plan subscription is not valid at this node. | `open` | `<cli> plans subscriptions, then <cli> agent up --plan <an active one> --yes, or <cli> agent up --yes without --plan` | `<cli> agent down --yes` |
+| <a id="code-subscription_invalid"></a>`subscription_invalid` | The plan subscription is not valid at this node. | `open` | `<cli> plans subscriptions`, then `<cli> agent up --plan <an active one> --yes`, or `<cli> agent up --yes` without `--plan` | `<cli> agent down --yes` |
 | <a id="code-ticket_request_stale"></a><a id="code-ticket_invalid"></a><a id="code-channel_node_reopened"></a>`ticket_request_stale`, `ticket_invalid`, `channel_node_reopened` | A ticket or channel race. Usually passes on a retry. | `open` | `<cli> agent up --yes again in a moment` | `<cli> agent down --yes` |
 | <a id="code-provider_unreachable"></a>`provider_unreachable` | The plan provider did not answer. | `open` | `<cli> agent up --yes again in a minute (the plan provider did not answer)` | `<cli> agent down --yes` |
 | <a id="code-rate_limited"></a>`rate_limited` | The node is rate-limiting. | `open` | `<cli> agent up --yes again in a minute` | `<cli> agent up --node <another node> --yes` |
@@ -1931,7 +1933,7 @@ A successful `agent down` whose deposits another device of this wallet opened (E
 
 | Code | Meaning | Money moved? | Next | alsoNext |
 |---|---|---|---|---|
-| <a id="code-server-stopped"></a>`server-stopped` | The node stopped serving. The exit address is this computer's own, or the daemon ended the session in the last 30 min. `connected: false`. The deposit is safe. | `open` (no `money` field: `ok` is true) | `<cli> agent up --yes` (the dead node is skipped for 10 min). With `blocked`: `<cli> daemon restore-network (lifts the block; then <cli> agent up --yes to reconnect, or <cli> agent down --yes)` | `<cli> agent down --yes` (an `alsoNext` field) |
+| <a id="code-server-stopped"></a>`server-stopped` | The node stopped serving. The exit address is this computer's own, or the daemon ended the session in the last 30 min. `connected: false`. The deposit is safe. | `open` (no `money` field: `ok` is true) | `<cli> agent up --yes` (the dead node is skipped for 10 min). With `blocked` (rc.6, one command): `<cli> daemon restore-network` | `<cli> agent down --yes` (an `alsoNext` field); with `blocked`: `then <cli> agent up --yes to reconnect, or <cli> agent down --yes to close the deposit` |
 
 ## Any of the three: replaced on the way out
 
@@ -1946,7 +1948,7 @@ or the deposit read in `agent down`.
 | `rpc-unavailable` | Every RPC endpoint failed (rate limit, not a Solana RPC endpoint, or a timeout). | `unclear` | the RPC hint (check the network, or set another RPC) | `<cli> daemon set --rpc <https url> --yes` |
 | `approval-revoked` | The spending approval for this computer was revoked. | `open` | `devnet-dvpn device setup --yes` | `<cli> agent status` |
 | `not-enough-tdvpn` | The wallet lacks tDVPN for the deposit. | `none` | null: fund the wallet or use fewer `--units` | `<cli> agent status` (shows the address) |
-| `session-active` | A session is already active. | `none` | `devnet-dvpn disconnect` | `<cli> agent down --yes` |
+| `session-active` | A session is already active. | `none` | `devnet-dvpn agent status --json` (another run may hold the session: look, never end it). rc8 and older printed `devnet-dvpn disconnect` here: do not run it | `<cli> agent down --yes` only for a session this run started |
 | (`code: null`) | A throw with no code (e.g. the key store locked over SSH, E-66). | `unclear` | null: read `error` | `<cli> agent status` |
 
 Exit 2 (`needsConfirm: true`) carries no `code`. Exit 3 (wrong usage) is plain text with no `code` up to rc7; from
@@ -1968,15 +1970,17 @@ These are not `agent` commands, so they carry **no `money` field**. The column g
 | `settle-failed` | `settle run` | Some deposits could not be refunded yet; the others are done. | `no field`: refund still held | none: `<cli> settle run --yes` again later | `<cli> settle list` |
 | `daemon-gone` | `settle run` | The VPN service stopped during the refund. Nothing was lost. | `no field`: refund still held | none: `<cli> settle run --yes` again | `<cli> daemon doctor` |
 | <a id="code-withdraw-failed"></a>`withdraw-failed` | `settle withdraw` | The withdraw transaction failed. A zero balance is not this code: it prints "Nothing to withdraw" with exit 0. | `no field`: balance still held | none: `<cli> settle withdraw --yes` again | `<cli> settle list` |
-| <a id="code-no-device-key"></a>`no-device-key` | `device setup` (rc.6) | `device setup` ran before `daemon init`. On rc5 this was the same sentence with `code: null`. | `no field`: nothing signed | none: the message says `devnet-dvpn daemon init`, then `device setup` again | `<cli> agent status` |
+| <a id="code-no-device-key"></a>`no-device-key` | `device setup` (rc.6) | `device setup` ran before `daemon init`. On rc5 this was the same sentence with `code: null`. | `no field`: nothing signed | none: the message says `devnet-dvpn daemon init`, then `device setup` again (rc.9 `next`: `<cli> daemon init --yes, then <cli> device setup --yes`) | `<cli> agent status` |
 | <a id="code-wallet-is-device"></a>`wallet-is-device` | `device setup` | The wallet and the device key are the same key. | `no field`: nothing signed | none: use a separate wallet key | `<cli> device show --json` |
 | <a id="code-device-setup-failed"></a>`device-setup-failed` | `device setup` | The setup transaction failed. | `no field`: nothing set up (a SOL top-up may have landed) | none: run `device setup --yes` again | `<cli> daemon doctor` |
 | `device-permission`, `device-sol` | `device switch` | The switch could not finish (read, stage or service step), or the wallet lacks SOL for it. This computer stays set up for the other wallet. | `no field`: nothing paid | the app's button as a command, or none | send SOL, then `<cli> device switch --yes` |
 | <a id="code-switch-failed"></a>`switch-failed` | `device switch` | The switch failed with no code. | `no field`: nothing paid | none | `<cli> daemon doctor` |
 | <a id="code-revoke-failed"></a>`revoke-failed` | `device revoke [--device D]` | The revoke transaction failed. | `no field`: nothing changed | none: run it again | `<cli> device show --json` |
 | <a id="code-bad-device"></a><a id="code-own-device"></a>`bad-device`, `own-device` | `device revoke --device D` | `D` is not a device address, or it is this computer's own device. | `no field`: nothing ran | none: `device revoke` without `--device` for this computer | `<cli> device show --json` |
-| <a id="code-device-key-unreadable"></a>`device-key-unreadable` | `device register` | The service's key folder is admin-only. | `no field`: nothing ran | the `device register <address>` form (no administrator needed) | none |
+| <a id="code-device-key-unreadable"></a>`device-key-unreadable` | `device register` | The service's key folder is admin-only. | `none` (rc.9; rc.8: no field): nothing ran | the `device register <address>` form (no administrator needed) | none |
 | <a id="code-invalid-address"></a><a id="code-invalid-amount"></a><a id="code-send-failed"></a>`invalid-address`, `invalid-amount`, `send-failed` | `wallet send` | Bad recipient, bad amount, or a failed transfer. | `no field`: nothing sent (`send-failed`: check the wallet) | none | `<cli> agent status` (balances) |
+| <a id="code-tx-not-landed"></a>`tx-not-landed` | `wallet send` | The reply to the send was lost, and the signed transfer expired without reaching the chain (current v0.3.0-rc9 files). | `no field`: nothing was sent | `<cli> wallet show --json`, then the same `wallet send` again | none |
+| <a id="code-tx-unknown"></a>`tx-unknown` | `wallet send` | The reply to the send was lost and the chain could not be read, so it is not known whether the transfer went through (current v0.3.0-rc9 files). Do not send again before checking. | `no field`: not known whether it was sent | `<cli> wallet show --json`: the balances show whether it moved, before any new send | none |
 
 `settle run --device <this computer's device>`, the daemon commands, and (rc5 only) `device setup` with no
 device key yet fail with `code: null` and a plain sentence that names the fix.
@@ -1993,9 +1997,10 @@ Only `test` failures print a `money` field; the others carry none.
 | <a id="code-no-plan"></a>`no-plan` | `plans roster <plan>` | No plan with that id on devnet. | 1 | `no field`: nothing paid | `<cli> plans list` |
 | <a id="code-driver-repair-failed"></a>`driver-repair-failed` | `daemon repair-drivers` | The driver repair did not finish; `error` holds its log. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
 | <a id="code-migrate-failed"></a>`migrate-failed` | `daemon migrate` | The upgrade of the VPN service home stopped at the step named in `error`. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
-| <a id="code-device-not-ready"></a>`device-not-ready` | `daemon install` | The device is not funded and permitted yet, so the service will not start. | 1 | `no field`: nothing paid | `<cli> device setup --yes, then <cli> daemon install --yes` |
+| <a id="code-device-not-ready"></a>`device-not-ready` | `daemon install` | The device is not funded and permitted yet, so the service will not start. | 1 | `no field`: nothing paid | `<cli> device setup --yes, then <cli> daemon install --yes` (rc.9, no device key yet: `<cli> daemon init --yes, then <cli> device setup --yes, then <cli> daemon install --yes`) |
 | <a id="code-install-failed"></a>`install-failed` | `daemon install` | The service install failed; `error` says where. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
 | <a id="code-daemon-settings-empty"></a>`daemon-settings-empty` | `daemon set` | The service's settings file is empty. | 1 | `no field`: nothing paid | `<cli> daemon install --yes` |
+| <a id="code-kill-switch-remote"></a>`kill-switch-remote` | `daemon set` | Refused: `--kill-switch on` / `persist` from an SSH or Remote Desktop session. If the VPN connection is lost, the kill switch blocks every new connection to this computer, SSH included. It keeps blocking after a reboot until `devnet-dvpn daemon restore-network` is run locally or from the provider's console. Nothing was changed. In the current v0.3.0-rc9 files (the hashes in `docs/PROVENANCE.md`) the check also reads the login session and the parent processes, so it is refused under sudo and in a root shell opened with sudo -i or su - too. Earlier downloads of v0.3.0-rc9 did not check this: there, keep the kill switch off yourself. | 5 | `no field`: nothing paid | `<cli> agent up --yes` (connect without the kill switch); alsoNext `<cli> daemon set --kill-switch on --allow-remote-lockout --yes` (only with console access to this computer) |
 | <a id="code-daemon-settings-unreadable"></a>`daemon-settings-unreadable` | `daemon set` | The service's settings file cannot be read (a missing file is `daemon-missing`). | 1 | `no field`: nothing paid | `<cli> daemon install --yes` |
 | <a id="code-dns-no-answer"></a>`dns-no-answer` | `daemon dns-check` | The DNS check got no answer. Exit 1 on purpose, so a script can gate on it. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
 | <a id="code-uninstall-failed"></a>`uninstall-failed` | `daemon uninstall` | The service uninstall failed; `error` says where. | 1 | `no field`: nothing paid | `<cli> daemon doctor --json` |
@@ -2004,6 +2009,10 @@ Only `test` failures print a `money` field; the others carry none.
 | <a id="code-no-test-run"></a>`no-test-run` | `test show / export [<run>]` | No test run with that id, or none yet. | 1 | `none` | `<cli> test history` |
 | <a id="code-keystore-unavailable"></a>`keystore-unavailable` | `wallet create / import` (Windows) | Windows cannot encrypt a wallet for this logon (no password session, e.g. an SSH key login), or the encryption failed. | 1 | `no field`: nothing paid | `<cli> wallet create --keyfile <path> --yes` |
 | <a id="code-keyfile-read-only"></a>`keyfile-read-only` | `wallet create / import / logout` | A `--keyfile` / `DVPN_KEYFILE` wallet is read-only: this CLI never writes or deletes it. | 1 | `no field`: nothing paid | `unset DVPN_KEYFILE, then run the command again` |
+| <a id="code-disconnect-failed"></a>`disconnect-failed` | `connect --follow` (Ctrl+C) | rc.9: Ctrl+C asked for the disconnect and it failed (`error` says why). The session may still be up, and a per-hour deposit keeps billing while it is. | 1 | `no field`: nothing paid by this command | `<cli> agent status --json` |
+| <a id="code-apply-failed"></a>`apply-failed` | `daemon set` | rc.9: the settings could not be applied, or the service did not restart on them (`error` says where). | 1 | `no field`: nothing paid | `<cli> agent status --json` |
+| <a id="code-apply-busy"></a>`apply-busy` | `daemon set` | rc.9: another apply is still running (from the app or another command). Nothing was changed. | 1 | `no field`: nothing paid | `<cli> agent status --json` |
+| <a id="code-apply-while-connecting"></a>`apply-while-connecting` | `daemon set` | rc.9: a connect is running (here or in another process). Nothing was changed; apply after it finishes. | 1 | `no field`: nothing paid | `<cli> agent status --json` |
 
 Also coded in rc.7 by `cliErr`, with rows above: `rpc-busy` (`wallet show`), `no-device` (`device switch`),
 `no-device-key` (`device setup`, `daemon init`), `no-wallet` and `daemon-missing` (`daemon install` / `set`), `no-nodes` (`test run`),
@@ -2020,11 +2029,19 @@ own device is a note, not a refusal). `device plan` gains `ok`, `solCost`, `next
 | <a id="code-bad-recipient"></a>`bad-recipient` | `wallet send` | `--to` is the system program, this app's program or the tDVPN mint; the message says which. Checked first, before any balance read. | 5 | `none` ("Nothing was sent or signed.") | `<cli> wallet send --to <a wallet address> … --yes` |
 | <a id="code-insufficient-funds"></a>`insufficient-funds` | `wallet send` | The send asks for more than the wallet holds (tDVPN above the balance, or SOL plus the 5000-lamport fee above it). | 4 | `none` ("Nothing was sent or signed.") | `<cli> wallet show --json` |
 | <a id="code-low-sol-after"></a>`low-sol-after` | `wallet send --sol` | The send would leave under 0.01 SOL, too little for the next fees. | 5 | `none` ("Nothing was sent or signed.") | send less, or add `--allow-empty` |
-| <a id="code-allowance-above-balance"></a>`allowance-above-balance` | `device setup` / `device plan` (`--allowance <N>`) | N is more tDVPN than the wallet holds, so the device could be approved for money that is not there. `--force` sets it anyway. | 4 | `none` ("Nothing was sent or signed.") | `<cli> device setup --allowance <at most the wallet balance> --yes` |
+| <a id="code-allowance-above-balance"></a>`allowance-above-balance` | `device setup` / `device plan` (`--allowance <N>`) | N is more tDVPN than the wallet holds, so the device could be approved for money that is not there. `--force` sets it anyway. rc.9: only an explicit `--allowance N`; with no `--allowance` the limit becomes the wallet's balance, with a `warning` (rc.8: refused). | 4 | `none` ("Nothing was sent or signed.") | `<cli> device setup --allowance <at most the wallet balance> --yes` |
 
 `--tdvpn 0` / `--sol 0` is `usage` ("the amount must be more than 0"). From rc.8 `invalid-amount`,
 `invalid-address` and `usage` are money class `none`: `wallet`, `device` and `settle` say "Nothing was sent or
 signed.", `agent` says "Nothing was paid." (rc7 said "It is not known whether the transaction went through").
+
+## rc.9 and later: Windows install and key-file checks
+
+| Code | From | Meaning | Exit | Money moved? | Next (`action`) |
+|---|---|---|---|---|---|
+| <a id="code-needs-admin"></a>`needs-admin` | `daemon install` (Windows) | Installing the VPN service needs an administrator, and this Windows account is a standard user (no `S-1-5-32-544` in `whoami /groups`). Also when no UAC prompt can be shown (SSH, a service session). Checked first, before the wallet and device checks; not checked when `whoami` fails. | 4 | `none` ("Nothing was paid.") | `Start-Process devnet-dvpn -Verb RunAs -ArgumentList 'daemon install --yes'` (PowerShell; Windows asks for an administrator's name and password) |
+| <a id="code-keyfile-lock-failed"></a>`keyfile-lock-failed` | `wallet create --keyfile` (Windows) | This account could not lock the new key file to itself (its ACL); nothing was written. | 1 | `none` ("Nothing was sent or signed.") | `devnet-dvpn wallet create --keyfile "$HOME\agent-key.json" --yes` (a path in your own profile folder) |
+| <a id="code-setting-rejected"></a>`setting-rejected` | `settings set` | A setting name or value the app does not take (the reason is in `error`). Nothing changed. | 1 | `none` ("Nothing was changed.") | `devnet-dvpn settings get --json` (the names and the values each takes), then `settings set <name>=<value>` again |
 
 ## Path B (`direct/*.sh`): codes only the scripts print
 
@@ -2044,14 +2061,14 @@ code of the same name (`install-failed`, `no-device`). Every line has `money` an
 | <a id="code-direct-keyfile-missing"></a>`keyfile-missing` | `install.sh` and every script | `KEYFILE=` or `OWNER_KEYFILE=` names no file. Nothing is read or signed, and neither the default key nor a new key is used in its place. | 4 | `none` | `ls -l <its folder>`, then rerun with the right path |
 | <a id="code-direct-escrow-too-small"></a>`escrow-too-small` | `connect.sh` | `ESCROW=` is below the node's first 100 MB block (a tenth of its GB price): the daemon would refuse it after the grant. Checked before anything is signed. | 3 | `none` | `ESCROW=<the minimum> NODE=<node> sh direct/connect.sh` (the `next` gives the numbers) |
 | <a id="code-direct-escrow-below-minimum"></a>`escrow-below-minimum` | `connect.sh` | The daemon refused the channel open: "channel escrow below node minimum" (a minimum the pre-check did not know). Nothing was deposited; the node routes are removed. | 3 | `none` | `env -u ESCROW sh direct/connect.sh` (the default escrow) |
-| <a id="code-direct-build-failed"></a>`build-failed` | `install.sh` (`BUILD=1`) | `direct/build.sh` failed. A wrong checksum is `checksum-mismatch`, not this. | 1 | `none` | `sh direct/build.sh` (needs git, make and Go 1.27.3) |
+| <a id="code-direct-build-failed"></a>`build-failed` | `build.sh`, `install.sh` (`BUILD=1`) | A build step failed: git clone, fetch or checkout of the pinned commit, `make build`, or copying the result (`error` names the step). A wrong checksum is `checksum-mismatch`, not this. | 1 | `none` | `sh direct/build.sh` (needs git, make and Go 1.27.3) |
 | <a id="code-direct-no-device"></a>`no-device` | any script after install | The daemon has no device key: `install.sh` did not finish. | 1 | `none` | `sudo sh direct/install.sh` |
 | <a id="code-direct-route-failed"></a>`route-failed` | `connect.sh` | The route that keeps the node's own IP outside the tunnel could not be added (no default route, or `ip route replace` failed). | 1 | `none` | `ip route show default`, or the exact `sudo ip route replace …` line |
 | <a id="code-direct-session-dropped"></a>`session-dropped` | `selftest.sh` | The session dropped during the hold. | 1 | `refund` | `sh direct/disconnect.sh && sh direct/refund.sh` |
 | <a id="code-direct-step-failed"></a>`step-failed` | `selftest.sh` | A script the selftest ran stopped with no JSON line. When the script did print one, the selftest passes on its code instead. | 1 | the step's, else `none` | `sh direct/<script>.sh` |
 | <a id="code-direct-interrupted"></a>`interrupted` | any (lib.sh EXIT backstop) | The script was killed (exit 130 / 143) before it printed its line. | 1 | `MONEY_STATE`: how far it got (`none`, `unclear` before the session starts, `open` after) | the same command again (it is safe to repeat: `docs/DIRECT.md`, "Safe to run again?") |
 | <a id="code-direct-unknown"></a>`unknown` | any (lib.sh EXIT backstop) | A `set -e` stop with no code of its own; `error` names the last command run. | 1 | `MONEY_STATE`, as above | `none`: the failure table in `docs/DIRECT.md`; otherwise `sh direct/refund.sh` |
-| <a id="code-direct-checksum-mismatch"></a>`checksum-mismatch` | `install.sh` | The downloaded binaries, or your own build (`BUILD=1`), differ from `direct/SHA256SUMS`; nothing was installed. | 5 | `none` | `sudo BUILD=1 sh direct/install.sh` (download), or `sh direct/build.sh` (your build) |
+| <a id="code-direct-checksum-mismatch"></a>`checksum-mismatch` | `install.sh`, `build.sh` | The downloaded binaries, or your own build (`BUILD=1`, or `build.sh` with Go 1.27.3), differ from `direct/SHA256SUMS`; nothing was installed. | 5 | `none` | `sudo BUILD=1 sh direct/install.sh` (download), or `sh direct/build.sh` (your build) |
 | <a id="code-direct-close-wait"></a>`close-wait` | `refund.sh`, `close-all.sh` | A channel close is still in its 7200 s wait (on-chain `GraceNotElapsed`, 6035); nothing was swept yet. | 1 | `refund` | `close-all.sh`: `sleep <seconds> && sh direct/close-all.sh --to <address> --yes` (the wait it prints); `refund.sh`: `sh direct/refund.sh` after the time in `error` |
 | <a id="code-direct-needs-root"></a>`needs-root` | `install.sh` | Run without root. | 3 | `none` | `sudo sh direct/install.sh` |
 | <a id="code-direct-no-session"></a>`no-session` | `disconnect.sh` | The daemon has no active session: it had already ended. | 1 | `none` | `sentinel-dvpn client sessions --instance <instance>` (nothing to stop) |
@@ -2075,9 +2092,9 @@ above still holds, apart from the changes listed here.
 | 1 | error | any code not listed below, and `code: null`. Includes `rpc-timeout`, `rpc-network`, `rpc-quota` and `timeout`: network codes whose money class is `open` (a deposit may be open) |
 | 2 | needs `--yes` | no code (`needsConfirm: true`) |
 | 3 | wrong usage | no code up to rc7; from rc.8 with `--json`: `usage` |
-| 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, and since rc7 `keyfile-missing` and `keyfile-mode` (rc.6: exit 1); since rc.8 `clock-skew`, and `allowance-above-balance` (`device setup` / `plan`) and `insufficient-funds` (`wallet send`) |
-| 5 | refused for safety | `kill-switch-held` (money `none`), `kill-switch-failed` (money `open`: read `money`), and `kill-switch`; since rc.8 `bad-recipient` and `low-sol-after` (`wallet send`, money `none`) |
-| 6 | network or RPC, no deposit possibly open: retry later | `rpc-busy`, `rpc-unavailable` (money `unclear`), and `rpc-ws` |
+| 4 | needs you or your operator | `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, and since rc7 `keyfile-missing` and `keyfile-mode` (rc.6: exit 1); since rc.8 `clock-skew`, and `allowance-above-balance` (`device setup` / `plan`) and `insufficient-funds` (`wallet send`); since rc.9 `keyfile-unreadable` and `needs-admin` |
+| 5 | refused for safety | `kill-switch-held` (money `none`), `kill-switch-failed` (money `open`: read `money`), `kill-switch` and `kill-switch-remote` (money `none`); since rc.8 `bad-recipient` and `low-sol-after` (`wallet send`, money `none`) |
+| 6 | network or RPC, no deposit possibly open: retry later | `rpc-busy`, `rpc-unavailable` (money `unclear`), and `rpc-ws`; rc.9: these exit `1` from `agent`, `connect`, `device switch` and `test` (money `unclear`); since rc.9 `waiting-for-network` (money `none`: exit 6 everywhere) |
 
 Exit 6 is given only to a network code whose money class is not `open` (`exitCodeFor`: `moneyOf(code) !== 'open'`).
 A network failure after which a deposit may be open exits 1. Exit 5 can still follow an open deposit
@@ -2304,7 +2321,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 - **drivers** (`repair-drivers`) — the protocol tools the service needs on this computer. Shows: `daemon drivers`. Changes: `daemon repair-drivers --yes`.
 - **relogin** — the service does not accept this account yet in a normal shell: start a new sign-in or SSH session. Shows: `daemon install --json` (`"relogin": true`).
 - **RPC** (`rpc-ws`) — the Solana connection the service uses. Shows: `daemon settings --json`. Changes: `daemon set --rpc <https url> --yes`. `rpc-ws` = the failure code (exit 6) when the RPC's websocket address (set with `daemon set --rpc-ws <wss url> --yes`) does not answer; nothing changed, retry in a minute.
-- **kill switch** (`persist`, `on`, `off`, `blocked`, `blockedBefore`, `kill-switch`) — blocks the internet whenever the tunnel is not up. `persist` and `on` are the same setting in these apps. `blocked` = no session and the internet is blocked. Shows: `daemon settings --json`, `quality ip`, `agent status --json` (`blocked`). Changes: `daemon set --kill-switch on|off --yes`, `daemon restore-network`. `kill-switch` = the failure code (exit 5) when the kill switch refuses a step; run the `action`.
+- **kill switch** (`persist`, `on`, `off`, `blocked`, `blockedBefore`, `kill-switch`, `kill-switch-remote`, `allow-remote-lockout`, `killSwitchRemoteRisk`, `killSwitchRemoteNote`) — blocks the internet whenever the tunnel is not up. On a remote server keep it off: after a lost connection it blocks every new connection, SSH included, until `daemon restore-network` runs locally or from the provider's console. From an SSH or Remote Desktop session turning it on is refused (`kill-switch-remote`) without `--allow-remote-lockout` (also under sudo, sudo -i or su -, in the current v0.3.0-rc9 files); with it on there, `agent status` adds `killSwitchRemoteRisk: true` and the risk as `killSwitchRemoteNote`. `persist` and `on` are the same setting in these apps. `blocked` = no session and the internet is blocked. Shows: `daemon settings --json`, `quality ip`, `agent status --json` (`blocked`). Changes: `daemon set --kill-switch on|off --yes`, `daemon restore-network`. `kill-switch` = the failure code (exit 5) when the kill switch refuses a step; run the `action`.
 - **split tunnelling** — sends some addresses or apps around the tunnel. Shows: `split status`. Changes: `daemon set --split-mode exclude --split-routes <list> --yes`.
 - **whole device** (`wholeDevice`) — the whole computer goes through the node, not only apps that use the proxy. Shows: `agent status --json` (`wholeDevice`), `daemon settings --json`. Changes: `daemon set --whole-device false --yes`.
 
@@ -2320,7 +2337,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 - **reused** — `agent up` kept the live session because it already matches what you asked; nothing was paid. Shows: `agent up --json` (`reused`).
 - **switchFrom** — the node a switch would leave. Shows: `agent up` without `--yes` (`switchFrom`).
 - **note** — one sentence on what the live session means (whole computer through the node, or only the proxy) and the command to stop it. Shows: `agent up --json` (`note`).
-- **server stopped** (`server-stopped`, `serverStopped` (since rc.6 `nodeStopped`), `alsoNext`, `message`) — the node stopped serving: your traffic is not going through it, the deposit is safe. `agent status` answers `connected: false` with this code; `serverStopped` names the node, the session and the reason. Changes: `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit, refunds the unused part). Shows: `agent status --json`. `message` = the sentence that comes with this code: what happened, and that your deposit is safe.
+- **server stopped** (`server-stopped`, `serverStopped` (since rc5 `nodeStopped`), `alsoNext`, `message`) — the node stopped serving: your traffic is not going through it, the deposit is safe. `agent status` answers `connected: false` with this code; `nodeStopped` names the node, the session and the reason. Changes: `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit, refunds the unused part). Shows: `agent status --json`. `message` = the sentence that comes with this code: what happened, and that your deposit is safe.
 - **node refused** (`node-refused`) — a node refused after you paid it. The deposit is open: `agent down --yes` closes it; `agent up` is not offered, because it would open a second deposit. Shows: a failed `agent up --json`.
 - **replaced** (`replacedNote`) — the live session was not tunnelled (its exit address is this computer's own), so `agent up` did not reuse it and switched to another node; `replaced` names the old node. Shows: `agent up --json`.
 - **notClosed / warning** — in `agent down --json`: deposits that another device of this wallet opened (a replaced computer) and that this computer cannot close. `notClosed` = `[{channel, device}]`, `warning` = the sentence that says so. Changes: `device revoke --device <device> --yes`, then `settle run --device <device> --yes`.
@@ -2344,7 +2361,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 - **stillClosing** — in `settle run --json`: deposits whose close has started but are not ready yet. Shows: `settle run --json`.
 - **thirdPartyChecks** — the Settings switch for the exit-IP checks that ask an outside service; the checks-off action turns it back on. Changes: `settings set thirdPartyChecks=true`.
 - **E-nn / S-n / R-n** (`E-88`, `S7`, `R2`) — ids of a finding (E), a score row (S) or a test round (R) in the testing record; a page cites them so a change can be traced. They are not codes and appear in no answer.
-- **defaults** (`priceCap`, `priceCapBase`, `spendingLimit`, `spendingLimitRecommended`, `defaults.priceCap`, `defaults.spendingLimitRecommended`, `defaults.source`, `source`, `fixed`, `market`, `reason`, `p50`, `p75`, `outliers`, `nodes`) — in `agent up --json` (v0.3.0-rc7): what the price cap and the spending limit are and where they came from: `source` `market` (sized from the matching online nodes, `market.p50` / `p75` per unit) or `fixed` (too few priced nodes; `reason` says why). Shows: `agent up --json`. Changes: `--max-price`, `devnet-dvpn settings set allowanceTdvpn=<n>`.
+- **defaults** (`priceCap`, `priceCapBase`, `spendingLimit`, `spendingLimitRecommended`, `spendingLimitSource`, `settings`, `configuredDefault`, `defaults.priceCap`, `defaults.spendingLimitRecommended`, `defaults.source`, `source`, `fixed`, `market`, `reason`, `p50`, `p75`, `outliers`, `nodes`) — in `agent up --json` (v0.3.0-rc7): what the price cap and the spending limit are and where they came from: `source` `market` (sized from the matching online nodes, `market.p50` / `p75` per unit) or `fixed` (too few priced nodes; `reason` says why). Shows: `agent up --json`. Changes: `--max-price`, `devnet-dvpn settings set allowanceTdvpn=<n>`.
 - **nextAfter** — in `settle run --json` (v0.3.0-rc7): Unix seconds when the last closing deposit is ready for the next `settle run --yes`. Shows: `settle run --json`.
 - **docUrl** — on every failure line that has a `code` (v0.3.0-rc7; not on success answers): a link to the code's row in `docs/CODES.md` (`…/docs/CODES.md#code-<code>`). Shows: any `--json` failure.
 - **needsConfirm** (`what`) — exit `2`: nothing was signed; `what` is the sentence of what it would do. Changes: run it again with `--yes`.
@@ -2353,7 +2370,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 - **`--json`** — the flag that makes a command print one line of JSON.
 - **ready** — in `wallet show --json`: `true` when this wallet is set up to connect. Shows: `wallet show --json`.
 - **version, tag, file, path** — the installer's answer: the app version it installed, the release tag, the file it used and the program's path. Shows: the last line of `install.sh` or `install.ps1`.
-- **DVPN_VERSION** — the release tag the installer takes, e.g. `v0.3.0-rc8`; without it the installer takes the newest. Changes: `DVPN_VERSION=v0.3.0-rc8 sh` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0-rc8'`).
+- **DVPN_VERSION** — the release tag the installer takes, e.g. `v0.3.0-rc9`; without it the installer takes the newest. Changes: `DVPN_VERSION=v0.3.0-rc9 sh` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0-rc9'`).
 - **SHA256SUMS** — the list of checksums in a release; the installer compares the file to it. Shows: the release page.
 
 ## Since v0.3.0-rc5 (v0.3.0-rc4 does not have these)
@@ -2364,9 +2381,14 @@ Terms added after v0.3.0-rc4; the current release carries all of them.
 - **low-sol-after** (`--allow-empty`) — rc.8: `wallet send --sol` refuses a send that would leave under 0.01 SOL, too little for the next fees (exit 5, nothing sent or signed). Send less, or add `--allow-empty` to empty the wallet on purpose. Row: [`docs/CODES.md`](docs/CODES.md#code-low-sol-after). Shows: a failed `wallet send`.
 - **bad-recipient** — rc.8: `wallet send --to` names a program or the tDVPN mint, not a wallet; refused first, exit 5, nothing sent or signed. Row: [`docs/CODES.md`](docs/CODES.md#code-bad-recipient). Shows: a failed `wallet send`.
 - **insufficient-funds** — rc.8: `wallet send` asks for more tDVPN or SOL (plus the fee) than the wallet holds; exit 4, nothing sent. Row: [`docs/CODES.md`](docs/CODES.md#code-insufficient-funds). Shows: a failed `wallet send`.
-- **allowance-above-balance** — rc.8: `device setup` / `device plan` with a spending limit above the wallet's tDVPN (a plain `device setup` asks for the Settings 150); exit 4, nothing signed. `next` is the line with `--allowance <your balance>`; `--force` sets it anyway. Row: [`docs/CODES.md`](docs/CODES.md#code-allowance-above-balance). Shows: a failed `device setup`.
+- **allowance-above-balance** — rc.8: `device setup` / `device plan` with a spending limit above the wallet's tDVPN (rc.8: a plain `device setup` asks for the Settings 150 and is refused; rc.9: a plain `device setup` takes the wallet's balance, with a `warning`, so only an explicit `--allowance N` is refused); exit 4, nothing signed. `next` is the line with `--allowance <your balance>`; `--force` sets it anyway. Row: [`docs/CODES.md`](docs/CODES.md#code-allowance-above-balance). Shows: a failed `device setup`.
+- **needs-admin** — rc.9, Windows: `daemon install` from a standard (non-administrator) account; checked first, nothing paid, exit 4. `next` is the `Start-Process … -Verb RunAs` line. Row: [`docs/CODES.md`](docs/CODES.md#code-needs-admin). Shows: a failed `daemon install`.
+- **keyfile-unreadable** — rc.9: the key file exists but this user cannot read it (`EACCES` / `EPERM`); nothing sent or signed, exit 4. Row: [`docs/CODES.md`](docs/CODES.md#code-keyfile-unreadable). Shows: any command that loads the key.
+- **keyfile-lock-failed** — rc.9, Windows: `wallet create --keyfile` could not limit the new file's ACL to this account; nothing written. Row: [`docs/CODES.md`](docs/CODES.md#code-keyfile-lock-failed). Shows: a failed `wallet create`.
+- **killSwitchHolding** — rc.9, in `agent status`: `false` when the kill switch is `on` but no longer blocks (the service ended the session itself); then `agent up --yes` or `agent down --yes`. Shows: `agent status --json`.
+- **setting-rejected** — rc.9: `settings set` with a name or value the app does not take; nothing changed, exit 1. `settings get --json` lists the names and values. Row: [`docs/CODES.md`](docs/CODES.md#code-setting-rejected). Shows: a failed `settings set`.
 - **held** — in `agent status --json`: the tDVPN held for your wallet inside the program (the same number as `userBalance`), which `settle withdraw` moves to the wallet. Shows: `agent status --json` (`held`). Changes: `settle withdraw --yes`.
-- **nodeStopped** — since rc.6 the name of `serverStopped` (see **server stopped**). Shows: `agent status --json`.
+- **nodeStopped** — since rc5 the name of `serverStopped` (see **server stopped**). Shows: `agent status --json`.
 
 ## Path B (Sentinel's own tools, or your own code)
 
@@ -2423,9 +2445,9 @@ Every run prints exactly one JSON line on stdout. A warning (another VPN is on) 
 | 1 | `{"ok":false,"error":"…","code":"…"\|null,"action":"…"\|null,"next":"…"\|null,"docUrl":"…","money":"…"}` | Failed. `action` is the command that fixes it, or null; `next` is the same runnable line; `docUrl` links the code's row in `docs/CODES.md`. `money` says whether money moved (see "Did money move?" below). |
 | 2 | `{"needsConfirm":true,"what":"…", …}` | Would spend: nothing was signed. Re-run with `--yes`. |
 | 3 | `{"ok":false, …}` with code `usage` and `--json` (rc.8); else one line on stderr | Wrong usage: bad flag value, unknown flag, unknown command or subcommand. Nothing ran, nothing was sent or signed. |
-| 4 | `{"ok":false, …}` as for 1 | Needs you or your operator: `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `keyfile-mode`, `clock-skew` (rc.8). Nothing was paid; do `action` (fund, raise the limit, load the wallet). |
-| 5 | `{"ok":false, …}` as for 1 | Refused for safety: `kill-switch`, `kill-switch-held`, `kill-switch-failed`. Read `action` (often `<cli> daemon restore-network`). |
-| 6 | `{"ok":false, …}` as for 1 | Network or RPC (`rpc-busy`, `rpc-unavailable`, `rpc-ws`). Their money class is `unclear` (the table below): run `<cli> agent status` before retrying, then retry in a minute or set your own RPC endpoint. A network code after which a deposit may be open (`rpc-timeout`, `rpc-network`, `rpc-quota`, `timeout`) exits 1: read `money`. Exit 5 (`kill-switch-failed`) can also follow a paid deposit: read `money`. |
+| 4 | `{"ok":false, …}` as for 1 | Needs you or your operator: `not-funded`, `spending-limit`, `price-cap`, `no-wallet`, `keyfile-missing`, `keyfile-mode`, `clock-skew` (rc.8), `keyfile-unreadable` (rc.9: the key file cannot be read by this user), `needs-admin` (rc.9: `daemon install` from a standard Windows account; `action` is the elevated command). Nothing was paid; do `action` (fund, raise the limit, load the wallet). |
+| 5 | `{"ok":false, …}` as for 1 | Refused for safety: `kill-switch`, `kill-switch-held`, `kill-switch-failed`, `kill-switch-remote` (rc9-e: `daemon set --kill-switch on` or `--kill-switch persist` from an SSH or Remote Desktop session; rc9-f2: also under sudo, sudo -i or su started from an SSH login, which is refused the same way; `--allow-remote-lockout` overrides). Read `action` (often `<cli> daemon restore-network`). |
+| 6 | `{"ok":false, …}` as for 1 | Network or RPC (`rpc-busy`, `rpc-unavailable`, `rpc-ws`; rc.8: `waiting-for-network`, whose money class is none: the service could not reach its RPC before any deposit, next = the `daemon set --rpc` line). Their money class is unclear (the table below), so on a command that can pay (agent, connect, switch or test) they exit 1, not 6 (rc.9 final audit); elsewhere exit 6. Run `<cli> agent status` before retrying, then retry in a minute or set your own RPC endpoint. A network code after which a deposit may be open (`rpc-timeout`, `rpc-network`, `rpc-quota`, `timeout`) exits 1: read `money`. Exit 5 (`kill-switch-failed`) can also follow a paid deposit: read `money`. |
 
 Exit codes 4–6 are from release 0.3.0-rc.6; older releases exit 1 for these.
 
@@ -2433,7 +2455,7 @@ Amounts are decimal strings in tDVPN or SOL (e.g. `"0.002"`). Each one has a sib
 
 **Default price cap (S7):** without `--max-price` (and without `--plan`), `agent up` never pays a deposit above the default cap: it answers `price-cap`, nothing paid. From rc7 the cap is the larger of the Settings spending limit / 10 and the market p75 price of the matching online nodes × `--units`, never above the spending limit (fewer than 3 priced nodes: limit / 10); a new install's limit is 150 tDVPN; `defaults.priceCap` shows it. rc.6: always limit / 10 (5 tDVPN with the default 50). `--max-price N` is your own cap and replaces it.
 
-**Spending limit (S7, rc.6):** `agent up --yes` never raises this computer's spending limit on its own. When the deposit is above it, the answer is `code: "spending-limit"` (exit 4, nothing paid), and `action` is the same line with `--raise-limit --yes`. Run that line to raise it (the answer then carries `limitRaised` / `limitNote`), or set your own limit with `<cli> device setup --allowance <N> --yes`.
+**Spending limit (S7, rc.6):** `agent up --yes` never raises this computer's spending limit on its own. When the deposit is above it, the answer is `code: "spending-limit"` (exit 4, nothing paid), and (rc.9) `action` is `<cli> device setup --allowance <this deposit> --yes`, then the same `agent up` line: the least privilege, the limit becomes this deposit and no more. `alsoNext` is the same `agent up` line with `--raise-limit --yes`, which raises the limit and connects in one step (the answer then carries `limitRaised` / `limitNote`).
 
 **No catch-all (S5, rc.6):** a connect failure with no known cause never says "Something went wrong". It says whether a deposit was paid (`node-refused`, deposit safe and refunded after the wait) or not (`unknown`, "Nothing was paid", look at `<cli> logs --lines 80`).
 
@@ -2522,7 +2544,7 @@ block stays up between the two. The live node is never picked for the switch.
 | `reused` | `true` | Only when an existing session was kept. |
 | `blockedBefore` | `true` | Only when the internet was blocked before this connect (no session, kill switch holding the block); the new session lifts it while it is up. A block connect cannot lift is refused with code `kill-switch-held`. |
 | `limitRaised` / `limitNote` | object / string | Only when this connect raised the computer's spending limit, because the deposit was above it (E-73): `limitRaised` = `{ from, to, fromBase, toBase }` in tDVPN and base units, and `limitNote` = `This computer's spending limit was <from> tDVPN, below this deposit, so it was raised to <to> tDVPN (the Settings limit). To lower it: <cli> device setup --allowance <N> --yes`. Without `--yes`, the preview sentence says so first: `This computer's spending limit (<x> tDVPN) is below this deposit. It is raised only with --raise-limit: then --yes raises it to <y> tDVPN.` From rc.6 the raise needs `--raise-limit` (see "Spending limit" above). |
-| `defaults` | object | rc7: how the cap was chosen: `priceCap`, `priceCapBase`, `spendingLimit`, `spendingLimitRecommended`, `units`, `source` (`market` \| `fixed`), `reason`, `market` (`p50`, `p75`, `nodes`, `outliers`). Also on the preview. See `docs/JSON-FIELDS.md`. |
+| `defaults` | object | rc7: how the cap was chosen: `priceCap`, `priceCapBase`, `spendingLimit` (rc.9: this computer's live limit, `grant.allowance`, when read; else the Settings amount), `spendingLimitSource` (`grant` \| `settings`), `configuredDefault` (the Settings amount), `spendingLimitRecommended`, `units`, `source` (`market` \| `fixed`), `reason`, `market` (`p50`, `p75`, `nodes`, `outliers`). Also on the preview. See `docs/JSON-FIELDS.md`. |
 | `payer` / `payerIsLoaded` / `payerNote` | string \| null / boolean \| null / string \| null | The wallet that paid the deposit, read from the deposit account (E-27; null = not read, nothing is guessed); whether it is the loaded wallet; `Paid from <a…z>.` or `Paid by <a…z>, not the loaded wallet <a…z>.` |
 | `next` | string | Always `<cli> agent down --yes` (one plain command a runner can run; E-38). |
 | `note` | string | What the session means. Whole device: `the whole computer goes through the node; when done: <cli> agent down --yes`, with ` (<socks> works too)` after "node" when there is a `socks`. Only `socks`: `send traffic through <socks> (e.g. curl --proxy <socks> https://api.ipify.org); only apps that use it go through the node; when done: <cli> agent down --yes`. |
@@ -2580,11 +2602,20 @@ starts its 2-hour close. Exit 0:
 | `no-nodes` | up | rc.8: the same `agent up` line at the cheapest `--max-price` a node that answers asks for, or without the `--country` / `--protocol` that no answering node matches; with `--node`, why that node is not picked and the line that can pick it; else `<cli> nodes list --online --json, then widen --protocol / --country / --max-price` | Never the value that failed again (check `--basis`). No transaction ran. |
 | `not-funded` | up | `send at least <n> SOL and/or <n> tDVPN to <address> (<m> recommended: it also covers a reconnect), then <cli> agent up --yes` | The exact shortfall, plus the recommended amount (rc7). Ask the owner to fund the address. Nothing was paid. |
 | `price-cap` | up (rc.6) | `<cli> agent up --node <node> --basis <basis> --units <n> --max-price <its price> --yes (you accept this price), or fewer --units, or another node` | No `--max-price` was given and the deposit is above the default cap (`defaults.priceCap`; the rule is under "Default price cap" above). Nothing was paid. Accept the price with `--max-price`, or ask for less. |
-| `spending-limit` | up (rc.6) | `<cli> agent up --node <node> [--protocol <p>] --basis <basis> --units <n> [--max-price <p>] --raise-limit --yes` (every flag you gave is kept, E-88) | The deposit is above this computer's spending limit and `--raise-limit` was not given (S7). Nothing was paid. Run `action` to raise the limit for this connect, or set your own with `<cli> device setup --allowance <N> --yes`. |
+| `spending-limit` | up (rc.6) | rc.9: `<cli> device setup --allowance <this deposit> --yes, then <cli> agent up --node <node> [--protocol <p>] --basis <basis> --units <n> [--max-price <p>] --yes` (least privilege; every flag you gave is kept, E-88); `alsoNext` = the same line with `--raise-limit --yes` (raises it to the Settings limit) | The deposit is above this computer's spending limit and `--raise-limit` was not given (S7). Nothing was paid. Run `action` to raise the limit for this connect, or set your own with `<cli> device setup --allowance <N> --yes`. |
 | `connect-failed` | up | `<cli> agent status` | The connect failed with no code: read `error`. It is not known whether a deposit was opened: `<cli> agent status` lists it. |
 | `settle-failed` | down | `<cli> settle list` | The disconnect is done; the deposits are listed there. No new money was spent; the unused part of a deposit is still held: `<cli> settle run --yes` returns it. |
 | `busy` | down | `<cli> settle run --yes` | The disconnect is done, but another refund run in the same process held the lock, so nothing was closed: run it (a per-hour deposit bills until closed). Nothing was paid. |
 | disconnect's code (e.g. `daemon-unavailable`, `service-down`, `rpc-unavailable`), else `stop-failed` | down | `<cli> daemon doctor, then <cli> agent down --yes again` | The disconnect failed, so no deposit was closed (the message starts `Could not disconnect, so no deposit was closed`, then the service's plain sentence; this line is never rewritten by the rule below). A live session's deposit cannot be closed while the session is up, so a per-hour one keeps billing: fix the service, then run `agent down --yes` again. A deposit may be open: `<cli> agent down --yes` closes it. |
+
+### Raised by other commands (`connect --follow`, `daemon set`)
+
+| Code | From | `action` | What the agent does |
+|---|---|---|---|
+| `disconnect-failed` | `connect --follow` (Ctrl+C) | `<cli> agent status --json` | Ctrl+C asked the session to close and the disconnect failed, so the session may still be live. Read `agent status`; `<cli> agent down --yes` ends it and closes the deposit. |
+| `apply-busy` | `daemon set` | `<cli> agent status --json` | Another settings change was still being applied, so nothing was changed. When it has finished, run the same `daemon set` again. |
+| `apply-while-connecting` | `daemon set` | `<cli> agent status --json` | A connection was starting or stopping, so nothing was changed. When `agent status` shows it has settled, run the same `daemon set` again. |
+| `apply-failed` | `daemon set` | `<cli> agent status --json` | Applying the settings or restarting the service failed: read `error`. A live session may have ended with the restart; `agent status` says whether one is running. |
 
 ### From connect() (agent up), `action` = `nextFor(code)`
 
@@ -2607,7 +2638,7 @@ starts its 2-hour close. Exit 0:
 | `keyfile-mode` | `chmod 600 <the key file named in "error">, then <cli> agent up --yes` Nothing was paid. |
 | `plan-limit` | `<cli> agent up --plan <subscription> --node <a node you already use> --yes` Nothing was paid. |
 | `network-mismatch` | `<cli> daemon install --yes (administrator once: it installs the service for this network), then <cli> agent up --yes` Nothing was paid. |
-| `session-active` | `<cli> agent down --yes, then <cli> agent up --yes` Nothing was paid. |
+| `session-active` | `<cli> agent status --json` (another run holds the session, often a second `agent up` started at once: look, never end it) Nothing was paid. |
 | `node-gone`, `node-stale`, `node-offline`, `node-identity`, `node-ledger`, `peer_limit_reached`, `terms_rejected`; `preflight` that asks for another node | `<cli> nodes list --online --json, then <cli> agent up --node <another node> --yes` A deposit may be open: `<cli> agent down --yes` closes it. |
 | `protocol-blocked`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `port-in-use` | `<cli> daemon drivers (it lists the protocols ready on this computer), then <cli> agent up --protocol <another ready one> --yes` A deposit may be open: `<cli> agent down --yes` closes it. |
 | `driver-missing` | `<cli> daemon repair-drivers --yes, then <cli> agent up --yes` Nothing was paid. |
@@ -2617,10 +2648,11 @@ starts its 2-hour close. Exit 0:
 | `unauthorized` | `<cli> device show --json: if the grant is there and not revoked, set this computer's clock to the right time (a wrong clock makes the node refuse), then <cli> agent up --yes; otherwise <cli> device setup --yes, then <cli> agent up --yes` (E-22: clock skew answered this after a deposit opened) A deposit may be open: `<cli> agent down --yes` closes it. |
 | `clock-skew` | rc.8: `sudo timedatectl set-ntp true && (sudo chronyc makestep 2>/dev/null \|\| true), then <cli> agent up --yes` (the chrony step is a no-op where chrony is not installed) (macOS `sudo sntp -sS time.apple.com`, Windows `w32tm /resync` from an elevated shell); exit 4. Refused before any deposit (nothing was paid), and no other node is the way out; the minutes are in `error` ("about N min ahead of / behind the network's time"); `daemon doctor` shows `clockSkewSec` |
 | `kill-switch-held` | `<cli> daemon restore-network, then <cli> agent up --yes` Nothing was paid. |
+| `kill-switch-remote` | `<cli> agent up --yes` (connect without it); alsoNext `<cli> daemon set --kill-switch on --allow-remote-lockout --yes` (only with console access). From `daemon set` in an SSH or Remote Desktop session: after a lost connection the kill switch blocks every new connection to this computer, SSH included, at every boot until `<cli> daemon restore-network` runs locally. Nothing was paid or changed. `agent status` in such a session with it on: `killSwitchRemoteRisk: true`, `killSwitchRemoteNote`, `restoreNetwork`. |
 | `switch-reconnecting` | `<cli> agent status until "connected" is true, or <cli> agent down --yes first` Nothing was paid. |
 | `switch-offline`, `timeout`, `ticket_request_stale`, `ticket_invalid`, `channel_node_reopened` | `<cli> agent up --yes again in a moment` A deposit may be open: `<cli> agent down --yes` closes it. |
 | `cancelled` | `<cli> agent up --yes again (it was stopped before it finished)` A deposit may be open: `<cli> agent down --yes` closes it. |
-| `waiting-for-network` | `<cli> agent up --yes again in a minute (this computer has no network yet)` A deposit may be open: `<cli> agent down --yes` closes it. |
+| `waiting-for-network` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` Nothing was paid: the service could not reach its RPC before any deposit (rc.8: exit 6). |
 | `service-stopped-connecting` | `<cli> quality ip; if it shows no address, <cli> daemon restore-network; then <cli> agent up --yes` A deposit may be open: `<cli> agent down --yes` closes it. |
 | `node-price`, `credit_exhausted`, `lease_insufficient`, `voucher_exceeds_escrow`, `voucher_signature_invalid` | `<cli> agent down --yes, then <cli> agent up --yes (a new deposit)` A deposit may be open: `<cli> agent down --yes` closes it. |
 | `node-error`, `rate_limited` | `<cli> agent up --yes again in a minute` A deposit may be open: `<cli> agent down --yes` closes it. |
@@ -2667,9 +2699,9 @@ Every failure line of `agent`, `connect`, `switch` and `test` carries `money`, o
 
 | Class | `money` | Codes |
 |---|---|---|
-| none | `Nothing was paid.` (`wallet`, `device`, `settle`: `Nothing was sent or signed.`) | `invalid-amount`, `invalid-address`, `usage` (rc.8: a value the command could not read; nothing was built or signed), `insufficient-funds`, `bad-recipient`, `low-sol-after`, `allowance-above-balance` (rc.8: wallet send and device plan/setup refuse before signing), `price-cap` (rc.6), `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `not-confirmed`, `no-wallet`, `keyfile-missing`, `keyfile-mode` (rc.7), `wallet-switch-needed`, `clock-skew`, `no-device`, `device-permission`, `plan-limit`, `busy`, `test-running`, `unsupported`, `daemon-missing`, `daemon-relogin`, `daemon-restarting`, `daemon-unavailable`, `network-mismatch`, `kill-switch-held`, `switch-reconnecting`, `price-changed`, `deposit-unusable`, `deposits-unread`, `no-nodes`, `not-funded`, `no-subscription`, `service-down`, `service-not-ready`, rc.7 R2: `device-home-gone`, `no-plan`, `driver-repair-failed`, `no-device-key`, `migrate-failed`, `device-not-ready`, `install-failed`, `daemon-settings-empty`, `daemon-settings-unreadable`, `dns-no-answer`, `uninstall-failed`, `checks-off`, `test-plan-failed`, `no-test-run`, `keystore-unavailable`, `keyfile-read-only` (wallet, device and settle failures read "Nothing was sent or signed.") |
-| open | `A deposit may be open: `<cli> agent down --yes` closes it.` | `cancelled`, `switch-offline`, `waiting-for-network`, `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `protocol-missing`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding`, `credit_exhausted`, `peer_limit_reached`, `lease_insufficient`, `subscription_invalid`, `ticket_request_stale`, `provider_unreachable`, `ticket_invalid`, `unauthorized`, `cannot cover the prepay`, `voucher_exceeds_escrow`, `channel_node_reopened`, `terms_rejected`, `rate_limited`, `voucher_signature_invalid`, `mode_not_voucher`, `mode_not_stream`, `stop-failed`, `dns-revert-failed`, `tunnel-left`, `node-refused`, `server-stopped` |
-| unclear | `It is not known whether a deposit was opened: `<cli> agent status` lists it.` | `unknown`, `connect-failed`, `rpc-busy`, `rpc-unavailable`, `rpc-ws` (rc.7) |
+| none | `Nothing was paid.` (`wallet`, `device`, `settle`: `Nothing was sent or signed.`) | `invalid-amount`, `invalid-address`, `usage` (rc.8: a value the command could not read; nothing was built or signed), `insufficient-funds`, `bad-recipient`, `low-sol-after`, `allowance-above-balance` (rc.8: wallet send and device plan/setup refuse before signing), `price-cap` (rc.6), `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `not-confirmed`, `no-wallet`, `keyfile-missing`, `keyfile-mode` (rc.7), `wallet-switch-needed`, `clock-skew`, `no-device`, `device-permission`, `plan-limit`, `busy`, `test-running`, `unsupported`, `daemon-missing`, `daemon-relogin`, `daemon-restarting`, `daemon-unavailable`, `network-mismatch`, `kill-switch-held`, `kill-switch-remote` (rc9-e: refused before any change), `switch-reconnecting`, `price-changed`, `deposit-unusable`, `deposits-unread`, `no-nodes`, `not-funded`, `no-subscription`, `service-down`, `service-not-ready`, rc.7 R2: `device-home-gone`, `no-plan`, `driver-repair-failed`, `no-device-key`, `migrate-failed`, `device-not-ready`, `install-failed`, `daemon-settings-empty`, `daemon-settings-unreadable`, `dns-no-answer`, `uninstall-failed`, `checks-off`, `test-plan-failed`, `no-test-run`, `keystore-unavailable`, `keyfile-read-only`, rc.8: `waiting-for-network`, rc.9: `keyfile-unreadable`, `needs-admin`, `device-key-unreadable`, `setting-rejected`, `keyfile-lock-failed` (rc.9 final audit; wallet, device and settle failures read "Nothing was sent or signed."), `tx-not-landed` (rc9-f2: a transaction the network never took before it expired) |
+| open | `A deposit may be open: `<cli> agent down --yes` closes it.` | `cancelled`, `switch-offline`, `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `protocol-missing`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding`, `credit_exhausted`, `peer_limit_reached`, `lease_insufficient`, `subscription_invalid`, `ticket_request_stale`, `provider_unreachable`, `ticket_invalid`, `unauthorized`, `cannot cover the prepay`, `voucher_exceeds_escrow`, `channel_node_reopened`, `terms_rejected`, `rate_limited`, `voucher_signature_invalid`, `mode_not_voucher`, `mode_not_stream`, `stop-failed`, `dns-revert-failed`, `tunnel-left`, `node-refused`, `server-stopped` |
+| unclear | `It is not known whether a deposit was opened: `<cli> agent status` lists it.` | `unknown`, `connect-failed`, `rpc-busy`, `rpc-unavailable`, `rpc-ws` (rc.7), `tx-unknown` (rc9-f2: a transaction whose send and confirmation could not be read: `wallet show --json` before trying again) |
 | refund | `No new money was spent; the unused part of a deposit is still held: `<cli> settle run --yes` returns it.` | `settle-failed`, `daemon-gone` (rc.6: the service stopped mid-refund) |
 
 A row above that lists several codes says the worst case; the `money` of the answer is exact. The text of `money` uses the command name `devnet-dvpn` (or `DVPN_CLI_NAME`).
@@ -2685,7 +2717,7 @@ come from the shared copy, not the table above:
 | `service-not-ready` | null: try again in a moment Nothing was paid. |
 | `approval-revoked` | `<cli> device setup --yes, then <cli> agent up --yes` A deposit may be open: `<cli> agent down --yes` closes it. |
 | `not-enough-tdvpn` | `send tDVPN to the wallet address (<cli> agent status shows it), then <cli> agent up --yes` (here the sentence is in `error` and `action` is null) Nothing was paid. |
-| `session-active` | `<cli> disconnect`, then `<cli> agent up --yes` (when the service itself reports the live session; the row above is the answer to a connect `agent up` started) Nothing was paid. |
+| `session-active` | `<cli> agent status --json` (when the service itself reports the live session; the row above is the answer to a connect `agent up` started). The session may be another run's: never end it on this answer. Only when `agent status` shows it is yours does `<cli> agent down --yes` end it. Nothing was paid. |
 | `rpc-unavailable`, `rpc-ws` | `<cli> daemon set --rpc <https url> --yes (the VPN service's Solana connection), then <cli> agent up --yes` (rc.7; was the RPC hint) It is not known whether a deposit was opened: `<cli> agent status` lists it. |
 
 ### Usage (exit 3) and confirm (exit 2)
@@ -2699,7 +2731,7 @@ an unknown flag, `unknown: agent <x> (up | down | status)`. `agent` with no subc
 
 # Troubleshooting: symptom → cause → command
 
-For `devnet-dvpn` v0.3.0-rc8, macOS Apple silicon included ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
+For `devnet-dvpn` v0.3.0-rc9, macOS Apple silicon included ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
 (meaning, whether money moved, next, the other way out) is in [`CODES.md`](CODES.md), linked from the Code column. Terms:
 [`GLOSSARY.md`](../GLOSSARY.md).
 
@@ -2719,11 +2751,11 @@ In order. `agent status --json` names the one you are in, and its `next` is the 
 | State | How you see it | Run |
 |---|---|---|
 | Not installed | `devnet-dvpn: command not found` | section 1 (the install line for your OS) |
-| No admin / root | the installer or `daemon install` refuses (on Windows rc.8 a standard user is told `no-wallet`, then `device-not-ready`, before any elevation refusal: do not run `device setup --yes` to get past it, it costs about 0.05 SOL and `daemon install` still needs an elevated shell) | ask a person for an elevated shell; section "Before you start" |
+| No admin / root | Windows: `needs-admin` (exit 4) from `daemon install`; Linux, macOS: `sudo -n true` fails | Windows: the `Start-Process … -Verb RunAs` line in `next`, or ask a person for an elevated shell; `AGENTS.md`, "Before you start" |
 | No wallet | `code` `no-wallet`, or status without `address` | `devnet-dvpn wallet create --keyfile <path> --yes`, or load the key file you had |
-| Key file missing / readable by others | `keyfile-missing` / `keyfile-mode` (exit 4; the mode is checked on Linux and macOS) | point `DVPN_KEYFILE` at the file / `chmod 600 <file>` |
+| Key file missing / unreadable / readable by others | `keyfile-missing` / `keyfile-unreadable` / `keyfile-mode` (exit 4) | point `DVPN_KEYFILE` at the file / the line in `next` / `chmod 600 <file>` (Windows: the `icacls` line in `next`) |
 | Not funded | `not-funded` (exit 4), or status `next` = `send at least …` | section 3: the operator sends the SOL (0.06 before setup) and tDVPN to `address` |
-| Device not set up | `no-device-key`, or status `next` names `device setup` | `devnet-dvpn device setup --yes` |
+| Device not set up | `no-device-key`, or status `next` names `device setup` | `devnet-dvpn daemon init --yes`, then `devnet-dvpn device setup --yes` (rc.9: its `next` names both) |
 | Service not installed / stopped | `daemon-missing`, `service: false` | `devnet-dvpn daemon install --yes` (root / admin) |
 | Clock wrong | `clock-skew` (exit 4) | the time-sync line in its `next`, then `agent up --yes` |
 | Deposit above the limit / the cap | `spending-limit` / `price-cap` (exit 4, nothing paid) | its `action` (your line pinned to the node), or your own `--max-price` |
@@ -2741,13 +2773,15 @@ In order. `agent status --json` names the one you are in, and its `next` is the 
 | `agent up` connected but `exitIp` is `null` | none | The address check did not finish within 8 s. The tunnel may be fine. | `devnet-dvpn quality ip --json`: `direct.ip` (whole-device protocols) or `viaSocks.ip` (V2Ray / Xray on Linux) must differ from your own address. |
 | `exitIp` (or `quality ip`) shows your **own** address while `connected` is true | [`server-stopped`](CODES.md#code-server-stopped) | The node stopped serving; for a few seconds `agent status` can still say `connected`. Then it answers `"code":"server-stopped"`. The deposit is safe. | `devnet-dvpn agent up --yes` (another node; the dead one is skipped 10 min), or `devnet-dvpn agent down --yes` (closes the deposit). With `"blocked": true` as well: `devnet-dvpn daemon restore-network` first (`next`), then one of those two (`alsoNext`). |
 | `quality ip` shows **no** address after `agent down`, or `agent status` says `"blocked": true` | none | The kill switch still holds the block (the session had dropped before you disconnected). | `devnet-dvpn daemon restore-network` (now), then `devnet-dvpn daemon set --kill-switch off --yes` (so it does not come back). Or `devnet-dvpn agent up --yes` to reconnect with protection. rc7: with no session, `next` is that `agent up --yes` and `alsoNext` is `daemon restore-network`. |
-| macOS (rc8), kill switch on, the VPN service was killed: `devnet-dvpn daemon restore-network` answers `daemon-unavailable` ("Restart the Mac") with no `next`, and there is no internet | [`daemon-unavailable`](CODES.md#code-daemon-unavailable) | `restore-network` cannot lift the block while the service is down (an rc8 bug, being fixed for rc9). | `sudo launchctl kickstart -k system/co.sentinel.sentinel-dvpnd.c0`, then `devnet-dvpn daemon restore-network`; if still blocked, `sudo pfctl -a sentinel-dvpn-c0 -F all` (this app's rules only; never without `-a`, never `pfctl -d`). |
-| Windows, kill switch on: no internet after the VPN service stopped | [`daemon-unavailable`](CODES.md#code-daemon-unavailable) | Windows keeps blocking traffic while the service is stopped. That is the kill switch working: nothing leaks. | In an administrator PowerShell: `Start-Service 'sentinel-dvpnd$c0'`, then `devnet-dvpn daemon restore-network` (or press Restore network in the app). If the service will not start, restart Windows: the service starts at boot, and Restore network then lifts the block. |
+| macOS, kill switch on, the VPN service was killed: `devnet-dvpn daemon restore-network` answers `daemon-unavailable` (rc8: with no `next`; rc9: `next` is the `kickstart` line below), and there is no internet | [`daemon-unavailable`](CODES.md#code-daemon-unavailable) | `restore-network` cannot lift the block while the service is down (an rc8 bug, being fixed for rc9). | `sudo launchctl kickstart -k system/co.sentinel.sentinel-dvpnd.c0`, then `devnet-dvpn daemon restore-network`; if still blocked, `sudo pfctl -a sentinel-dvpn-c0 -F all` (this app's rules only; never without `-a`, never `pfctl -d`). |
+| Windows, kill switch on: no internet after the VPN service stopped | [`daemon-unavailable`](CODES.md#code-daemon-unavailable) | Windows keeps blocking traffic while the service is stopped. That is the kill switch working: nothing leaks. | In an administrator PowerShell: `Start-Service 'sentinel-dvpnd$c0'`, then `devnet-dvpn daemon restore-network` (or press Restore network in the app). Since rc.9, `daemon restore-network` names exactly this line when the service does not answer (`daemon-unavailable`). If the service will not start, restart Windows: the service starts at boot, and Restore network then lifts the block. |
+| Kill switch `on`, but `agent status` says `"killSwitchHolding": false` (rc.9) | none | The service ended the session itself, so the block was released and traffic goes out directly (every OS; holding the block after that needs a fix in the upstream VPN service). | `devnet-dvpn agent up --yes` (protected again), or `devnet-dvpn agent down --yes`. |
+| Locked out of a remote server after turning the kill switch on: SSH times out, also after a reboot | none | If the VPN connection is lost, the kill switch blocks every new connection to this computer, SSH included. It keeps blocking after a reboot until `devnet-dvpn daemon restore-network` is run locally or from the provider's console. Nothing was paid. | From the provider's console (or locally): `devnet-dvpn daemon restore-network`, then `devnet-dvpn daemon set --kill-switch off --yes`. Next time keep it off on a remote server: from an SSH or Remote Desktop session, turning it on is refused ([`kill-switch-remote`](CODES.md#code-kill-switch-remote)). In the current v0.3.0-rc9 files (the hashes in `docs/PROVENANCE.md`) the check also reads the login session and the parent processes, so it is refused under sudo and in a root shell opened with sudo -i or su - too. Earlier downloads of v0.3.0-rc9 did not check this: there, keep the kill switch off yourself. |
 | `agent status` says `"reconnecting": true` (rc7) | none | The live session dropped and is reconnecting; the kill switch blocks the internet meanwhile (`connected` false, `blocked` true). The deposit stays open. | Wait a minute and run `agent status --json` again, or run `next` (`devnet-dvpn daemon restore-network`) to go direct now; `alsoNext` names reconnect / close. |
 | `agent status` `next` is `devnet-dvpn agent up` with no `--yes` (rc7) | none | The device has no spending permission left, or the wallet holds under 1 tDVPN (with `held`). | Run it as printed: the preview pays nothing and names what is missing (funding or a limit), then follow its `next`. |
 | `agent up` refused while the kill switch blocks | [`kill-switch-held`](CODES.md#code-kill-switch-held) | The block lets through only the last node, so this connect cannot lift it. Nothing was paid. | `devnet-dvpn daemon restore-network, then devnet-dvpn agent up --yes` |
 | SSH session lost after a connect or after turning the kill switch on | none | The kill switch blocks everything that is not the tunnel; over a LAN, `--allow-lan` was off. | From a second way in (cloud console, serial console, a person at the machine): `devnet-dvpn daemon restore-network`, then `devnet-dvpn daemon set --kill-switch off --yes`. Before next time: `devnet-dvpn daemon set --allow-lan true --yes` (LAN), and never the kill switch over internet SSH without another way in ([`agent-safety.md`](agent-safety.md)). |
-| `agent up` refused, exit `4`: the limit is below the deposit | [`spending-limit`](CODES.md#code-spending-limit) | This computer's spending limit is below this deposit, and `--raise-limit` was not given. Nothing was paid. | Run the `action`: your line pinned to the node it picked, with `--raise-limit --yes` (your `--protocol` and `--max-price` kept). Or set your own limit: `devnet-dvpn device setup --allowance N --yes` (N in tDVPN, above the deposit). Or a smaller deposit: fewer `--units`. |
+| `agent up` refused, exit `4`: the limit is below the deposit | [`spending-limit`](CODES.md#code-spending-limit) | This computer's spending limit is below this deposit, and `--raise-limit` was not given. Nothing was paid. | Run the `action`: it sets the limit to this deposit, then runs your line pinned to the node it picked (your `--protocol` and `--max-price` kept); `alsoNext` adds `--raise-limit --yes` instead (the Settings limit). Or set your own limit: `devnet-dvpn device setup --allowance N --yes` (N in tDVPN, above the deposit). Or a smaller deposit: fewer `--units`. |
 | `agent up` refused, exit `4`: the deposit is above the default cap | [`price-cap`](CODES.md#code-price-cap) | No `--max-price` was given and the deposit is above the default cap (`defaults.priceCap`: the larger of the spending limit / 10 and the market p75 price × units). Nothing was paid. | Run the `action` (it names the node's price with `--max-price`), or ask for less: fewer `--units`, or `--max-price 0.01` for a cheaper node. |
 | `agent up` answered `limitRaised` / `limitNote` and you did not want it | none | You ran it with `--raise-limit`, so it raised the limit for this deposit. A cap, not a charge. | Lower it: the command in `limitNote` (`devnet-dvpn device setup --allowance <N> --yes`). |
 | `agent up` refused: not enough SOL or tDVPN for the step | [`not-funded`](CODES.md#code-not-funded) | Less SOL than the step needs (about 0.06 before this computer is set up, fees only after) or less tDVPN than the deposit; `error` names the exact shortfall and a recommended amount that also covers a reconnect. Nothing was paid. | Fund the address in `action`, then `devnet-dvpn agent up --yes`. Or `devnet-dvpn agent up --units <fewer> --yes`. |
@@ -2758,23 +2792,26 @@ In order. `agent status --json` names the one you are in, and its `next` is the 
 | `agent down` answers `notClosed` / `warning` | none | The deposit was opened by another device of this wallet (a replaced computer); this computer cannot close it. | `devnet-dvpn device revoke --device <device> --yes` (if not revoked yet), then `devnet-dvpn settle run --device <device> --yes` |
 | `agent down`: the disconnect is done but the refund run did not finish | [`busy`](CODES.md#code-busy), [`settle-failed`](CODES.md#code-settle-failed), [`daemon-gone`](CODES.md#code-daemon-gone) | The refund run did not finish. Nothing was lost. | `devnet-dvpn settle list`, then `devnet-dvpn settle run --yes` |
 | `settle withdraw` failed | [`withdraw-failed`](CODES.md#code-withdraw-failed) | The withdraw transaction failed; the balance (`held`) is still there. | `devnet-dvpn settle withdraw --yes` again. "Nothing to withdraw" (exit 0) is not a failure. |
-| `agent status` says `"service": false` on a computer where the service **was installed** (it was stopped, e.g. `systemctl stop`, or did not start after a reboot) | none in status; then [`daemon-unavailable`](CODES.md#code-daemon-unavailable) / [`service-down`](CODES.md#code-service-down) | The service unit (Linux: `sentinel-dvpnd@c0.socket` + `sentinel-dvpnd@c0`) is installed but not running. The wallet, the device and the deposits are fine; this is not a reinstall. | rc7: `devnet-dvpn daemon install --yes` (its `next` says so; on an installed service it starts it again, the wallet and device stay). rc.8 on Linux: `next` names the start itself (W47), and `daemon doctor` has a service row that says whether the unit is active. Linux by hand: `sudo systemctl start sentinel-dvpnd@c0.socket sentinel-dvpnd@c0`. Then `devnet-dvpn daemon doctor --json`. macOS (rc8, proven): `next` is `sudo launchctl bootstrap system /Library/LaunchDaemons/co.sentinel.sentinel-dvpnd.c0.plist`; run it, then `devnet-dvpn agent up --yes`. |
+| `agent status` says `"service": false` on a computer where the service **was installed** (it was stopped, e.g. `systemctl stop`, or did not start after a reboot) | none in status; then [`daemon-unavailable`](CODES.md#code-daemon-unavailable) / [`service-down`](CODES.md#code-service-down) | The service unit (Linux: `sentinel-dvpnd@c0.socket` + `sentinel-dvpnd@c0`) is installed but not running. The wallet, the device and the deposits are fine; this is not a reinstall. Not this row when a command answers [`wallet-switch-needed`](CODES.md#code-wallet-switch-needed): see "set up for another wallet" below. | rc7: `devnet-dvpn daemon install --yes` (its `next` says so; on an installed service it starts it again, the wallet and device stay). rc.8 on Linux: `next` names the start itself (W47), and `daemon doctor` has a service row that says whether the unit is active. Linux by hand: `sudo systemctl start sentinel-dvpnd@c0.socket sentinel-dvpnd@c0`. Then `devnet-dvpn daemon doctor --json`. macOS (rc8, proven): `next` is `sudo launchctl bootstrap system /Library/LaunchDaemons/co.sentinel.sentinel-dvpnd.c0.plist`; run it, then `devnet-dvpn agent up --yes`. |
 | The VPN service is not running or not answering | [`daemon-unavailable`](CODES.md#code-daemon-unavailable), [`service-down`](CODES.md#code-service-down) | The VPN service is not running or not answering. | `devnet-dvpn daemon doctor --json` (no check may say `"level": "fail"`); if it is not installed: `devnet-dvpn daemon install --yes` (administrator / root). |
 | The service is starting or stopping | [`service-not-ready`](CODES.md#code-service-not-ready) | The service is starting or stopping. | The same command again in a moment. |
 | The VPN service is not installed | [`daemon-missing`](CODES.md#code-daemon-missing) | Nothing was paid. | Linux / macOS: `devnet-dvpn daemon install --yes` as root or with passwordless `sudo`. Windows: see the next row. |
 | Windows: a UAC prompt appears and nothing happens | [`daemon-relogin`](CODES.md#code-daemon-relogin) | The shell is not elevated (an agent cannot answer UAC), or the service pipe does not accept this account yet. | Run `devnet-dvpn daemon install --yes` once from an **elevated** PowerShell or an administrator SSH login. After `"relogin": true`, a non-elevated shell needs a new sign-in or SSH session. |
+| Windows: choosing where to install (the installer's `/D` option) | none | A folder that other users can write to lets them change the app's files while it installs, before the folder is locked. Nothing was paid. | Install Windows into Program Files (the default); with /D use only an admin-owned or new folder. |
 | macOS over SSH: "The login Keychain is locked in this session" | none | Without a key file the wallet is kept in the login Keychain, which stays locked in an SSH session. | Use a key file: `export DVPN_KEYFILE="$PWD/agent-key.json"` (or `--keyfile <path>`); a key-file wallet never touches the Keychain. Or unlock it: `security unlock-keychain` (needs the password). |
 | The key file is gone, exit `4` | [`keyfile-missing`](CODES.md#code-keyfile-missing) | The file `DVPN_KEYFILE` / `--keyfile` names is gone. The funds stay with that key. | Restore the file from your backup and run the command again. Never `wallet create`: a new wallet holds none of the funds. |
 | "No wallet" but you had one | [`no-wallet`](CODES.md#code-no-wallet) | `DVPN_KEYFILE` is not set in this shell (it lives only in the shell that set it). | `export DVPN_KEYFILE=<full path>` (PowerShell: `$env:DVPN_KEYFILE = '<full path>'`), or `devnet-dvpn wallet import <file>`. Never `wallet create`. |
-| This computer is set up for another wallet | [`wallet-switch-needed`](CODES.md#code-wallet-switch-needed) | Nothing was paid. | Load that wallet's key file, or `devnet-dvpn device switch --yes`. |
-| The clock is off | [`clock-skew`](CODES.md#code-clock-skew) | This computer's clock is off (the error says by how much). Nothing was paid. | Run the time-sync line in `next` (Windows: `w32tm /resync` in an elevated shell), then `devnet-dvpn agent up --yes`. macOS: if `sntp` says `Exchange failed: Timeout`, this network blocks time sync (NTP, UDP 123): set the date and time by hand (System Settings > General > Date & Time, automatic off), then `devnet-dvpn daemon doctor --json` again. |
+| This computer is set up for another wallet (`agent status` and `daemon install` answer `wallet-switch-needed`; `daemon doctor` names it) | [`wallet-switch-needed`](CODES.md#code-wallet-switch-needed) | The service here belongs to the other wallet. Restarting it, `daemon install` and `daemon doctor` do not help. Nothing was paid. | `devnet-dvpn device switch --yes` (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable with its own key), then `devnet-dvpn agent up --yes`. Or load that wallet's key file. |
+| After `device switch --yes`, `agent status` says `next` = `devnet-dvpn agent down --yes` | none | Deposits from earlier sessions are still open. Closing them is not needed to connect. | `devnet-dvpn agent up --yes` connects. Close the earlier deposits with `devnet-dvpn agent down --yes` when you are done. A later release changes this `next`. |
+| The clock is off | [`clock-skew`](CODES.md#code-clock-skew) | This computer's clock is off (the error says by how much). Nothing was paid. | Run the time-sync line in `next` (Windows: `Start-Service w32time; w32tm /resync /force` in an elevated PowerShell), then `devnet-dvpn agent up --yes`. macOS: if `sntp` says `Exchange failed: Timeout`, this network blocks time sync (NTP, UDP 123): set the date and time by hand (System Settings > General > Date & Time, automatic off), then `devnet-dvpn daemon doctor --json` again. |
 | The node refused after the deposit opened | [`node-refused`](CODES.md#code-node-refused) | It is skipped next time. | `devnet-dvpn agent down --yes` (closes that deposit), not `agent up`. |
 | `agent up` failed with no known cause (rc6, rc7) | [`unknown`](CODES.md#code-unknown) | The connect failed with no known cause. It is not known whether a deposit was opened (money `unclear`). | `devnet-dvpn agent status --json` first (it lists any deposit), then `devnet-dvpn logs --lines 80`, then `devnet-dvpn agent up --yes` once more. |
 | The connect failed with no code | [`connect-failed`](CODES.md#code-connect-failed) | It is not known whether a deposit was opened. | `devnet-dvpn agent status --json`: a deposit in `deposits` with no session → `devnet-dvpn agent down --yes`; none → read `error`, then `agent up --yes` once more. |
 | No online node matches | [`no-nodes`](CODES.md#code-no-nodes) | No online node matches the filters. No transaction ran. | `devnet-dvpn nodes list --online --json`, then widen `--protocol` / `--country` / `--max-price` (and check `--basis`). Under `--max-price`, `error` names the cheapest matching price and `action` is a runnable line with it: run it if you accept that price. |
 | The device key could not be made | [`no-device`](CODES.md#code-no-device) | Nothing was paid. | `devnet-dvpn daemon doctor --json`; fix the check that says `"level": "fail"`. |
 | `--plan` given, but no subscription | [`no-subscription`](CODES.md#code-no-subscription) | The wallet has no subscription to that plan. Nothing was paid. | `devnet-dvpn plans list`, then `devnet-dvpn plans subscribe <plan> --yes`, or drop `--plan`. |
-| The key file is readable by other users, exit `4` | [`keyfile-mode`](CODES.md#code-keyfile-mode) | The key file can be read by other users of this computer. Nothing was paid. | `chmod 600 <the key file named in error>`, then `devnet-dvpn agent up --yes` (Linux, macOS; on Windows rc.8 does not check the file's ACL). |
+| The key file is readable by other users, exit `4` | [`keyfile-mode`](CODES.md#code-keyfile-mode) | The key file can be read by other users of this computer (on Windows: its ACL). Nothing was paid. | `chmod 600 <the key file named in error>` (Windows: the `icacls` line in `next`), then `devnet-dvpn agent up --yes`. |
+| The key file cannot be read by this user, exit `4` | [`keyfile-unreadable`](CODES.md#code-keyfile-unreadable) | The file is there, but this account has no read access (`EACCES` / `EPERM`). Nothing was sent or signed. | Run the line in `next` (Linux, macOS: `sudo chown`, then `chmod 600`; Windows: `icacls … /grant`), then `devnet-dvpn wallet show --json`. Never `wallet create`. |
 | Path B: `install.sh` refuses the key file given as `KEYFILE=`, exit `5` | [`key-unsafe`](CODES.md#code-direct-key-unsafe) | The file's mode is not 600 or 400, so other users can read the secret key. Nothing was copied. | `chmod 600 <file> && sudo KEYFILE=<file> sh direct/install.sh` |
 | The Solana connection (RPC) does not answer | [`rpc-unavailable`](CODES.md#code-rpc-unavailable), [`rpc-ws`](CODES.md#code-rpc-ws), [`rpc-network`](CODES.md#code-rpc-network), [`rpc-quota`](CODES.md#code-rpc-quota) | The Solana connection (RPC) the VPN service uses does not answer. `money` says whether a deposit may be open. | Run `next`: `devnet-dvpn daemon set --rpc <https url> --yes` (any Solana devnet RPC, e.g. `https://api.devnet.solana.com`), then `devnet-dvpn agent up --yes`. With money not `none`: `devnet-dvpn agent status --json` first. |
 | Anything else | any | | `devnet-dvpn daemon doctor --json`, `devnet-dvpn logs --lines 80`, and the row for the `code` in [`CODES.md`](CODES.md). |
@@ -2783,7 +2820,7 @@ In order. `agent status --json` names the one you are in, and its `next` is the 
 
 # Security model
 
-What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc8.
+What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc9.
 Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 
 ## What we host: nothing
@@ -2791,6 +2828,9 @@ Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSAR
 No account, no API key, no server of ours sits between you and a node. You download a release from
 GitHub (checked against its `SHA256SUMS`), your computer talks to Solana devnet RPC and to the node you pay.
 This repository holds documents, the installers and an MCP server that runs on your own computer.
+
+**Windows install folder.** Install Windows into Program Files (the default); with /D use only an admin-owned or new folder. A folder that other users can write to lets them change the app's files
+while it installs, before the folder is locked.
 
 ## Two keys
 
@@ -2835,14 +2875,18 @@ This repository holds documents, the installers and an MCP server that runs on y
 
 - **Kill switch** (`daemon set --kill-switch on --yes`): blocks the internet whenever the tunnel is not up, so
   a dropped session does not fall back to your own address. `on` and `persist` are the same setting here.
-  It can also block your SSH session: from the internet, never turn it on without another way in.
+  **On a remote server, keep it off.** If the VPN connection is lost, the kill switch blocks every new connection to this computer, SSH included. It keeps blocking after a reboot until `devnet-dvpn daemon restore-network` is run locally or from the provider's console.
+  Then `devnet-dvpn daemon set --kill-switch off --yes` stops it coming back. From Devnet dVPN 0.3.0-rc.9 (the rc9
+  release), turning it on from an SSH or Remote Desktop session is refused (`kill-switch-remote`, exit 5, nothing
+  changed) unless you add `--allow-remote-lockout`, and with it on, `agent status` warns (`killSwitchRemoteRisk`).
+  In the current v0.3.0-rc9 files (the hashes in `docs/PROVENANCE.md`) the check also reads the login session and the parent processes, so it is refused under sudo and in a root shell opened with sudo -i or su - too. Earlier downloads of v0.3.0-rc9 did not check this: there, keep the kill switch off yourself. A command started from cron or a system service is not part of a remote login, so it is not refused.
   `devnet-dvpn daemon restore-network` lifts the block; `--kill-switch off` stops it coming back.
-- **Known gap (Windows, v0.3.0-rc7 and rc8): the block holds only while the VPN service keeps the session.** When a
+- **Known gap (every OS, every release so far; rc9 reports it: `killSwitchHolding: false`; only a release of the upstream VPN service, `dvpnd`, can fix it): the block holds only while the VPN service keeps the session.** When a
   node drops, the block holds while the service reconnects. But if the service ends the session itself
   (seen ~22 s after the drop), traffic goes direct, from your own address, with no command run. `agent status`
   then says `server-stopped` with no `blocked`, and `disconnect` says `killSwitchReleased: false`. Until this
-  is fixed, on Windows treat a `server-stopped` status as "not protected": stop sending, and run `agent up --yes` before sending
-  anything private. The service is Sentinel's own `dvpnd`, so this is also an upstream gap.
+  is fixed, treat a `server-stopped` status as "not protected" on every OS: stop sending, and run `agent up --yes` before sending
+  anything private. The service is Sentinel's own `dvpnd`: the fix has to come in an upstream `dvpnd` release, not in this app.
 - **DNS:** with the kill switch **off**, WireGuard, AmneziaWG, OpenVPN and Hysteria2 can send DNS lookups
   outside the tunnel (a known gap). If DNS privacy matters, keep the kill switch on. V2Ray and Xray resolve
   through the proxy.
@@ -3127,7 +3171,7 @@ already dropped. `devnet-dvpn daemon restore-network` lifts the block for now; i
 
 - **Android:** the app works on a phone, but an agent cannot drive the released Android app from
   outside it.
-- **Windows on ARM:** no build of the release the agent needs (v0.3.0-rc8) yet.
+- **Windows on ARM:** no build of the release the agent needs (v0.3.0-rc9) yet.
 - **Apple silicon Macs:** the build exists but has not been tested; Intel Macs are tested.
 - **Machines where nobody can be administrator** (most sandboxes): the VPN service cannot be
   installed.
@@ -3144,7 +3188,7 @@ JSON and exit code unchanged. Solana devnet only: the tokens have no value.
 
 **Quick path (Linux; macOS / Windows install: [`AGENTS.md`](../AGENTS.md)).** Fund the address between steps 2 and 3.
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc8 sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh
 export DVPN_KEYFILE=$HOME/agent-key.json; devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json   # prints the address
 devnet-dvpn daemon init --yes && devnet-dvpn device setup --yes && devnet-dvpn daemon install --yes
 git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet "$HOME/ap"   # the server: $HOME/ap/mcp/server.js
@@ -3152,20 +3196,23 @@ git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet 
 Add to the client: `{"mcpServers":{"agentic-privacy":{"command":"node","args":["<HOME>/ap/mcp/server.js"],"env":{"DVPN_KEYFILE":"<HOME>/agent-key.json"}}}}`.
 First three calls: `vpn_agent_status` → `vpn_up {"protocol":"wireguard","basis":"per_gb","max_price":"0.01","yes":true}` → `vpn_down {"yes":true}`.
 
-**Status (2026-11-15, Linux, Node 22):** the unit tests (`node --test mcp/server.test.js`) pass.
-A live check (`node mcp/live-check.mjs`, real server, real CLI, real devnet; it spends nothing)
-passed against the installed v0.3.0-rc2: `initialize`, `tools/list` (9 tools), `vpn_status`,
-`vpn_wallet`, `vpn_nodes` (about 7 s), and on rc2 `vpn_agent_status` / `vpn_up` answer the
-"use `vpn_nodes` + `vpn_connect`" fallback. Against a development build that has the `agent`
-commands, `vpn_agent_status` answered with `next`, and `vpn_up` on a wallet that had already
-been emptied answered `code: "not-funded"` with the amount and address in `action`, as the CLI
-does. `vpn_connect` and `vpn_settle` were not called by the check (they spend); the commands
-they run are proven on their own.
+**Status:**
+- **Unit tests** (`node --test mcp/server.test.js`), 2026-11-21, Linux, Node 22: 37 pass, 0 fail with the app
+  source (`DVPN_SRC=<devnet-dvpn checkout> DVPN_REQUIRE_SRC=1`). Without it: 36 pass and 1 skip (the copy
+  check, section 4).
+- **Last live check:** 2026-11-15, against the installed v0.3.0-rc2 (`node mcp/live-check.mjs`: a
+  real server, the real CLI and real devnet; it spends nothing). These passed: `initialize`,
+  `tools/list` (9 tools), `vpn_status`, `vpn_wallet` and `vpn_nodes`.
+  - rc2 has no `agent` commands, so the agent tools answer the fallback (see section 4).
+  - The agent tools were checked live against a development build that had them.
+  - `vpn_connect` and `vpn_settle` spend, so the check does not call them. The CLI commands they run
+    are tested on their own.
+  - Section 7 runs the same check against your installed release, paid or free.
 
 ## 1. Set the machine up with the CLI first
 
 MCP cannot set the machine up: installing the service needs administrator / root once. Do sections
-1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc8** by name (macOS: Apple silicon),
+1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc9** by name (macOS: Apple silicon),
 `wallet create --keyfile <path> --yes`, get the address funded (a person sends devnet SOL and
 tDVPN), then `daemon init` → `device setup --yes` → `daemon install --yes`. After that,
 everything below runs as the normal user over MCP.
@@ -3246,10 +3293,13 @@ step: `settle withdraw --yes`).
 
 `vpn_connect` and `vpn_settle` spend or sign, so, like `vpn_up` and `vpn_down`, they pass `--yes` only with `"yes": true`; without it the CLI answers a preview (exit `2`) and nothing is spent.
 
-### Three agent tools (v0.3.0-rc4 and newer)
+### Three agent tools (v0.3.0-rc4 and newer; rc3 was never published)
 
-The output contract is [`docs/AGENT-COMMANDS.md`](../docs/AGENT-COMMANDS.md) (a copy of the
-app source's file, kept equal by a test); the fields below follow it.
+The output contract is [`docs/AGENT-COMMANDS.md`](../docs/AGENT-COMMANDS.md): the app's own file at
+one named app commit (rc.8 now), plus three hub corrections (the two `session-active` rows, and an
+escaped `||` in the `clock-skew` row). `mcp/server.test.js` holds the commit and the corrections. It
+checks the copy wherever the app source is present, and the release gate fails when the source is
+missing. The fields below follow that file; the rows marked rc.9 follow the rc.9 app source.
 Amounts are decimal strings in tDVPN or SOL (e.g. `"0.002"`), `baseUnits` is the same amount in
 base units, and times (`readyAt`) are Unix seconds.
 
@@ -3268,9 +3318,13 @@ base units, and times (`readyAt`) are Unix seconds.
 | `code`, `message`, `nodeStopped`, `alsoNext` | only when the node stopped serving: `code` = `server-stopped`, `connected` is false, the deposit is safe; `next` = `agent up --yes` (another node), `alsoNext` = `agent down --yes` (closes the deposit) |
 | `next` | the next step: create a wallet, fund it, `agent down --yes` (connected), or `agent up --yes` |
 
-**`vpn_up {protocol?, country?, node?, basis?, units?, plan?, max_price?, yes?}`** runs
-`devnet-dvpn agent up […] [--yes] --json`. It picks the best matching online node, pays the
-deposit (or uses the plan) and connects.
+**`vpn_up {protocol?, country?, node?, basis?, units?, plan?, max_price?, raise_limit?, yes?}`** runs
+`devnet-dvpn agent up […] [--raise-limit] [--yes] --json`. It picks the best matching online node, pays the
+deposit (or uses the plan) and connects. When the deposit is above this computer's spending limit, the call
+fails with code `spending-limit` and pays nothing. `raise_limit: true` (rc6 and later) raises the limit to the
+Settings amount for that connect, so set it only after reading that failure. In rc.9 that failure's `next` is
+the smaller step, a CLI one: `device setup --allowance <this deposit> --yes`, then the same `vpn_up` with
+`"yes": true`; its `alsoNext` is the `raise_limit` call.
 
 - `protocol`: `any` or one of the six. `country`: two letters. `node`: one exact node.
   `plan`: a subscription you hold. `units`: 1–1000, default from settings.
@@ -3318,7 +3372,7 @@ A `next` or `action` that runs `… agent up`, `… agent down` or `… agent st
 `vpn_down` or `vpn_agent_status` (`--yes` in it = `yes: true`). Any other command in it
 (`daemon install`, `device setup`, `settle run`, …) is a CLI step: see "Not covered".
 
-**On a release without the `agent` commands** (v0.3.0-rc2 or older: [`docs/OLDER-RELEASES.md`](../docs/OLDER-RELEASES.md)), the three tools return `isError: true` with
+**On a release without the `agent` commands** (v0.3.0-rc2, the last published release without them: [`docs/OLDER-RELEASES.md`](../docs/OLDER-RELEASES.md)), the three tools return `isError: true` with
 `structuredContent.error = "no agent command in this CLI"` and a `fix` that says to use
 `vpn_nodes` + `vpn_connect`. Nothing is run.
 
@@ -3331,14 +3385,17 @@ Every result has `structuredContent = { exitCode, command, result, isError }`:
   or a preview it is `next`, `defaults` and `alsoNext`. The server never re-words them.
 - `command`: the exact CLI line that ran (no key in it).
 - `result`: the CLI's JSON (`null` if it printed none). The text content is the same JSON line.
-- `exitCode`: `0` ok, `1` error, `2` needs `--yes`, `3` usage. Non-zero sets `isError`, except
-  the exit-2 preview of `vpn_up` / `vpn_down`.
+- `exitCode` (rc6 and later): `0` ok, `1` error (anything not below, including a network failure after
+  which a deposit may be open: read `money`), `2` needs `--yes`, `3` usage, `4` needs you or your operator
+  (money or a wallet, e.g. `not-funded`, `spending-limit`), `5` refused for safety (e.g. the kill switch),
+  `6` network or RPC with no deposit possibly open: retry later. The `code` field stays the precise reason.
+  Non-zero sets `isError`, except the exit-2 preview of `vpn_up` / `vpn_down`.
 - A CLI error is `{"ok": false, "error": "…", "code": "…", "action": "…"}`: `action` is the next
   thing to do. On a non-zero exit the CLI's stderr is added as a second text item.
 
 ### Failure codes of the agent tools
 
-On a failure (exit 1) `result` is `{"ok": false, "error", "code", "action"}`. Do what `action`
+On a failure (exit 1, 4, 5 or 6; see `exitCode` above) `result` is `{"ok": false, "error", "code", "action"}`. Do what `action`
 says; when it is `null`, read `error`. "→ status" means the action is `agent status`: read
 `error`, and pick another server or filter if the code names the server.
 
@@ -3364,11 +3421,13 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `rpc-ws` | up | rc7: the RPC websocket address does not answer; it is not known whether a deposit opened (`vpn_status` lists it). Set another RPC (`daemon set --rpc <https url> --yes`), then `vpn_up` again |
 | `price-changed`, `deposit-unusable`, `deposits-unread` | up | `agent up --yes` again: nothing was paid, and it reads the price fresh (`max_price` still caps it). The server's price rose above the deposit shown / your open deposit with it started closing / your open deposits could not be read |
 | `not-confirmed`, `plan-limit`, `busy`, `unsupported`, `network-mismatch` | up | → status: refused before anything started |
-| `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `spending-limit`, `device-sol`, `preflight`, `kill-switch-held`, `switch-reconnecting`, `switch-offline` | up | → status: the check before paying failed; nothing paid |
-| `price-cap` | up | rc6 and later: no `max_price` and the deposit is above the default cap (rc7: the larger of the spending limit / 10 and the market p75 price × units, never above the limit; rc6: the limit / 10); nothing was paid. Call `vpn_up` again with `max_price` (the `action` names the node's price) or fewer `units` |
+| `session-active`, `node-gone`, `node-stale`, `node-offline`, `protocol-blocked`, `driver-missing`, `basis-unavailable`, `not-enough-tdvpn`, `device-sol`, `preflight`, `kill-switch-held`, `switch-reconnecting`, `switch-offline` | up | → status: the check before paying failed; nothing paid |
+| `spending-limit` | up | the deposit is above this computer's spending limit; nothing was paid (exit 4). rc6-rc8: `action` = the same call with `raise_limit: true`. rc.9: `action` = `device setup --allowance <this deposit> --yes` (a CLI step), then the same `vpn_up` with `"yes": true`; `alsoNext` = the `raise_limit: true` call |
+| `price-cap` | up | rc6 and later: no `max_price` and the deposit is above the default cap (rc7: the larger of the spending limit / 10 and the market p75 price × units, never above the limit; rc6: the limit / 10); nothing was paid. rc.8 and later: with no `node`, when no answering node is under the cap, it takes the cheapest answering node whose deposit is within the spending limit (`defaults.reason` says so) instead of refusing; so `price-cap` comes with `node`, or when even that deposit is above the limit. Call `vpn_up` again with `max_price` (the `action` names the node's price) or fewer `units` |
 | `keyfile-mode` | up | rc7: the key file can be read by other users of this computer; nothing was paid. `chmod 600 <the key file named in error>`, then `vpn_up` again |
 | `cancelled` | up | → status: stopped |
-| `waiting-for-network`, `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding` | up | → status: failed after the start; a deposit already paid stays open until `agent down --yes` |
+| `waiting-for-network` | up | the VPN service could not reach its Solana RPC. rc.8: counted as after the start (a deposit may be open: `agent down --yes` closes it). rc.9: refused before any deposit (exit 6, nothing paid): `daemon set --rpc <https url> --yes` (a CLI step), then `vpn_up` again |
+| `ticket-other-owner`, `approval-revoked`, `service-stopped-connecting`, `node-identity`, `node-ledger`, `node-price`, `node-error`, `kill-switch-failed`, `tunnel-failed`, `tunnel-dead`, `tunnel-mtu`, `tunnel-closing`, `port-in-use`, `dns-apply`, `deposit-pending`, `rpc-network`, `rpc-timeout`, `rpc-quota`, `timeout`, `chain-encoding` | up | → status: failed after the start; a deposit already paid stays open until `agent down --yes` |
 | `credit_exhausted`, `peer_limit_reached`, `lease_insufficient`, `subscription_invalid`, `ticket_request_stale`, `provider_unreachable`, `ticket_invalid`, `unauthorized`, `cannot cover the prepay`, `voucher_exceeds_escrow`, `channel_node_reopened`, `terms_rejected`, `rate_limited`, `voucher_signature_invalid`, `mode_not_voucher`, `mode_not_stream` | up | → status: the server refused; pick another with `node` or other filters |
 | `stop-failed`, `dns-revert-failed`, `tunnel-left` | up | → status: leaving the old session failed |
 | `unknown` | up | → status |
@@ -3376,14 +3435,19 @@ says; when it is `null`, read `error`. "→ status" means the action is `agent s
 | `service-not-ready` | any | `null`: try again in a moment |
 | `approval-revoked` | any | `device setup --yes` (also above) |
 | `not-enough-tdvpn` | any | `null`: fund the wallet or use fewer `units` (also above) |
-| `session-active` | any | `disconnect` (also above) |
+| `session-active` | any | the action is `agent status --json`: another run may hold the session, so call `vpn_status` and disconnect only a session this run started. rc8 and older said `disconnect` here: do not call it blindly |
 | `rpc-unavailable` | any | every RPC endpoint failed: check the network, or set another RPC |
 | `keyfile-missing` | up | restore the key file named in the error from your backup (it is the only key to this wallet), then `agent up --yes`; never `wallet create` (a new wallet cannot see the old refunds) |
 | `wallet-switch-needed` | up, down, status | load the key file of the wallet named in the error, or `device switch --yes` (sets this computer up for the loaded wallet; the other wallet's deposits stay refundable). Nothing was paid |
 | `clock-skew` | up | set this computer's clock to the right time (the error says by about how much), then `agent up --yes` |
+| `keyfile-unreadable` | any | rc.9: this user may not read the key file named in the error (exit 4, nothing sent or signed). `action`: Linux / macOS `sudo chown $(id -un) <file> && chmod 600 <file>`; Windows `icacls "<file>" /grant "<account>:R"`; then `wallet show --json` (a CLI step), then call again |
+| `kill-switch-remote` | CLI only | rc.9, from `daemon set --kill-switch on\|persist` in an SSH or Remote Desktop session (exit 5, nothing changed); no MCP tool runs `daemon set`. In such a session with the kill switch on, `vpn_agent_status` adds `killSwitchRemoteRisk: true` |
+| `disconnect-failed` | CLI only | `connect --follow`: Ctrl+C asked the session to close and the disconnect failed, so it may still be live. Read `agent status --json`; `agent down --yes` ends it and closes the deposit. No MCP tool runs `connect --follow`. |
+| `apply-busy`, `apply-while-connecting`, `apply-failed` | CLI only | `daemon set`: another change was still running, or a connect was starting or stopping, so nothing was changed; or applying the settings or restarting the service failed (read `error`; a live session may have ended with the restart). Read `agent status --json`, then run the same `daemon set` again. No MCP tool runs `daemon set`. |
 
-Usage errors (exit 3) print nothing on stdout, only one line on stderr: a bad flag value, an
-unknown flag or subcommand. The tool's schema check stops nearly all of them before the CLI runs.
+Usage errors (exit 3): a bad flag value, an unknown flag or subcommand. With `--json` (rc8 and later)
+the CLI prints one `{"ok":false,"error","code":"usage","usage","action","next","docUrl","money"}` line on stdout (`next` = `action` = `devnet-dvpn help`; nothing was sent or signed); older versions
+print only one line on stderr. The tool's schema check stops nearly all of them before the CLI runs.
 
 The server's own errors have `exitCode: null`, `isError: true`, `error` and `fix`: CLI not found
 (the fix names the download for each OS), or bad input (the schema is checked before anything
@@ -3427,6 +3491,8 @@ administrator step or are rare. Run them with the CLI, as `AGENTS.md` describes.
   (`yes: true`) and `vpn_agent_status` (not connected). It spends one deposit (about 0.002 tDVPN
   per GB on devnet; the unused part comes back after the two-hour close). Without both `--paid`
   and `--yes` it spends nothing. `--protocol <name>` and `--basis per_hour` change the session.
+  If a session was already live when the check started, `vpn_up` answers `reused: true`. The check
+  then does not call `vpn_down`, because it did not open that session.
 
 # file: install.sh
 
@@ -3441,12 +3507,12 @@ administrator step or are rare. Run them with the CLI, as `AGENTS.md` describes.
 #   sh install.sh
 #
 # What it does: finds your OS, CPU and package type (deb / rpm / pacman; macOS dmg), takes the
-# newest release (pre-releases included) that has that file and is v0.3 or newer (the guide pins v0.3.0-rc8), downloads
+# newest release (pre-releases included) that has that file and is v0.3 or newer (the guide pins v0.3.0-rc9), downloads
 # the file and the release's SHA256SUMS, checks the file, installs it with no questions, and runs
 # `devnet-dvpn version --json`. Needs root or passwordless sudo (`sudo -n true` must work).
 #
 # Options, as environment variables:
-#   DVPN_VERSION=v0.3.0-rc8   use this release tag instead of the newest (AGENTS.md pins it)
+#   DVPN_VERSION=v0.3.0-rc9   use this release tag instead of the newest (AGENTS.md pins it)
 #
 # Output: progress and errors on stderr; on success one JSON line on stdout:
 #   {"ok":true,"tag":…,"file":…,"version":{…},"path":"export PATH=…"|null,"next":…}
@@ -3462,7 +3528,8 @@ GUIDE='https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/blo
 MAC_BIN='/Applications/Devnet dVPN.app/Contents/Resources/bin'
 
 say() { printf 'install.sh: %s\n' "$*" >&2; }
-# Messages never contain a double quote, so they go into the JSON line as they are.
+# Messages never contain a double quote or a backslash, so they go into the JSON line as they are: the only
+# user text in them is DVPN_VERSION, which is refused below unless it is tag characters only.
 # Inside main, fd 3 is the real stdout and fd 1 points at stderr (see the exec there).
 fail() { printf 'install.sh: %s\n' "$*" >&2; printf '{"ok":false,"error":"%s"}\n' "$*" >&3; exit 1; }
 
@@ -3531,10 +3598,12 @@ main() {
   # ─── which release ───
   if [ -n "${DVPN_VERSION:-}" ]; then
     TAG=$DVPN_VERSION
+    # tag characters only: the tag goes into a URL and the JSON line (a quote would break it); not echoed back
+    case "$TAG" in *[!A-Za-z0-9._+-]*) fail "DVPN_VERSION is not a release tag (letters, digits and . _ + - only), e.g. DVPN_VERSION=v0.3.0-rc9." ;; esac
     case "$TAG" in v*) ;; *) TAG="v$TAG" ;; esac
-    tag_ok "$TAG" || fail "release $TAG is older than v0.3 and cannot make a key file; use DVPN_VERSION=v0.3.0-rc8."
+    tag_ok "$TAG" || fail "release $TAG is older than v0.3 and cannot make a key file; use DVPN_VERSION=v0.3.0-rc9."
     BASE="https://github.com/$REPO/releases/download/$TAG"
-    curl -fsSL -o "$tmp/SHA256SUMS" "$BASE/SHA256SUMS" || fail "release $TAG has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc8)."
+    curl -fsSL -o "$tmp/SHA256SUMS" "$BASE/SHA256SUMS" || fail "release $TAG has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc9)."
     FILE=$(file_from_sums "$tmp/SHA256SUMS" "$PAT") || true
     [ -n "$FILE" ] || fail "release $TAG has no $KIND package for this CPU."
   else
@@ -3638,10 +3707,10 @@ main "$@"
 # Both forms run in your own shell, so the PATH it sets stays set there.
 #
 # What it does: takes the newest release (pre-releases included) that has the x64 installer and
-# is v0.3 or newer (the guide pins v0.3.0-rc8), downloads it and the release's SHA256SUMS, checks it, runs the silent
+# is v0.3 or newer (the guide pins v0.3.0-rc9), downloads it and the release's SHA256SUMS, checks it, runs the silent
 # install and waits for it, adds devnet-dvpn to this shell's PATH and runs `devnet-dvpn version --json`.
 #
-# Options: $env:DVPN_VERSION = 'v0.3.0-rc8'   use this release tag instead of the newest (AGENTS.md pins it)
+# Options: $env:DVPN_VERSION = 'v0.3.0-rc9'   use this release tag instead of the newest (AGENTS.md pins it)
 #
 # Output: progress on the host; one JSON line as output, on success
 #   {"ok":true,"tag":...,"file":...,"version":{...},"path":"<bin folder added to PATH>","next":...}
@@ -3677,7 +3746,7 @@ function Install-DevnetDvpn {
   }
   $arch = $env:PROCESSOR_ARCHITEW6432
   if (-not $arch) { $arch = $env:PROCESSOR_ARCHITECTURE }
-  if ($arch -ne 'AMD64') { Stop-Install "this CPU ($arch) has no installer; only x64 is built (v0.3.0-rc8 included)." }
+  if ($arch -ne 'AMD64') { Stop-Install "this CPU ($arch) has no installer; only x64 is built (v0.3.0-rc9 included)." }
 
   $tmp = Join-Path ([IO.Path]::GetTempPath()) ('dvpn-' + [Guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $tmp | Out-Null
@@ -3686,10 +3755,10 @@ function Install-DevnetDvpn {
     if ($env:DVPN_VERSION) {
       $tag = $env:DVPN_VERSION
       if ($tag -notmatch '^v') { $tag = "v$tag" }
-      if (-not (Test-Tag $tag)) { Stop-Install "release $tag is older than v0.3 and cannot make a key file; use `$env:DVPN_VERSION = 'v0.3.0-rc8'." }
+      if (-not (Test-Tag $tag)) { Stop-Install "release $tag is older than v0.3 and cannot make a key file; use `$env:DVPN_VERSION = 'v0.3.0-rc9'." }
       $base = "https://github.com/$repo/releases/download/$tag"
       try { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile "$tmp\SHA256SUMS" }
-      catch { Stop-Install "release $tag has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc8): $($_.Exception.Message)" }
+      catch { Stop-Install "release $tag has no SHA256SUMS (is the tag right? tags look like v0.3.0-rc9): $($_.Exception.Message)" }
       $file = Get-Content "$tmp\SHA256SUMS" | ForEach-Object { (($_ -split '\s+')[1]) -replace '^\*', '' } |
         Where-Object { $_ -match $pattern } | Select-Object -First 1
       if (-not $file) { Stop-Install "release $tag has no x64 installer." }
@@ -3774,6 +3843,29 @@ release is [`AGENTS.md`](AGENTS.md); what an older release still needs is in
 Terms: [`GLOSSARY.md`](GLOSSARY.md).
 
 Check which release you have: `devnet-dvpn version --json`.
+
+## v0.3.0-rc9
+
+Draft: each line ships only if its change is in the rc9 build (drop the line otherwise).
+
+On Windows, Linux and macOS (Apple silicon only: Intel Macs stay on v0.3.0-rc4, [docs/OLDER-RELEASES.md](docs/OLDER-RELEASES.md), "Intel Mac").
+
+### Breaking
+- Spending limit, least privilege: `--raise-limit` and a first `device setup` raise only as far as needed, and
+  `defaults.spendingLimit` is the live grant (`configuredDefault` = Settings). `device setup` with no `--allowance` is
+  never refused: the smaller of Settings and the wallet, with a warning.
+
+### Added
+- `needs-admin` (Windows): `daemon install` from a standard account says so first, with the elevation line.
+- `keyfile-unreadable`: an unreadable key file is a coded refusal with a `next`, not a bare `EPERM`.
+- `keyfile-mode` on Windows: the key file's ACL is checked; `keyfile-lock-failed` when a new key file cannot be locked.
+- `clock-skew` on Windows (`w32time` resync) and in `agent status` (`clockSkewSec`).
+- `killSwitchHolding` in `agent status`: says when the kill switch is on but no longer blocking.
+- The RPC: a dead RPC gets a way out (another RPC) instead of exit 1.
+
+### Fixed
+- A fresh data dir adopts the installed service's device key (no staging key in `wallet show`).
+- `wallet show` warns about a key file other users can read.
 
 ## v0.3.0-rc8
 
@@ -3939,17 +4031,17 @@ install is which chain program and token it pays: see "Program and mint" below.
 **What is checked against the source.** Before each release, `node tools/check-glossary.mjs --require-src`
 runs against the app's source at the release commit and must exit 0. It checks that every failure code the
 CLI can print has exactly one row and one anchor in [`docs/CODES.md`](CODES.md), the page each failure's
-`docUrl` opens. For `v0.3.0-rc8` (`76b237e2`): 119 codes, exit 0. Public CI runs the same tool without the source (its
+`docUrl` opens. For `v0.3.0-rc9` (`68d0f22e8`): 124 codes, exit 0. Public CI runs the same tool without the source (its
 self-tests and the page checks), because the release tags here hold the release files, not the source.
 
 | File | SHA-256 | Release | Source @ commit | Build command | Toolchain | Reproducible? | Last verified |
 |---|---|---|---|---|---|---|---|
-| `Devnet-dVPN-Setup-0.3.0-rc.8-x64.exe` (Windows x64) | `c9fdecfd502b6ebc15647a34162dd173b638966be1d8e0a85e40976607c5eac0` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches `SHA256SUMS` (rc8), download-back OK |
-| `devnet-dvpn_0.3.0-rc.8_amd64.deb` (Linux x86_64) | `f53838de45dab4f8d2ed04fd5dfccd7269f34537f6b8e5ba6aea19a71df5ea68` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches the rc8 build's `SHA256SUMS` |
-| `devnet-dvpn-0.3.0-rc.8.x86_64.rpm` (Linux x86_64) | `fd76cb4d90fcadc9714d2af4571ff6c4f241f603738a3c819013236bce1c6e14` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches the rc8 build's `SHA256SUMS` |
-| `Devnet-dVPN-0.3.0-rc.8-x86_64.AppImage` (Linux x86_64) | `36014a992fb26d1249b06c97676c69d92d939d1ef3874c915794ee98bb855d63` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-20: hash matches the rc8 build's `SHA256SUMS` |
-| `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` (macOS Apple silicon) | `a4295f29a1849d9b2125b783a7eeb303c4e97448113e7e9811d82f44f3c28505` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | 2026-11-21: hash matches the release's `SHA256SUMS` (rc8); the release build's checks: 17 pass, 6 differ (`PROOF.md`) |
-| `Devnet-dVPN-0.3.0-rc.8-arm64-mac.zip` | `b7bda429810c94116e9004b7c5cc461b26f6be06c8875f55ff029d76b5afd1b9` | [v0.3.0-rc8](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc8) | not public | not public | Electron (not published) | no | as above |
+| `Devnet-dVPN-Setup-0.3.0-rc.9-x64.exe` (Windows x64) | `f0553ddf83b62eb5f598db29ce4632d8df5d916d3df4e1765864560932fb4aad` | [v0.3.0-rc9](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/tag/v0.3.0-rc9) | not public | not public | Electron (not published) | no | 2026-11-21: hash matches `SHA256SUMS` (rc9), download-back OK |
+| `devnet-dvpn_0.3.0-rc.9_amd64.deb` (Linux x86_64) | `af5df6229e6b3437561e195a013eb603c4673a33b69d8f2580861f04600cd526` | [v0.3.0-rc9](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc9) | not public | not public | Electron (not published) | no | 2026-11-21: download-back OK; installed from its checksum line and live on Ubuntu (setup, a foreign binary refused, the sudo kill-switch refusal, connect + disconnect) |
+| `devnet-dvpn-0.3.0-rc.9.x86_64.rpm` (Linux x86_64) | `5f17159ac7e069a12039d2f51d86e74b63e460626862350671112b1c71b7cd5b` | [v0.3.0-rc9](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc9) | not public | not public | Electron (not published) | no | 2026-11-21: download-back OK; installed from its checksum line and live on Ubuntu (setup, a foreign binary refused, the sudo kill-switch refusal, connect + disconnect) |
+| `Devnet-dVPN-0.3.0-rc.9-x86_64.AppImage` (Linux x86_64) | `eb405b41dd967d0c8965b47a907a57a1fb246ae7f417e744c01471babdb09b3f` | [v0.3.0-rc9](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/tag/v0.3.0-rc9) | not public | not public | Electron (not published) | no | 2026-11-21: download-back OK; installed from its checksum line and live on Ubuntu (setup, a foreign binary refused, the sudo kill-switch refusal, connect + disconnect) |
+| `Devnet-dVPN-0.3.0-rc.9-arm64.dmg` (macOS Apple silicon) | `5f702788cc7f1bf6c956c442de3fafa147fcb9805eccde8be677706ace026c49` | [v0.3.0-rc9](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc9) | not public | not public | Electron (not published) | no | 2026-11-21: download-back OK; verify-release on the published files: 0 new failures |
+| `Devnet-dVPN-0.3.0-rc.9-arm64-mac.zip` | `4ae80075b9c1981258a6ce06b3e1df74f888c49f939814a2b7ba86c3502c0de9` | [v0.3.0-rc9](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc9) | not public | not public | Electron (not published) | no | as above |
 | `Devnet-dVPN-0.3.0-rc.4-x64.dmg` (macOS Intel: the newest Intel build) | `5441414959e639b7be6931334a3540031f3f88be03215de3967f4f709901c977` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | 2026-11-16: release smoke test by the app team; the agent path is not run on it ([`PROOF.md`](PROOF.md)) |
 | `Devnet-dVPN-0.3.0-rc.4-x64-mac.zip` | `5e73736763bdf5ae2fec72d033e9ec0c4699ad6bf5d9225f06a341ad5247bb0d` | [v0.3.0-rc4](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/tag/v0.3.0-rc4) | not public | not public | Electron (not published) | no | as above |
 
@@ -3997,18 +4089,18 @@ replace `main` in the URL with a commit id from the commit list above.
 
 # Install by hand (no installer script)
 
-The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc8 (macOS: Apple silicon; Intel Macs: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)).
+The same steps as `install.sh` / `install.ps1`, one release, for `devnet-dvpn` v0.3.0-rc9 (macOS: Apple silicon; Intel Macs: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 Moved here from [`AGENTS.md`](../AGENTS.md), section 1. Where each file comes from: [`PROVENANCE.md`](PROVENANCE.md).
 
 
 The same steps, one release. File names carry the version with a dot, the tag without (tag
-`v0.3.0-rc8` holds `…0.3.0-rc.8…`), so take the name from `SHA256SUMS`.
+`v0.3.0-rc9` holds `…0.3.0-rc.9…`), so take the name from `SHA256SUMS`.
 
 Linux, Debian / Ubuntu x64 (rpm: `\.x86_64\.rpm$` and `sudo dnf install -y`; the release also has an x86_64
 AppImage, and no Arch or arm64 package):
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc8
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases/download/v0.3.0-rc9
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E '^devnet-dvpn_.*_amd64\.deb$')
 curl -fsSLO "$U/$F"
@@ -4019,11 +4111,11 @@ sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ".
 Without the update a fresh machine fails with "libsecret-tools … not installable"; without `-y`
 the install waits for an answer you cannot give.
 
-macOS, Apple silicon (`arm64`; v0.3.0-rc8 has no Intel build: Intel Macs use [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). An older app in `/Applications` goes first:
+macOS, Apple silicon (`arm64`; v0.3.0-rc9 has no Intel build: Intel Macs use [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). An older app in `/Applications` goes first:
 `sudo -n rm -rf "/Applications/Devnet dVPN.app"` (`ditto` merges into an existing app).
 
 ```sh
-U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc8
+U=https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases/download/v0.3.0-rc9
 A=x64; [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && A=arm64
 curl -fsSLO "$U/SHA256SUMS"
 F=$(awk '{print $2}' SHA256SUMS | grep -E "^Devnet-dVPN-.*-$A\.dmg\$")
@@ -4045,7 +4137,7 @@ In the Finder instead of a shell: right-click the app > Open once. V2Ray, Xray a
 Windows x64, elevated PowerShell:
 
 ```powershell
-$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc8'
+$u = 'https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases/download/v0.3.0-rc9'
 curl.exe -fsSLo SHA256SUMS "$u/SHA256SUMS"           # curl.exe, not curl (an alias in older PowerShell)
 $l = Select-String -Path .\SHA256SUMS -Pattern 'Devnet-dVPN-Setup-.*-x64\.exe$' | Select-Object -First 1
 $h, $f = ($l.Line -split '\s+')[0, 1]
@@ -4065,7 +4157,7 @@ Then: `devnet-dvpn version --json` must say network devnet, and (rc6 and later) 
 
 # Choices: protocol, country, pricing, split tunnelling, kill switch
 
-For `devnet-dvpn` v0.3.0-rc8 (Windows, Linux, macOS Apple silicon). Moved here from [`AGENTS.md`](../AGENTS.md) to keep that page short; the steps there do not need any of these.
+For `devnet-dvpn` v0.3.0-rc9 (Windows, Linux, macOS Apple silicon). Moved here from [`AGENTS.md`](../AGENTS.md) to keep that page short; the steps there do not need any of these.
 
 **Protocol:** WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2; a node serves one.
 `agent up --protocol <name>`, or `nodes list --online --protocol <name> --json`.
@@ -4114,7 +4206,7 @@ Per-OS details: [`docs/agent-safety.md`](agent-safety.md).
 
 # Older releases (v0.3.0-rc2, rc4, rc5 and rc6)
 
-[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc8** (macOS: Apple silicon; Intel Macs: "Intel Mac" below). Take rc8 if you can. This page keeps what
+[`AGENTS.md`](../AGENTS.md) covers **v0.3.0-rc9** (macOS: Apple silicon; Intel Macs: "Intel Mac" below). Take rc9 if you can. This page keeps what
 an agent needs on an older release, and the single commands that `agent up` / `agent down` run.
 
 What is proven, per OS and release: [`PROOF.md`](PROOF.md).
@@ -4125,14 +4217,14 @@ What is proven, per OS and release: [`PROOF.md`](PROOF.md).
 devnet-dvpn version --json
 ```
 
-- `0.3.0-rc.8` or `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page (what rc8 added: [`CHANGELOG.md`](../CHANGELOG.md)).
+- `0.3.0-rc.9`, `0.3.0-rc.8` or `0.3.0-rc.7`: use [`AGENTS.md`](../AGENTS.md), not this page (what rc9 and rc8 added: [`CHANGELOG.md`](../CHANGELOG.md)).
 - macOS on an Intel Mac: "Intel Mac: v0.3.0-rc4" below.
 - `0.3.0-rc.6`: read "v0.3.0-rc6" below.
 - `0.3.0-rc.5`: read "v0.3.0-rc5" below.
 - `0.3.0-rc.4`: the `agent` commands exist; read "v0.3.0-rc4" below. It is the newest Intel Mac build.
 - `0.3.0-rc.2`: `agent` answers exit `3`, "unknown command: agent". Use "Step by step" below.
 - Older than rc2 (the release GitHub marks "Latest" can be one): it cannot make a key file.
-  Install rc8 by name (`AGENTS.md`, section 1).
+  Install rc9 by name (`AGENTS.md`, section 1).
 
 ## Step by step (rc2, or on any release if the shortcut fails)
 
@@ -4207,7 +4299,7 @@ To install it: `DVPN_VERSION=v0.3.0-rc5` (PowerShell: `$env:DVPN_VERSION = 'v0.3
 
 ## Intel Mac: v0.3.0-rc4
 
-v0.3.0-rc8 for macOS is built for Apple silicon only; the newest Intel (`x64`) build is v0.3.0-rc4 (2026-11-16). On an
+v0.3.0-rc8 and v0.3.0-rc9 for macOS are built for Apple silicon only; the newest Intel (`x64`) build is v0.3.0-rc4 (2026-11-16). On an
 Intel Mac install it by hand, then follow "v0.3.0-rc4" below (it prints no `programId` / `mint`: check network
 `devnet` only). An older app in `/Applications` goes first: `sudo -n rm -rf "/Applications/Devnet dVPN.app"`.
 
@@ -4246,7 +4338,7 @@ download lines of [`INSTALL-BY-HAND.md`](INSTALL-BY-HAND.md); the file names the
 
 # JSON you will read: agent status and wallet show
 
-For `devnet-dvpn` v0.3.0-rc8 (Windows, Linux, macOS Apple silicon). Moved here from the appendix of [`AGENTS.md`](../AGENTS.md).
+For `devnet-dvpn` v0.3.0-rc9 (Windows, Linux, macOS Apple silicon). Moved here from the appendix of [`AGENTS.md`](../AGENTS.md).
 
 
 Every answer of the three `agent` commands, as a JSON Schema (draft 2020-12):
@@ -4333,9 +4425,10 @@ are the earlier record.
 - **macOS, published 2026-11-20:** `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` and `-arm64-mac.zip` (Apple silicon only; hashes
   in [`docs/PROVENANCE.md`](PROVENANCE.md)). The agent commands (`agent up` / `status` / `down`) ran live on the Apple silicon build machine (GitHub macOS 15 runner, run 44808199308): connect, exit IP proven, disconnect, settle line; 17 pass / 6 differ. A fresh agent has not yet followed this page start to finish on a Mac, and no Intel Mac has run rc8. Intel Macs: v0.3.0-rc4, the newest Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 - **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
-  macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
-  ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being
-  told it needs an administrator. Each is planned for the next release.
+  macOS only); a standard (non-admin) user is told to make a wallet before being told it needs an administrator.
+  Each is planned for the next release.
+- **Every OS, not yet:** with the kill switch on, the block holds only while the VPN service keeps the session; the
+  fix is upstream, in the VPN service ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)).
 - **Blind tests (on rc7):** three agents that had never seen these pages each did the whole task from `llms.txt`:
   two on the app, each recovering from a planted fault, and one with Sentinel's own tools and no app. All three
   passed 5 of 5. They used one model and Linux only.

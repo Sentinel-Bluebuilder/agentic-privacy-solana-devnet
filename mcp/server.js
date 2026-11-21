@@ -279,7 +279,7 @@ export const resolveCli = (env = process.env, platform = process.platform, exist
   return { file: found, pre: [], env: {}, shown: found };
 };
 
-const INSTALL_FIX = 'Install Devnet dVPN v0.3.0-rc2 or newer for this OS — Windows (puts devnet-dvpn on PATH for new shells): https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases, '
+const INSTALL_FIX = 'Install Devnet dVPN v0.3.0-rc4 or newer for this OS (the agent tools need it; rc2 has only the six CLI tools) — Windows (puts devnet-dvpn on PATH for new shells): https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/releases, '
   + 'Linux (/usr/bin/devnet-dvpn): https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/releases, '
   + 'macOS (copy the app from the .dmg to /Applications; this server then finds "/Applications/Devnet dVPN.app/Contents/Resources/bin/devnet-dvpn"; '
   + '/usr/local/bin/devnet-dvpn appears only after `daemon install --yes`): https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/releases — '

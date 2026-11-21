@@ -56,6 +56,13 @@ carry() {
   esac
 }
 
+# public_ip [seconds]: this box's public IPv4 (api.ipify.org), or "unknown". Only a dotted IPv4 is taken: an
+# error or rate-limit page is never an address (connect.sh's tunnel check compares it, and it goes into JSON raw).
+public_ip() {
+  pi=$(curl -s -4 -m "${1:-10}" https://api.ipify.org 2>/dev/null) || pi=""
+  if printf '%s' "$pi" | grep -Eqx '([0-9]{1,3}[.]){3}[0-9]{1,3}'; then echo "$pi"; else echo unknown; fi
+}
+
 # summary <ok> <step> <next> [extra json fields without braces]
 summary() {
   extra=${4:-}
@@ -252,7 +259,7 @@ classify() {
     *"escrow below node minimum"*)   # W77: the daemon refused before any deposit: nothing was sent
       fail "$E_USAGE" escrow-below-minimum "$t" "env -u ESCROW sh direct/connect.sh" none ;;
     *"a session is already active"*)
-      fail "$E_OTHER" session-active "$t" "sh direct/disconnect.sh && $CMD" none ;;
+      fail "$E_OTHER" session-active "$t" "sh direct/status.sh" none ;;   # look first: it may be another run's session (K13 class)
     *"no active session"*)
       fail "$E_OTHER" no-session "$t" "sentinel-dvpn client sessions --instance $INSTANCE" none ;;
     *"accepts "*" arg"*|*"unknown flag"*|*"unknown command"*|*"is required"*|*"required flag"*)

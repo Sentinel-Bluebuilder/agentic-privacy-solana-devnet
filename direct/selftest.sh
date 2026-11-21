@@ -13,6 +13,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 HOLD=${HOLD:-120}
 
 STEP=selftest
+parse_args "$@"   # an unknown flag is usage (exit 3) before anything runs: this run pays a deposit
+case $HOLD in ''|*[!0-9]*) fail "$E_USAGE" usage "HOLD must be whole seconds (got $HOLD)" "env -u HOLD sh direct/selftest.sh" none ;; esac
 
 # stage <name> <command...>: run one script, print its JSON line; on failure pass its code, money
 # and next through (step-failed when the script printed no JSON line)
@@ -40,7 +42,7 @@ t=0
 while [ "$t" -lt "$HOLD" ]; do
   sleep 15; t=$((t + 15))
   st=$(dclient sessions --instance "$INSTANCE" | jq -r '[.sessions[] | select(.status == "active")] | length')
-  ip=$(curl -s -4 -m 10 https://api.ipify.org || echo unknown)
+  ip=$(public_ip 10)
   echo "hold t=${t}s active=$st exitIp=$ip" >&2
   [ "$st" = 1 ] || fail "$E_OTHER" session-dropped "the session dropped at ${t}s of ${HOLD}s (node $NODE_IP); see 'connection lost' in docs/DIRECT-REFERENCE.md" \
     "sh direct/disconnect.sh && sh direct/refund.sh" refund

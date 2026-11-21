@@ -1,6 +1,6 @@
 # Security model
 
-What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc8.
+What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc9.
 Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 
 ## What we host: nothing
@@ -8,6 +8,9 @@ Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSAR
 No account, no API key, no server of ours sits between you and a node. You download a release from
 GitHub (checked against its `SHA256SUMS`), your computer talks to Solana devnet RPC and to the node you pay.
 This repository holds documents, the installers and an MCP server that runs on your own computer.
+
+**Windows install folder.** Install Windows into Program Files (the default); with /D use only an admin-owned or new folder. A folder that other users can write to lets them change the app's files
+while it installs, before the folder is locked.
 
 ## Two keys
 
@@ -52,14 +55,18 @@ This repository holds documents, the installers and an MCP server that runs on y
 
 - **Kill switch** (`daemon set --kill-switch on --yes`): blocks the internet whenever the tunnel is not up, so
   a dropped session does not fall back to your own address. `on` and `persist` are the same setting here.
-  It can also block your SSH session: from the internet, never turn it on without another way in.
+  **On a remote server, keep it off.** If the VPN connection is lost, the kill switch blocks every new connection to this computer, SSH included. It keeps blocking after a reboot until `devnet-dvpn daemon restore-network` is run locally or from the provider's console.
+  Then `devnet-dvpn daemon set --kill-switch off --yes` stops it coming back. From Devnet dVPN 0.3.0-rc.9 (the rc9
+  release), turning it on from an SSH or Remote Desktop session is refused (`kill-switch-remote`, exit 5, nothing
+  changed) unless you add `--allow-remote-lockout`, and with it on, `agent status` warns (`killSwitchRemoteRisk`).
+  In the current v0.3.0-rc9 files (the hashes in `docs/PROVENANCE.md`) the check also reads the login session and the parent processes, so it is refused under sudo and in a root shell opened with sudo -i or su - too. Earlier downloads of v0.3.0-rc9 did not check this: there, keep the kill switch off yourself. A command started from cron or a system service is not part of a remote login, so it is not refused.
   `devnet-dvpn daemon restore-network` lifts the block; `--kill-switch off` stops it coming back.
-- **Known gap (Windows, v0.3.0-rc7 and rc8): the block holds only while the VPN service keeps the session.** When a
+- **Known gap (every OS, every release so far; rc9 reports it: `killSwitchHolding: false`; only a release of the upstream VPN service, `dvpnd`, can fix it): the block holds only while the VPN service keeps the session.** When a
   node drops, the block holds while the service reconnects. But if the service ends the session itself
   (seen ~22 s after the drop), traffic goes direct, from your own address, with no command run. `agent status`
   then says `server-stopped` with no `blocked`, and `disconnect` says `killSwitchReleased: false`. Until this
-  is fixed, on Windows treat a `server-stopped` status as "not protected": stop sending, and run `agent up --yes` before sending
-  anything private. The service is Sentinel's own `dvpnd`, so this is also an upstream gap.
+  is fixed, treat a `server-stopped` status as "not protected" on every OS: stop sending, and run `agent up --yes` before sending
+  anything private. The service is Sentinel's own `dvpnd`: the fix has to come in an upstream `dvpnd` release, not in this app.
 - **DNS:** with the kill switch **off**, WireGuard, AmneziaWG, OpenVPN and Hysteria2 can send DNS lookups
   outside the tunnel (a known gap). If DNS privacy matters, keep the kill switch on. V2Ray and Xray resolve
   through the proxy.

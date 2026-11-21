@@ -34,10 +34,18 @@ jobs:
         run: |
           bash -n install.sh
           sh -n install.sh
+          n=0
           for f in direct/*.sh; do
             [ -f "$f" ] || continue
             bash -n "$f"
+            sh -n "$f"   # dash on the runner: the scripts are run with sh
+            n=$((n + 1))
           done
+          [ "$n" -ge 10 ] || { echo "only $n direct/*.sh parsed"; exit 1; }   # a gate that parsed nothing must not pass
+          echo "installers: install.sh + $n direct/*.sh parse"
+
+      - name: Doc snippets parse (every sh and PowerShell block on the agent pages)
+        run: bash tools/check-snippets.sh
 
       - name: MCP server unit tests
         run: node --test mcp/server.test.js
@@ -119,6 +127,14 @@ jobs:
 
       - name: Every page states the facts in docs/facts.json (planted-contradiction control)
         run: node tools/check-facts.mjs
+
+      - name: No public file holds an unfilled release-swap slot (planted-slot control)
+        run: node tools/check-slots.mjs
+
+      - name: Every page hash equals its release's SHA256SUMS (planted stale-hash control; the release repos are public)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/check-provenance.mjs --fetch "$RUNNER_TEMP/sums"
 
       - name: Glossary and failure-code page (self-controls; codes are skipped without the app source)
         if: hashFiles('tools/check-glossary.mjs') != ''

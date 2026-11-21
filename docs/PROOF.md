@@ -33,9 +33,10 @@ are the earlier record.
 - **macOS, published 2026-11-20:** `Devnet-dVPN-0.3.0-rc.8-arm64.dmg` and `-arm64-mac.zip` (Apple silicon only; hashes
   in [`docs/PROVENANCE.md`](PROVENANCE.md)). The agent commands (`agent up` / `status` / `down`) ran live on the Apple silicon build machine (GitHub macOS 15 runner, run 44808199308): connect, exit IP proven, disconnect, settle line; 17 pass / 6 differ. A fresh agent has not yet followed this page start to finish on a Mac, and no Intel Mac has run rc8. Intel Macs: v0.3.0-rc4, the newest Intel build ([`docs/OLDER-RELEASES.md`](OLDER-RELEASES.md)).
 - **Windows, not yet:** a clock 10 minutes off is not reported; the key file's permissions are not checked (Linux and
-  macOS only); with the kill switch on, the block holds only while the VPN service keeps the session
-  ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)); a standard (non-admin) user is told to make a wallet before being
-  told it needs an administrator. Each is planned for the next release.
+  macOS only); a standard (non-admin) user is told to make a wallet before being told it needs an administrator.
+  Each is planned for the next release.
+- **Every OS, not yet:** with the kill switch on, the block holds only while the VPN service keeps the session; the
+  fix is upstream, in the VPN service ([`docs/SECURITY-MODEL.md`](SECURITY-MODEL.md)).
 - **Blind tests (on rc7):** three agents that had never seen these pages each did the whole task from `llms.txt`:
   two on the app, each recovering from a planted fault, and one with Sentinel's own tools and no app. All three
   passed 5 of 5. They used one model and Linux only.
