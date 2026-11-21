@@ -1,5 +1,7 @@
 # Agentic Privacy — Solana devnet
 
+> **Devnet only: test tokens with no value.**
+
 **For AI agents.** This page gets you from nothing to a private connection through a Sentinel
 dVPN node on Solana devnet. No account, no API key, nothing hosted by us: you hold a key, you pay
 the node directly, you connect.
@@ -34,7 +36,7 @@ Rules of the tool:
 > |---|---|---|
 > | Runs on | Windows, Linux, macOS | **Linux only today** (x86_64, arm64, systemd + `sudo`; proven on Ubuntu 24.04 x86_64). macOS / Windows: use the app (Path A) |
 > | You install | the Devnet dVPN app (`devnet-dvpn`) | `sentinel-dvpnd` + `sentinel-dvpn`, Sentinel's public tools |
-> | Get it | download + verify against the release SHA256SUMS (source not public): [`docs/PROVENANCE.md`](docs/PROVENANCE.md) | download + verify, or build from source (`sh direct/build.sh`): [`docs/PROVENANCE.md`](docs/PROVENANCE.md) |
+> | Get it | download + verify against the release SHA256SUMS; source: [`docs/PROVENANCE.md`](docs/PROVENANCE.md) | download + verify, or build from source (`sh direct/build.sh`): [`docs/PROVENANCE.md`](docs/PROVENANCE.md) |
 > | First command | after install: `devnet-dvpn agent status --json` | the three lines below |
 > | Then | follow `next` in each answer | follow `next` in each answer (`disconnect.sh`, then `refund.sh --yes`) |
 > | Read | this page, from "Quick path" | full steps: [`docs/DIRECT.md`](docs/DIRECT.md) |
@@ -50,12 +52,12 @@ Rules of the tool:
 > Your own code instead of a CLI: [`docs/BUILD-YOUR-OWN-CLIENT.md`](docs/BUILD-YOUR-OWN-CLIENT.md).
 > A script that drives the app: [`docs/examples/agent-loop.mjs`](docs/examples/agent-loop.mjs) (one Node file, no dependencies: checks programId + mint, follows `next`, never pays without `--yes`).
 
-> **Release: `v0.3.0-rc9`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0-rc9` (Apple silicon; Intel
-> Macs: `docs/OLDER-RELEASES.md`). The same command line on all three. Pin the tag by name, as the lines below do.
+> **Release: `v0.3.0`** on Windows and Linux (GitHub marks it "Latest"); macOS: `v0.3.0` (Apple silicon; Intel
+> Macs: `docs/OLDER-RELEASES.md`). The same command line on all three. Pin the tag by name, as the lines below do. v0.3.0 = the rc.9 files unchanged: the app says `0.3.0-rc.9`.
 > The download line per OS:
-> - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh`
-> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0-rc9`, Apple silicon only).
-> - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0-rc9'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
+> - Linux: `curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0 sh`
+> - macOS: by hand, [`docs/INSTALL-BY-HAND.md`](docs/INSTALL-BY-HAND.md) (`…/releases/download/v0.3.0`, Apple silicon only).
+> - Windows (elevated PowerShell): `$env:DVPN_VERSION = 'v0.3.0'; irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex`
 >
 > Done when `devnet-dvpn version --json` says `0.3.0-rc.9`, network `devnet`, `programId`
 > `J52dyXW3a6mkatvrQct3fo6dA9vqUtcsdBt5gGqrTBXs` and `mint` `Hen2LVP6KooGaXEvdSyCHWghsEY4gLLn7wix8z6zHFSa`;
@@ -82,7 +84,7 @@ Rules of the tool:
 Linux and macOS (root or passwordless `sudo`):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh   # Linux; macOS: docs/INSTALL-BY-HAND.md
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0 sh   # Linux; macOS: docs/INSTALL-BY-HAND.md
 devnet-dvpn agent status --json                               # where am I; "next" says what is missing
 # only if agent status has no "address" (a key file already set stays as it is):
 export DVPN_KEYFILE="$PWD/agent-key.json"
@@ -105,7 +107,7 @@ Without `--max-price`, `agent up` picks the fastest of the cheapest nodes (a dep
 Windows (an **elevated** PowerShell, or SSH as an administrator):
 
 ```powershell
-$env:DVPN_VERSION = 'v0.3.0-rc9'
+$env:DVPN_VERSION = 'v0.3.0'
 irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
 devnet-dvpn agent status --json
 # only if agent status has no "address":
@@ -161,20 +163,20 @@ In a sandbox where you cannot become administrator / root you cannot install the
 Linux (deb, rpm, Arch; x64 and arm64):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0 sh
 ```
 
 To read it before it runs:
 
 ```sh
 curl -fsSLO https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh
-DVPN_VERSION=v0.3.0-rc9 sh install.sh
+DVPN_VERSION=v0.3.0 sh install.sh
 ```
 
 Windows (x64), elevated PowerShell:
 
 ```powershell
-$env:DVPN_VERSION = 'v0.3.0-rc9'
+$env:DVPN_VERSION = 'v0.3.0'
 irm https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.ps1 | iex
 ```
 
@@ -186,7 +188,7 @@ release with your package, which may not be the one this page is for), downloads
 release's `SHA256SUMS`, refuses a file that does not match, installs it with no questions, and
 runs `devnet-dvpn version --json`. It prints one JSON line:
 `{"ok":true,"tag":…,"file":…,"version":{…},"path":…,"next":…}`, or `{"ok":false,"error":…}`
-with exit code 1. `tag` must be `v0.3.0-rc9`.
+with exit code 1. `tag` must be `v0.3.0`.
 
 PATH afterwards:
 - Linux: `devnet-dvpn` is on PATH at once.
@@ -428,7 +430,7 @@ Every failure answer names `code`, `action` and `money`: run the `action`. Sympt
 internet, a node that stopped, `node-refused`, `unknown`, `clock-skew`, …): [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md);
 every code: [`docs/CODES.md`](docs/CODES.md). A deposit `open` with no session (`agent status` `deposits`): `agent down --yes` first, never `agent up`.
 
-Every command: [Linux](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-linux/blob/main/docs/CLI.md) · [Windows](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-windows/blob/main/docs/CLI.md) · [macOS](https://github.com/Sentinel-Bluebuilder/sentinel-solana-dvpn-macos/blob/main/docs/CLI.md).
+Every command: `docs/CLI.md` per OS, linked in [`docs/PROVENANCE.md`](docs/PROVENANCE.md) ("Source").
 MCP clients, after sections 1 to 4: [`mcp/README.md`](mcp/README.md).
 
 ## Appendix: JSON you will read

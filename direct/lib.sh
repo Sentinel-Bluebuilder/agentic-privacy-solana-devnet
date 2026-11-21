@@ -343,15 +343,27 @@ dclient() {
 # ─── daemon lifecycle: the daemon refuses to start until the grant exists ("preflight failed: grant") ───
 daemon_running() { [ -S "$SOCK" ] && systemctl is-active --quiet "sentinel-dvpnd@$INSTANCE.service"; }
 
-# daemon_up: start the service (after the grant) and wait up to 30 s for its socket
+# daemon_up: start the service (after the grant) and wait up to DAEMON_WAIT (30) s for its socket.
+# A failed `service start` still waits: its first try can hit a public-RPC 429, and systemd's Restart=
+# brings the daemon up seconds later (PB-1, live on devnet). If it never comes up, the journal says why:
+# a 429 there is rpc-busy (exit 6, wait and repeat this command), anything else daemon-unavailable.
 daemon_up() {
   daemon_running && return 0
   run sudo systemctl reset-failed "sentinel-dvpnd@$INSTANCE.service" 2>/dev/null || true
-  run sudo sentinel-dvpnd service start --instance "$INSTANCE" >&2 \
-    || fail "$E_OTHER" daemon-unavailable "the daemon did not start: sudo journalctl -u sentinel-dvpnd@$INSTANCE -n 20" \
-         "sudo sentinel-dvpnd doctor --instance $INSTANCE" none
-  i=0; while [ $i -lt 30 ]; do daemon_running && return 0; sleep 1; i=$((i + 1)); done
-  fail "$E_OTHER" daemon-unavailable "the daemon started but its socket $SOCK did not appear" "sudo sentinel-dvpnd doctor --instance $INSTANCE" none
+  du_started=1
+  run sudo sentinel-dvpnd service start --instance "$INSTANCE" >&2 || {
+    du_started=0
+    echo "service start failed: waiting up to ${DAEMON_WAIT:-30} s for systemd to restart it" >&2
+  }
+  i=0; while [ $i -lt "${DAEMON_WAIT:-30}" ]; do daemon_running && return 0; sleep 1; i=$((i + 1)); done
+  du_log=$(sudo journalctl -u "sentinel-dvpnd@$INSTANCE" -n 20 --no-pager 2>/dev/null || true)
+  if is_rpc_busy "$du_log"; then
+    fail "$E_NETWORK" rpc-busy "the daemon could not start: the public RPC is rate-limiting (429): sudo journalctl -u sentinel-dvpnd@$INSTANCE -n 20" \
+      "sleep 30 && $CMD" none "${DU_NOTE:-}"
+  fi
+  [ "$du_started" = 1 ] || fail "$E_OTHER" daemon-unavailable "the daemon did not start: sudo journalctl -u sentinel-dvpnd@$INSTANCE -n 20" \
+    "sudo sentinel-dvpnd doctor --instance $INSTANCE" none "${DU_NOTE:-}"
+  fail "$E_OTHER" daemon-unavailable "the daemon started but its socket $SOCK did not appear" "sudo sentinel-dvpnd doctor --instance $INSTANCE" none "${DU_NOTE:-}"
 }
 
 

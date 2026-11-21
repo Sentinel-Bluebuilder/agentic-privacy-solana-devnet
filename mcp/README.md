@@ -6,7 +6,7 @@ JSON and exit code unchanged. Solana devnet only: the tokens have no value.
 
 **Quick path (Linux; macOS / Windows install: [`AGENTS.md`](../AGENTS.md)).** Fund the address between steps 2 and 3.
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0-rc9 sh
+curl -fsSL https://raw.githubusercontent.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet/main/install.sh | DVPN_VERSION=v0.3.0 sh
 export DVPN_KEYFILE=$HOME/agent-key.json; devnet-dvpn wallet create --keyfile "$DVPN_KEYFILE" --yes --json   # prints the address
 devnet-dvpn daemon init --yes && devnet-dvpn device setup --yes && devnet-dvpn daemon install --yes
 git clone https://github.com/Sentinel-Bluebuilder/agentic-privacy-solana-devnet "$HOME/ap"   # the server: $HOME/ap/mcp/server.js
@@ -30,7 +30,7 @@ First three calls: `vpn_agent_status` → `vpn_up {"protocol":"wireguard","basis
 ## 1. Set the machine up with the CLI first
 
 MCP cannot set the machine up: installing the service needs administrator / root once. Do sections
-1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0-rc9** by name (macOS: Apple silicon),
+1–4 of [`AGENTS.md`](../AGENTS.md) with the CLI: install **v0.3.0** by name (macOS: Apple silicon),
 `wallet create --keyfile <path> --yes`, get the address funded (a person sends devnet SOL and
 tDVPN), then `daemon init` → `device setup --yes` → `daemon install --yes`. After that,
 everything below runs as the normal user over MCP.

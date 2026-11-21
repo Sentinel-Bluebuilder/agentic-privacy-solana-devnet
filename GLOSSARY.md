@@ -90,7 +90,7 @@ command and whether money moved, in [`docs/CODES.md`](docs/CODES.md) (every `doc
 - **`--json`** — the flag that makes a command print one line of JSON.
 - **ready** — in `wallet show --json`: `true` when this wallet is set up to connect. Shows: `wallet show --json`.
 - **version, tag, file, path** — the installer's answer: the app version it installed, the release tag, the file it used and the program's path. Shows: the last line of `install.sh` or `install.ps1`.
-- **DVPN_VERSION** — the release tag the installer takes, e.g. `v0.3.0-rc9`; without it the installer takes the newest. Changes: `DVPN_VERSION=v0.3.0-rc9 sh` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0-rc9'`).
+- **DVPN_VERSION** — the release tag the installer takes, e.g. `v0.3.0`; without it the installer takes the newest. Changes: `DVPN_VERSION=v0.3.0 sh` (PowerShell: `$env:DVPN_VERSION = 'v0.3.0'`).
 - **SHA256SUMS** — the list of checksums in a release; the installer compares the file to it. Shows: the release page.
 
 ## Since v0.3.0-rc5 (v0.3.0-rc4 does not have these)

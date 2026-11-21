@@ -1,6 +1,6 @@
 {
   "$comment": "The one source for the facts every public page repeats. tools/check-facts.mjs fails when a page says otherwise; tools/check-current-tag.mjs reads release from here. Change a fact here first, then run both.",
-  "release": { "current": "v0.3.0-rc9", "mac": "v0.3.0-rc9" },
+  "release": { "current": "v0.3.0", "mac": "v0.3.0", "appVersion": "0.3.0-rc.9" },
   "solBeforeSetup": "0.06",
   "defaultSpendingLimitTdvpn": "150",
   "capRule": "the larger of the spending limit / 10 and the market p75 price x units, never above the spending limit",

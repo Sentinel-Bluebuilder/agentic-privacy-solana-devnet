@@ -42,7 +42,7 @@ export function rules(f) {
     { id: 'exit-needs-confirm', re: /exit `?(\d)`? \(`?needsConfirm/gi, want: [f.exitNeedsConfirm] },
     { id: 'release-box', re: new RegExp('\\*\\*Release: `(v[^`]+)`\\*\\*', 'g'), want: [f.release.current] },
     { id: 'release-box-mac', re: /\*\*Release: `v[^`]+`\*\*[^\n]*?macOS: `(v[^`]+)`/g, want: [f.release.mac] },
-    { id: 'version-check', re: /version --json` says `(\d+\.\d+\.\d+-rc\.\d+)`/g, want: [f.release.current.replace(/^v/, '').replace(/-rc(\d+)$/, '-rc.$1')] },
+    { id: 'version-check', re: /version --json` says `(\d+\.\d+\.\d+-rc\.\d+)`/g, want: [f.release.appVersion ?? f.release.current.replace(/^v/, '').replace(/-rc(\d+)$/, '-rc.$1')] }, // appVersion: a promoted tag (v0.3.0 = the rc.9 files) keeps the build's version
     { id: 'tag-must-be', re: /`tag` must be `(v[^`]+)`/g, want: [f.release.current] },
   ];
 }

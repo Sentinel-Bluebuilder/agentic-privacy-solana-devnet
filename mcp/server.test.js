@@ -392,7 +392,7 @@ test('the code list matches the copy in this repository of docs/AGENT-COMMANDS.m
 // exactly once in the pinned file; after the corrections the two files must be equal. When the hub copy moves to a
 // new app commit, move APP_PIN with it and re-check each correction (drop the ones the app took).
 // No source: a skip, except with DVPN_REQUIRE_SRC=1 (the release gate, docs/RELEASE-CHECKLIST.md), where it fails.
-const APP_PIN = 'f4009a9594e5ef9c512bcafd7119290a97d38794'; // app source rc9-f2 (v0.3.0-rc9), the rc.9 page push
+const APP_PIN = '82ef4a4ccb331ada3602dd5674ee66d8936a0f9f'; // app source rc9-f3 (v0.3.0-rc9 Windows build), the Windows rc.9 push
 // rc9-f2 carries every earlier correction (B41 x2, clock-skew, LIM-1, exit 5 and 6, the sudo case, the B6 rows).
 const HUB_CORRECTIONS = [];
 

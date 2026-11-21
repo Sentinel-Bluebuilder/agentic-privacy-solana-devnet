@@ -183,9 +183,9 @@ starts its 2-hour close. Exit 0:
 | Code | From | `action` | What the agent does |
 |---|---|---|---|
 | `disconnect-failed` | `connect --follow` (Ctrl+C) | `<cli> agent status --json` | Ctrl+C asked the session to close and the disconnect failed, so the session may still be live. Read `agent status`; `<cli> agent down --yes` ends it and closes the deposit. |
-| `apply-busy` | `daemon set` | `<cli> agent status --json` | Another settings change was still being applied, so nothing was changed. When it has finished, run the same `daemon set` again. |
-| `apply-while-connecting` | `daemon set` | `<cli> agent status --json` | A connection was starting or stopping, so nothing was changed. When `agent status` shows it has settled, run the same `daemon set` again. |
-| `apply-failed` | `daemon set` | `<cli> agent status --json` | Applying the settings or restarting the service failed: read `error`. A live session may have ended with the restart; `agent status` says whether one is running. |
+| `apply-busy` | `daemon set` | `<cli> agent status --json` | Another settings change was still being applied, so nothing was changed and nothing was paid. When it has finished, run the same `daemon set` again. |
+| `apply-while-connecting` | `daemon set` | `<cli> agent status --json` | A connection was starting or stopping, so nothing was changed and nothing was paid. When `agent status` shows it has settled, run the same `daemon set` again. |
+| `apply-failed` | `daemon set` | `<cli> agent status --json` | Applying the settings or restarting the service failed: read `error`. Nothing was paid; a live session may have ended with the restart (its deposit stays open until `<cli> agent down --yes`); `agent status` says whether one is running. |
 
 ### From connect() (agent up), `action` = `nextFor(code)`
 

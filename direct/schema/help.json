@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/help.json",
+  "title": "direct/*.sh --help: the last line after the header text; next is the preview to run (nothing signs)",
+  "type": "object",
+  "required": ["ok", "step", "next"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "help"},
+    "next": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

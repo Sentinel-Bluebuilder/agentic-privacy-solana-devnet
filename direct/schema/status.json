@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direct/schema/status.json",
+  "title": "direct/status.sh last line (look only: connected or not)",
+  "type": "object",
+  "required": ["ok", "step", "connected", "session", "node", "protocol", "channel", "exitIp", "next", "onlyIf"],
+  "properties": {
+    "ok": {"const": true},
+    "step": {"const": "status"},
+    "connected": {"type": "boolean"},
+    "session": {"type": ["string", "null"], "minLength": 1},
+    "node": {"type": ["string", "null"], "minLength": 1},
+    "protocol": {"type": ["string", "null"], "minLength": 1},
+    "channel": {"type": ["string", "null"], "minLength": 1},
+    "exitIp": {"type": ["string", "null"], "pattern": "^([0-9]{1,3}[.]){3}[0-9]{1,3}$"},
+    "next": {"type": ["string", "null"], "pattern": "^(INSTANCE=[A-Za-z0-9_-]+ )?sh direct/disconnect\\.sh  # only if this run started the session$"},
+    "onlyIf": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

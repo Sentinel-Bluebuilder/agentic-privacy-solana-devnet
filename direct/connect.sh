@@ -137,6 +137,8 @@ if [ -z "$GRANT" ]; then
     --permissions "$PERMISSIONS" --never-expires --allowance "$ALLOWANCE" >/dev/null
   try none \
     sentinel-dvpn wallet approve-delegate --amount-base-units "$ALLOWANCE" >/dev/null
+  # a daemon failure after this point: no tDVPN moved, but these two transactions cost SOL (not "nothing paid")
+  DU_NOTE="No tDVPN was paid and no deposit is open. This run signed the grant and the delegate (about 0.0017 SOL rent plus two fees); they stay for the next connect, and close-all.sh returns the rent."
 fi
 
 # ─── 2. daemon: starts only once the grant exists ───

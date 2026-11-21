@@ -140,21 +140,21 @@ jobs:
         if: hashFiles('tools/check-glossary.mjs') != ''
         run: node tools/check-glossary.mjs
 
-      # Every reachable failure code has a row and an anchor in docs/CODES.md. Off here: the public app
-      # repos' release tags hold release files, not the CLI source, so DVPN_APP_SRC_REF stays unset. The same
-      # check (--require-src) runs against the private source before each release and must exit 0
-      # (docs/PROVENANCE.md, "What is checked against the source").
+      # Every reachable failure code has a row and an anchor in docs/CODES.md, against the public app source
+      # (docs/PROVENANCE.md, "Source"). On when both vars are set: DVPN_APP_SRC_REPO (owner/repo of a source repo)
+      # and DVPN_APP_SRC_REF (the release commit). The same check (--require-src) runs before each release and
+      # must exit 0 (docs/PROVENANCE.md, "What is checked against the source").
       - name: Check out the app source at DVPN_APP_SRC_REF
-        if: hashFiles('tools/check-glossary.mjs') != '' && vars.DVPN_APP_SRC_REF != ''
+        if: hashFiles('tools/check-glossary.mjs') != '' && vars.DVPN_APP_SRC_REPO != '' && vars.DVPN_APP_SRC_REF != ''
         uses: actions/checkout@v4
         with:
-          repository: Sentinel-Bluebuilder/sentinel-solana-dvpn-linux
+          repository: ${{ vars.DVPN_APP_SRC_REPO }}
           ref: ${{ vars.DVPN_APP_SRC_REF }}
           path: app-src
           sparse-checkout: src
 
       - name: Every reachable failure code has a row and an anchor (against the app source)
-        if: hashFiles('tools/check-glossary.mjs') != '' && vars.DVPN_APP_SRC_REF != ''
+        if: hashFiles('tools/check-glossary.mjs') != '' && vars.DVPN_APP_SRC_REPO != '' && vars.DVPN_APP_SRC_REF != ''
         run: node tools/check-glossary.mjs --src app-src --require-src
 
       - name: llms-full.txt is up to date

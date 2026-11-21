@@ -12,7 +12,7 @@ commands those answers tell it to run (`settle`, `device`, `wallet`). One row pe
 - **alsoNext**: the other way out. Only `agent status` prints an `alsoNext` field. On a failure line this
   column is this page's fallback for when **Next** does not work.
 
-Source of truth: the `devnet-dvpn` app at 0.3.0-rc.9 (`68d0f22e8`, 124 traced codes, every one with a row), traced from `src/cli/agent-cmd.ts`.
+Source of truth: the `devnet-dvpn` app at 0.3.0-rc.9 (`82ef4a4cc`, 127 traced codes, every one with a row), traced from `src/cli/agent-cmd.ts`.
 `tools/check-glossary.mjs --src <devnet-dvpn checkout>` fails when a code those paths can return has no
 row here, or when a row's money class differs from `src/cli/money-note.ts`.
 

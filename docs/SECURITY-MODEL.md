@@ -1,6 +1,6 @@
 # Security model
 
-What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0-rc9.
+What holds your money, what can spend it, what a node sees, and what we run. For `devnet-dvpn` v0.3.0.
 Devnet only: SOL and tDVPN here have no value. Terms: [`GLOSSARY.md`](../GLOSSARY.md).
 
 ## What we host: nothing
@@ -9,8 +9,7 @@ No account, no API key, no server of ours sits between you and a node. You downl
 GitHub (checked against its `SHA256SUMS`), your computer talks to Solana devnet RPC and to the node you pay.
 This repository holds documents, the installers and an MCP server that runs on your own computer.
 
-**Windows install folder.** Install Windows into Program Files (the default); with /D use only an admin-owned or new folder. A folder that other users can write to lets them change the app's files
-while it installs, before the folder is locked.
+**Windows install folder.** Fixed in the current v0.3.0-rc9 Windows installer (the hash in `docs/PROVENANCE.md`): it locks the install folder to administrators before it writes any file, and refuses a /D folder that other users can change (a parent folder they control, or a folder that already holds files and is not admin-only). Program Files (the default) needs nothing. Earlier downloads of v0.3.0-rc9 locked the folder only after the unpack: there, with /D use only an admin-owned or new folder.
 
 ## Two keys
 

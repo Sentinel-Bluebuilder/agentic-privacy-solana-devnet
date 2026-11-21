@@ -7,6 +7,10 @@ Terms: [`GLOSSARY.md`](GLOSSARY.md).
 
 Check which release you have: `devnet-dvpn version --json`.
 
+## v0.3.0
+
+The v0.3.0-rc9 files, promoted unchanged: the same SHA256SUMS on all three OSes, so `devnet-dvpn version --json` still says `0.3.0-rc.9`. Nothing changed for an agent; pin `v0.3.0` (`DVPN_VERSION=v0.3.0`). The macOS app source is public ([`docs/PROVENANCE.md`](docs/PROVENANCE.md), Path A); the Windows and Linux source is not public yet.
+
 ## v0.3.0-rc9
 
 Draft: each line ships only if its change is in the rc9 build (drop the line otherwise).

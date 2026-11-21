@@ -1,5 +1,7 @@
 # Agentic Privacy — Solana devnet
 
+> **Devnet only: test tokens with no value.**
+
 Private internet for AI agents, with no account, no API key and no company server in the middle.
 An agent holds its own key, pays a Sentinel dVPN node directly on Solana devnet and connects
 through it. It chooses the protocol (WireGuard, AmneziaWG, OpenVPN, V2Ray, Xray, Hysteria2),
@@ -29,7 +31,7 @@ deposit back. Every `devnet-dvpn` command on it exists in the release it names.
 
 ## Get the app
 
-Use release **v0.3.0-rc9** (GitHub "Latest" on Windows and Linux), by name; on macOS too (Apple silicon; Intel Macs: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md)).
+Use release **v0.3.0** (GitHub "Latest" on Windows and Linux), by name; on macOS too (Apple silicon; Intel Macs: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md)).
 On an older release: [`docs/OLDER-RELEASES.md`](docs/OLDER-RELEASES.md). What changed per release (rc4 → rc5 → rc6 → rc7 → rc8, breaking changes first): [`CHANGELOG.md`](CHANGELOG.md).
 
 | OS | Releases |

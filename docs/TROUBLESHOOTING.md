@@ -1,6 +1,6 @@
 # Troubleshooting: symptom → cause → command
 
-For `devnet-dvpn` v0.3.0-rc9, macOS Apple silicon included ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
+For `devnet-dvpn` v0.3.0, macOS Apple silicon included ([`AGENTS.md`](../AGENTS.md); older releases: [`OLDER-RELEASES.md`](OLDER-RELEASES.md)). Every `code` here is a real one; its full row
 (meaning, whether money moved, next, the other way out) is in [`CODES.md`](CODES.md), linked from the Code column. Terms:
 [`GLOSSARY.md`](../GLOSSARY.md).
 
@@ -66,7 +66,7 @@ In order. `agent status --json` names the one you are in, and its `next` is the 
 | The service is starting or stopping | [`service-not-ready`](CODES.md#code-service-not-ready) | The service is starting or stopping. | The same command again in a moment. |
 | The VPN service is not installed | [`daemon-missing`](CODES.md#code-daemon-missing) | Nothing was paid. | Linux / macOS: `devnet-dvpn daemon install --yes` as root or with passwordless `sudo`. Windows: see the next row. |
 | Windows: a UAC prompt appears and nothing happens | [`daemon-relogin`](CODES.md#code-daemon-relogin) | The shell is not elevated (an agent cannot answer UAC), or the service pipe does not accept this account yet. | Run `devnet-dvpn daemon install --yes` once from an **elevated** PowerShell or an administrator SSH login. After `"relogin": true`, a non-elevated shell needs a new sign-in or SSH session. |
-| Windows: choosing where to install (the installer's `/D` option) | none | A folder that other users can write to lets them change the app's files while it installs, before the folder is locked. Nothing was paid. | Install Windows into Program Files (the default); with /D use only an admin-owned or new folder. |
+| Windows: choosing where to install (the installer's `/D` option) | none | The current v0.3.0-rc9 installer locks the folder before it writes any file and refuses a /D folder other users can change; earlier v0.3.0-rc9 downloads locked it only after the unpack. Nothing was paid. | Program Files (the default) needs nothing. With an earlier v0.3.0-rc9 download, use /D only with an admin-owned or new folder. |
 | macOS over SSH: "The login Keychain is locked in this session" | none | Without a key file the wallet is kept in the login Keychain, which stays locked in an SSH session. | Use a key file: `export DVPN_KEYFILE="$PWD/agent-key.json"` (or `--keyfile <path>`); a key-file wallet never touches the Keychain. Or unlock it: `security unlock-keychain` (needs the password). |
 | The key file is gone, exit `4` | [`keyfile-missing`](CODES.md#code-keyfile-missing) | The file `DVPN_KEYFILE` / `--keyfile` names is gone. The funds stay with that key. | Restore the file from your backup and run the command again. Never `wallet create`: a new wallet holds none of the funds. |
 | "No wallet" but you had one | [`no-wallet`](CODES.md#code-no-wallet) | `DVPN_KEYFILE` is not set in this shell (it lives only in the shell that set it). | `export DVPN_KEYFILE=<full path>` (PowerShell: `$env:DVPN_KEYFILE = '<full path>'`), or `devnet-dvpn wallet import <file>`. Never `wallet create`. |
